@@ -130,7 +130,8 @@ button.cam.active { background: var(--accent); }
 
 /* Nút xuất video + báo đang ghi */
 button.export {
-  width: 100%;
+  flex: 1;
+  min-width: 130px;
   background: var(--panel2);
   border: 1px solid var(--line);
   color: var(--text);

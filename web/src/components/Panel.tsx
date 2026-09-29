@@ -30,20 +30,50 @@ export function Panel() {
   const beatPeriod = 60 / bpm;
   const hasPath = !!sel && sel.waypoints.length >= 2;
 
+  // Ghi một vũ công theo góc nhìn hiện tại. `label` hiển thị trên badge/nút.
+  async function recordDancer(id: string, name: string, label: string) {
+    const st = useStore.getState();
+    st.select(id);
+    st.setExporting(label);
+    // Chờ React commit selectedId để CameraRig bám đúng người trước khi ghi
+    // (warmup trong recordCurrentView lo phần camera lerp hội tụ).
+    await new Promise((r) => setTimeout(r, 60));
+    const duration = st.duration || 8;
+    const modeLabel = CAM_LABELS[st.cameraMode];
+    const safe = `${name}-${modeLabel}`.replace(/\s+/g, "_");
+    await recordCurrentView(duration, `choreo-${safe}.webm`);
+  }
+
   // Xuất video góc nhìn hiện tại của vũ công đang chọn (một vòng lặp).
   async function exportView() {
     if (!sel || exporting) return;
-    const st = useStore.getState();
-    const duration = st.duration || 8;
-    const modeLabel = CAM_LABELS[st.cameraMode];
-    st.setExporting(sel.name);
     try {
-      const safe = `${sel.name}-${modeLabel}`.replace(/\s+/g, "_");
-      await recordCurrentView(duration, `choreo-${safe}.webm`);
+      await recordDancer(sel.id, sel.name, sel.name);
     } catch (e) {
       alert("Không ghi được video: " + String(e));
     } finally {
       useStore.getState().setExporting(null);
+    }
+  }
+
+  // Xuất lần lượt một video cho từng vũ công theo góc nhìn hiện tại —
+  // hiện thực "mỗi thành viên một clip tập riêng" cho cả nhóm trong một lượt.
+  async function exportAll() {
+    if (exporting) return;
+    const list = useStore.getState().dancers;
+    if (list.length === 0) return;
+    const prevSel = useStore.getState().selectedId;
+    try {
+      for (let i = 0; i < list.length; i++) {
+        const d = list[i];
+        await recordDancer(d.id, d.name, `${d.name} (${i + 1}/${list.length})`);
+      }
+    } catch (e) {
+      alert("Không ghi được video cả nhóm: " + String(e));
+    } finally {
+      const st = useStore.getState();
+      st.select(prevSel);
+      st.setExporting(null);
     }
   }
 
@@ -92,7 +122,15 @@ export function Panel() {
           title="Ghi một vòng lặp của góc nhìn hiện tại ra tệp .webm để mang đi tập"
           onClick={exportView}
         >
-          {exporting ? `● đang ghi ${exporting}…` : "⤓ Xuất video góc nhìn này"}
+          {exporting ? `● đang ghi ${exporting}…` : "⤓ Xuất video vũ công này"}
+        </button>
+        <button
+          className="export"
+          disabled={dancers.length === 0 || !!exporting}
+          title="Ghi lần lượt một video cho từng vũ công theo góc nhìn hiện tại"
+          onClick={exportAll}
+        >
+          ⤓⤓ Xuất cả nhóm
         </button>
       </div>
 
