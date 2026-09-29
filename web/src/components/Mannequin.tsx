@@ -1,5 +1,7 @@
 // Một vũ công ảo: vẽ khung xương (spheres ở khớp + lineSegments ở xương) và
 // cập nhật tư thế mỗi khung bằng useFrame (đọc time qua getState -> không re-render).
+// Nếu vũ công có đường đi (>=2 waypoint) thì vị trí/hướng bám theo đường; ngược
+// lại dùng vị trí/hướng tĩnh trong store.
 
 import { useRef, useMemo, useLayoutEffect } from "react";
 import { useFrame } from "@react-three/fiber";
@@ -7,6 +9,7 @@ import * as THREE from "three";
 import type { ClipData } from "../clip";
 import { samplePose } from "../clip";
 import { useStore, type Dancer } from "../store";
+import { makeCurve, sampledPath } from "../path";
 
 const dummy = new THREE.Object3D();
 
@@ -23,6 +26,9 @@ export function Mannequin({ clip, dancer }: { clip: ClipData; dancer: Dancer }) 
     [clip.edges.length]
   );
 
+  // Đường cong (chỉ dựng lại khi waypoint đổi).
+  const curve = useMemo(() => makeCurve(dancer.waypoints), [dancer.waypoints]);
+
   useLayoutEffect(() => {
     if (geomRef.current) {
       geomRef.current.setAttribute(
@@ -33,8 +39,22 @@ export function Mannequin({ clip, dancer }: { clip: ClipData; dancer: Dancer }) 
   }, [linePositions]);
 
   useFrame(() => {
-    const { time } = useStore.getState();
+    const { time, duration } = useStore.getState();
     samplePose(clip, time - dancer.timeOffset, pose);
+
+    // Vị trí/hướng của cả nhóm: bám đường đi nếu có, ngược lại tĩnh.
+    const g = groupRef.current;
+    if (g) {
+      if (curve) {
+        const s = sampledPath(curve, time - dancer.timeOffset, duration);
+        g.position.set(s.x, dancer.position[1], s.z);
+        g.rotation.y = dancer.faceAlongPath ? s.rotationY : dancer.rotationY;
+      } else {
+        g.position.set(dancer.position[0], dancer.position[1], dancer.position[2]);
+        g.rotation.y = dancer.rotationY;
+      }
+      g.scale.x = dancer.mirror ? -1 : 1;
+    }
 
     // Cập nhật vị trí các khớp (instanced spheres).
     const inst = jointsRef.current;
@@ -66,12 +86,7 @@ export function Mannequin({ clip, dancer }: { clip: ClipData; dancer: Dancer }) 
   });
 
   return (
-    <group
-      ref={groupRef}
-      position={dancer.position}
-      rotation={[0, dancer.rotationY, 0]}
-      scale={[dancer.mirror ? -1 : 1, 1, 1]}
-    >
+    <group ref={groupRef}>
       <instancedMesh ref={jointsRef} args={[undefined, undefined, J]}>
         <sphereGeometry args={[0.035, 12, 12]} />
         <meshStandardMaterial color={dancer.color} roughness={0.5} />

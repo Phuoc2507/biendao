@@ -69,8 +69,36 @@ button.ghost { background: var(--panel2); }
 .editor { display: flex; flex-direction: column; gap: 4px; }
 .editor label { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .editor input[type="range"] { width: 100%; accent-color: var(--accent); }
+.editor input[type="range"]:disabled { opacity: 0.35; }
 .editor .check { display: flex; align-items: center; gap: 8px; color: var(--text); margin-top: 12px; }
 .editor .check input { width: auto; }
+.editor select {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 8px; font-size: 13px;
+}
+
+/* ---- Camera mode ---- */
+.camrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.camlabel { font-size: 12px; color: var(--muted); }
+button.cam { background: var(--panel2); padding: 5px 9px; font-size: 12px; }
+button.cam.active { background: var(--accent); }
+
+/* ---- Path editor ---- */
+.pathbox {
+  margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.pathrow { display: flex; gap: 6px; }
+.pathrow button { flex: 1; }
+.pathrow button.active { background: #37d67a; }
+.pathbox .mini { font-size: 11px; color: var(--muted); }
+
+.edit-hint {
+  position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.7); padding: 8px 14px; border-radius: 8px;
+  font-size: 12px; color: var(--text); white-space: nowrap;
+}
+.edit-hint b { color: #37d67a; }
 
 .hint { font-size: 11px; color: var(--muted); margin-top: auto; line-height: 1.5; }
 

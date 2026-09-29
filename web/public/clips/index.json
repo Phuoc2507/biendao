@@ -1,0 +1,32 @@
+{
+  "clips": [
+    {
+      "name": "wave",
+      "label": "Vẫy tay + bước",
+      "file": "wave.json",
+      "bpm": 120.0,
+      "frames": 240
+    },
+    {
+      "name": "step",
+      "label": "Dồn trọng tâm",
+      "file": "step.json",
+      "bpm": 120.0,
+      "frames": 240
+    },
+    {
+      "name": "bounce",
+      "label": "Nhảy nhún",
+      "file": "bounce.json",
+      "bpm": 128.0,
+      "frames": 240
+    },
+    {
+      "name": "point",
+      "label": "Chỉ tay",
+      "file": "point.json",
+      "bpm": 112.0,
+      "frames": 240
+    }
+  ]
+}

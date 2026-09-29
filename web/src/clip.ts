@@ -19,10 +19,34 @@ export interface ClipData {
   contacts?: number[][];
 }
 
+export interface ClipIndexEntry {
+  name: string;
+  label: string;
+  file: string;
+  bpm: number;
+  frames: number;
+}
+
 export async function loadClip(url: string): Promise<ClipData> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Không nạp được clip: ${url} (${res.status})`);
   return (await res.json()) as ClipData;
+}
+
+/** Nạp danh mục clip + toàn bộ clip. Trả về (index, map tên->clip). */
+export async function loadLibrary(
+  base = "/clips"
+): Promise<{ index: ClipIndexEntry[]; clips: Record<string, ClipData> }> {
+  const res = await fetch(`${base}/index.json`);
+  if (!res.ok) throw new Error(`Không nạp được index clip (${res.status})`);
+  const index = ((await res.json()).clips ?? []) as ClipIndexEntry[];
+  const clips: Record<string, ClipData> = {};
+  await Promise.all(
+    index.map(async (e) => {
+      clips[e.name] = await loadClip(`${base}/${e.file}`);
+    })
+  );
+  return { index, clips };
 }
 
 export function clipDuration(clip: ClipData): number {
