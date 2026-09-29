@@ -3,6 +3,7 @@
 
 import { useStore, type CameraMode } from "../store";
 import { clearSaved } from "../persist";
+import { recordCurrentView } from "../record";
 
 const CAM_LABELS: Record<CameraMode, string> = {
   orbit: "Tự do",
@@ -19,6 +20,7 @@ export function Panel() {
   const showBeatGrid = useStore((s) => s.showBeatGrid);
   const cameraMode = useStore((s) => s.cameraMode);
   const editingPath = useStore((s) => s.editingPath);
+  const exporting = useStore((s) => s.exporting);
   const {
     addDancer, cloneSelected, removeDancer, updateDancer, select, toggleBeatGrid,
     setDancerClip, setCameraMode, setEditingPath, clearPath,
@@ -27,6 +29,23 @@ export function Panel() {
   const sel = dancers.find((d) => d.id === selectedId) ?? null;
   const beatPeriod = 60 / bpm;
   const hasPath = !!sel && sel.waypoints.length >= 2;
+
+  // Xuất video góc nhìn hiện tại của vũ công đang chọn (một vòng lặp).
+  async function exportView() {
+    if (!sel || exporting) return;
+    const st = useStore.getState();
+    const duration = st.duration || 8;
+    const modeLabel = CAM_LABELS[st.cameraMode];
+    st.setExporting(sel.name);
+    try {
+      const safe = `${sel.name}-${modeLabel}`.replace(/\s+/g, "_");
+      await recordCurrentView(duration, `choreo-${safe}.webm`);
+    } catch (e) {
+      alert("Không ghi được video: " + String(e));
+    } finally {
+      useStore.getState().setExporting(null);
+    }
+  }
 
   return (
     <div className="panel">
@@ -64,6 +83,17 @@ export function Panel() {
             {CAM_LABELS[m]}
           </button>
         ))}
+      </div>
+
+      <div className="camrow">
+        <button
+          className="export"
+          disabled={!sel || !!exporting}
+          title="Ghi một vòng lặp của góc nhìn hiện tại ra tệp .webm để mang đi tập"
+          onClick={exportView}
+        >
+          {exporting ? `● đang ghi ${exporting}…` : "⤓ Xuất video góc nhìn này"}
+        </button>
       </div>
 
       <div className="list">

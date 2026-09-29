@@ -5,6 +5,7 @@ import { Stage } from "./components/Stage";
 import { Mannequin } from "./components/Mannequin";
 import { PathEditor } from "./components/PathEditor";
 import { CameraRig } from "./components/CameraRig";
+import { CanvasCapture } from "./components/CanvasCapture";
 import { PlaybackClock } from "./components/PlaybackClock";
 import { Timeline } from "./components/Timeline";
 import { Panel } from "./components/Panel";
@@ -20,6 +21,7 @@ export default function App() {
   const selectedId = useStore((s) => s.selectedId);
   const cameraMode = useStore((s) => s.cameraMode);
   const editingPath = useStore((s) => s.editingPath);
+  const exporting = useStore((s) => s.exporting);
   const setLibrary = useStore((s) => s.setLibrary);
   const setPlaying = useStore((s) => s.setPlaying);
   const [error, setError] = useState<string | null>(null);
@@ -64,12 +66,17 @@ export default function App() {
       <Panel />
 
       <div className="viewport">
-        <Canvas shadows camera={{ position: [3.5, 2.4, 5], fov: 45 }}>
+        <Canvas
+          shadows
+          gl={{ preserveDrawingBuffer: true }}
+          camera={{ position: [3.5, 2.4, 5], fov: 45 }}
+        >
           <color attach="background" args={["#12161c"]} />
           <Stage />
           <PlaybackClock />
           <PathEditor />
           <CameraRig />
+          <CanvasCapture />
           {ready &&
             dancers.map((d) => (
               <Mannequin
@@ -89,6 +96,11 @@ export default function App() {
 
         {error && <div className="error">Lỗi nạp clip: {error}</div>}
         {!ready && !error && <div className="loading">Đang nạp clip…</div>}
+        {exporting && (
+          <div className="rec-badge">
+            <span className="rec-dot" /> Đang ghi video: {exporting}…
+          </div>
+        )}
         {editingPath && (
           <div className="edit-hint">
             Sửa đường đi: <b>click sàn</b> để thêm mốc · <b>kéo</b> để dời ·

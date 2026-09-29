@@ -67,6 +67,7 @@ interface State {
   editingPath: boolean;
   dancers: Dancer[];
   selectedId: string | null;
+  exporting: string | null; // tên vũ công đang xuất video, null = không xuất
 
   setLibrary: (index: ClipIndexEntry[], clips: Record<string, ClipData>) => void;
   clipFor: (d: Dancer) => ClipData | null;
@@ -82,6 +83,7 @@ interface State {
   toggleBeatGrid: () => void;
   setCameraMode: (m: CameraMode) => void;
   setEditingPath: (v: boolean) => void;
+  setExporting: (label: string | null) => void;
   // Đường đi
   addWaypoint: (id: string, xz: [number, number]) => void;
   updateWaypoint: (id: string, i: number, xz: [number, number]) => void;
@@ -106,6 +108,7 @@ export const useStore = create<State>((set, get) => ({
   editingPath: false,
   dancers: [makeDancer({ position: [0, 0, 0] })],
   selectedId: "d0",
+  exporting: null,
 
   setLibrary: (index, clips) => {
     const defaultClip = index[0]?.name ?? "";
@@ -172,6 +175,7 @@ export const useStore = create<State>((set, get) => ({
   toggleBeatGrid: () => set((s) => ({ showBeatGrid: !s.showBeatGrid })),
   setCameraMode: (m) => set({ cameraMode: m }),
   setEditingPath: (v) => set({ editingPath: v }),
+  setExporting: (label) => set({ exporting: label }),
 
   addWaypoint: (id, xz) =>
     set((s) => ({
