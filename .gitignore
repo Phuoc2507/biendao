@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+data/
+outputs/
+*.mp4
+*.mov
+*.fbx
+*.glb
+node_modules/
+dist/
+.DS_Store

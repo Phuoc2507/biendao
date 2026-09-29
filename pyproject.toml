@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "choreo"
+version = "0.1.0"
+description = "Bắt chuyển động múa 3D bằng 2 điện thoại + sequencer sân khấu"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+# Các gói nặng (cài trên GPU lab khi chạy pipeline thật):
+# opencv-python, torch, easymocap, mmpose, librosa
+heavy = ["opencv-python", "scipy", "librosa"]
+
+[tool.setuptools.packages.find]
+include = ["choreo*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
