@@ -12,3 +12,9 @@ outputs/
 node_modules/
 dist/
 .DS_Store
+
+# TS build artifacts
+web/dist/
+web/vite.config.js
+web/vite.config.d.ts
+*.tsbuildinfo
