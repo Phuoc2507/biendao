@@ -1,8 +1,9 @@
 // Bảng điều khiển: danh sách vũ công + chọn clip / vị trí / hướng / lật gương /
 // lệch nhịp + đường đi + chế độ camera.
 
+import { useRef } from "react";
 import { useStore, type CameraMode } from "../store";
-import { clearSaved } from "../persist";
+import { clearSaved, exportProjectFile, importProjectFile } from "../persist";
 import { recordCurrentView } from "../record";
 
 const CAM_LABELS: Record<CameraMode, string> = {
@@ -29,6 +30,17 @@ export function Panel() {
   const sel = dancers.find((d) => d.id === selectedId) ?? null;
   const beatPeriod = 60 / bpm;
   const hasPath = !!sel && sel.waypoints.length >= 2;
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Nạp dàn dựng từ tệp .json người dùng chọn.
+  function onImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = ""; // cho phép chọn lại cùng tệp lần sau
+    if (!f) return;
+    importProjectFile(f).catch((err) =>
+      alert("Không mở được tệp: " + String(err))
+    );
+  }
 
   // Ghi một vũ công theo góc nhìn hiện tại. `label` hiển thị trên badge/nút.
   async function recordDancer(id: string, name: string, label: string) {
@@ -132,6 +144,31 @@ export function Panel() {
         >
           ⤓⤓ Xuất cả nhóm
         </button>
+      </div>
+
+      <div className="camrow">
+        <span className="camlabel">Dự án:</span>
+        <button
+          className="cam"
+          title="Lưu toàn bộ dàn dựng ra tệp .json để chia sẻ / mang sang máy khác"
+          onClick={exportProjectFile}
+        >
+          ⭳ Lưu tệp
+        </button>
+        <button
+          className="cam"
+          title="Mở một dàn dựng đã lưu từ tệp .json"
+          onClick={() => fileRef.current?.click()}
+        >
+          ⭱ Mở tệp
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".json,application/json"
+          style={{ display: "none" }}
+          onChange={onImportFile}
+        />
       </div>
 
       <div className="list">
