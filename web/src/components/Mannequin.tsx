@@ -13,7 +13,15 @@ import { makeCurve, sampledPath } from "../path";
 
 const dummy = new THREE.Object3D();
 
-export function Mannequin({ clip, dancer }: { clip: ClipData; dancer: Dancer }) {
+export function Mannequin({
+  clip,
+  dancer,
+  selected,
+}: {
+  clip: ClipData;
+  dancer: Dancer;
+  selected: boolean;
+}) {
   const J = clip.jointNames.length;
   const groupRef = useRef<THREE.Group>(null);
   const jointsRef = useRef<THREE.InstancedMesh>(null);
@@ -95,6 +103,18 @@ export function Mannequin({ clip, dancer }: { clip: ClipData; dancer: Dancer }) 
         <bufferGeometry ref={geomRef} />
         <lineBasicMaterial color={dancer.color} linewidth={2} />
       </lineSegments>
+
+      {/* Bóng tiếp đất + vòng chọn dưới chân */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
+        <circleGeometry args={[0.34, 32]} />
+        <meshBasicMaterial color="#000000" transparent opacity={0.28} />
+      </mesh>
+      {selected && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}>
+          <ringGeometry args={[0.36, 0.42, 40]} />
+          <meshBasicMaterial color={dancer.color} transparent opacity={0.9} />
+        </mesh>
+      )}
     </group>
   );
 }

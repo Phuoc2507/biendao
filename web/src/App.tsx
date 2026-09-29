@@ -10,12 +10,14 @@ import { Timeline } from "./components/Timeline";
 import { Panel } from "./components/Panel";
 import { useStore } from "./store";
 import { loadLibrary } from "./clip";
+import { saveProject, loadSaved } from "./persist";
 
 export default function App() {
   const ready = useStore((s) => s.clip);
   const clips = useStore((s) => s.clips);
   const defaultClip = useStore((s) => s.defaultClip);
   const dancers = useStore((s) => s.dancers);
+  const selectedId = useStore((s) => s.selectedId);
   const cameraMode = useStore((s) => s.cameraMode);
   const editingPath = useStore((s) => s.editingPath);
   const setLibrary = useStore((s) => s.setLibrary);
@@ -25,11 +27,35 @@ export default function App() {
   useEffect(() => {
     loadLibrary("/clips")
       .then(({ index, clips }) => {
+        // Đọc bản lưu TRƯỚC: setLibrary đổi `dancers` sẽ kích hoạt autosave và
+        // ghi đè localStorage, nên phải nắm dữ liệu cũ trong tay trước.
+        const saved = loadSaved();
         setLibrary(index, clips);
+        if (saved) {
+          const st = useStore.getState();
+          st.loadProject(saved.dancers);
+          st.setCameraMode(saved.cameraMode);
+          if (saved.showBeatGrid !== st.showBeatGrid) st.toggleBeatGrid();
+        }
         setPlaying(true);
       })
       .catch((e) => setError(String(e)));
   }, [setLibrary, setPlaying]);
+
+  // Tự lưu khi vũ công / camera / mốc đổi (bỏ qua cập nhật `time` 60fps).
+  useEffect(() => {
+    let prevD = useStore.getState().dancers;
+    let prevC = useStore.getState().cameraMode;
+    let prevG = useStore.getState().showBeatGrid;
+    return useStore.subscribe((s) => {
+      if (s.dancers !== prevD || s.cameraMode !== prevC || s.showBeatGrid !== prevG) {
+        prevD = s.dancers;
+        prevC = s.cameraMode;
+        prevG = s.showBeatGrid;
+        saveProject();
+      }
+    });
+  }, []);
 
   const orbit = cameraMode === "orbit" && !editingPath;
 
@@ -50,6 +76,7 @@ export default function App() {
                 key={d.id}
                 clip={clips[d.clipName] ?? ready}
                 dancer={d}
+                selected={d.id === selectedId}
               />
             ))}
           <OrbitControls

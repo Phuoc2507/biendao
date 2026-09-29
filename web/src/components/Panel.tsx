@@ -2,6 +2,7 @@
 // lệch nhịp + đường đi + chế độ camera.
 
 import { useStore, type CameraMode } from "../store";
+import { clearSaved } from "../persist";
 
 const CAM_LABELS: Record<CameraMode, string> = {
   orbit: "Tự do",
@@ -37,6 +38,18 @@ export function Panel() {
         <button onClick={cloneSelected} disabled={!sel}>⧉ Nhân bản</button>
         <button className="ghost" onClick={toggleBeatGrid}>
           {showBeatGrid ? "Ẩn mốc SK" : "Hiện mốc SK"}
+        </button>
+        <button
+          className="ghost"
+          title="Xoá dự án đã lưu và dựng lại từ đầu"
+          onClick={() => {
+            if (confirm("Đặt lại toàn bộ dàn dựng? Không thể hoàn tác.")) {
+              clearSaved();
+              location.reload();
+            }
+          }}
+        >
+          ↺ Đặt lại
         </button>
       </div>
 
