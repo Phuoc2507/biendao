@@ -44,6 +44,23 @@ JOINT_INDEX: dict[str, int] = {name: i for i, name in enumerate(JOINT_NAMES)}
 FOOT_JOINTS: tuple[int, int] = (JOINT_INDEX["l_ankle"], JOINT_INDEX["r_ankle"])
 ROOT_JOINT: int = JOINT_INDEX["pelvis"]
 
+# Cạnh xương (cha, con) — dùng để vẽ mannequin ở sequencer web và debug.
+SKELETON_EDGES: tuple[tuple[int, int], ...] = (
+    (0, 1), (0, 2), (0, 3),      # pelvis -> hông trái/phải, cột sống
+    (1, 4), (2, 5),              # hông -> gối
+    (4, 7), (5, 8),              # gối -> mắt cá
+    (3, 6), (6, 9),              # cột sống -> cổ -> đầu
+    (6, 10), (6, 11),            # cổ -> vai trái/phải
+    (10, 12), (11, 13),          # vai -> khuỷu
+    (12, 14), (13, 15),          # khuỷu -> cổ tay
+)
+
+# Cặp khớp trái/phải — dùng khi lật gương (mirror) mannequin.
+MIRROR_PAIRS: tuple[tuple[int, int], ...] = (
+    (1, 2), (4, 5), (7, 8),          # hông, gối, mắt cá
+    (10, 11), (12, 13), (14, 15),    # vai, khuỷu, cổ tay
+)
+
 
 @dataclass
 class BeatGrid:

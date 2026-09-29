@@ -19,10 +19,14 @@ tests/                # Unit test cho phần thuần CPU (chạy được ngay, 
 
 ## Trạng thái
 
-Phần chạy được ngay (không cần GPU/dữ liệu thật): **M1 sync**, **M5 metrics**, **interface adapter**.
-Phần cần GPU lab + clip thật: **M2 fuse (EasyMocap)**, chạy sau khi thu dữ liệu.
+Chạy được ngay (không cần GPU/dữ liệu thật):
+- **M1 sync**, **M3 cleanup**, **M5 metrics**, **interface adapter** (Python, có test).
+- **M4 sequencer web** (`web/`): sân khấu 3D, nhiều vũ công, nhân bản/lật gương/lệch nhịp
+  (canon), timeline 8-count. Đang chạy bằng clip demo tổng hợp.
 
-## Chạy test
+Cần GPU lab + clip thật (dựng sau): **M2 fuse (EasyMocap/XRMoCap)**.
+
+## Chạy test (Python)
 
 ```bash
 python -m venv .venv
@@ -30,3 +34,13 @@ python -m venv .venv
 pip install -e ".[dev]"
 pytest -q
 ```
+
+## Chạy sequencer web (M4)
+
+```bash
+python -m choreo.io.export_web   # sinh web/public/clips/demo.json
+cd web && npm install && npm run dev
+```
+
+Mở http://localhost:5173. Định dạng clip do `choreo/io/export_web.py` xuất — đây là
+ranh giới perception ↔ web: sau này chỉ cần thay clip demo bằng output mocap 2-cam thật.
