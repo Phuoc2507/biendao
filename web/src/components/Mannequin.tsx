@@ -1,9 +1,10 @@
-// Một vũ công ảo: vẽ khung xương (spheres ở khớp + lineSegments ở xương) và
-// cập nhật tư thế mỗi khung bằng useFrame (đọc time qua getState -> không re-render).
-// Nếu vũ công có đường đi (>=2 waypoint) thì vị trí/hướng bám theo đường; ngược
-// lại dùng vị trí/hướng tĩnh trong store.
+// Một vũ công ảo: vẽ thân người dạng khối — cầu ở khớp + trụ 3D ở xương (cả hai
+// instanced để nhẹ), cập nhật tư thế mỗi khung bằng useFrame (đọc time qua
+// getState -> không re-render). Trụ có độ dày giúp đọc tư thế rõ trong video tập,
+// hơn hẳn đường mảnh. Nếu vũ công có đường đi (>=2 waypoint) thì vị trí/hướng bám
+// theo đường; ngược lại dùng vị trí/hướng tĩnh trong store.
 
-import { useRef, useMemo, useLayoutEffect } from "react";
+import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { ClipData } from "../clip";
@@ -11,7 +12,14 @@ import { samplePose } from "../clip";
 import { useStore, type Dancer } from "../store";
 import { makeCurve, sampledPath } from "../path";
 
+// Bộ đệm tái dùng ở cấp module (mọi vũ công dùng chung, không cấp phát mỗi khung).
 const dummy = new THREE.Object3D();
+const vA = new THREE.Vector3();
+const vB = new THREE.Vector3();
+const vMid = new THREE.Vector3();
+const vDir = new THREE.Vector3();
+const UP = new THREE.Vector3(0, 1, 0);
+const quat = new THREE.Quaternion();
 
 export function Mannequin({
   clip,
@@ -23,28 +31,16 @@ export function Mannequin({
   selected: boolean;
 }) {
   const J = clip.jointNames.length;
+  const E = clip.edges.length;
   const groupRef = useRef<THREE.Group>(null);
   const jointsRef = useRef<THREE.InstancedMesh>(null);
-  const geomRef = useRef<THREE.BufferGeometry>(null);
+  const bonesRef = useRef<THREE.InstancedMesh>(null);
 
   // Bộ đệm tái dùng: tránh cấp phát mỗi khung.
   const pose = useMemo(() => new Float32Array(J * 3), [J]);
-  const linePositions = useMemo(
-    () => new Float32Array(clip.edges.length * 2 * 3),
-    [clip.edges.length]
-  );
 
   // Đường cong (chỉ dựng lại khi waypoint đổi).
   const curve = useMemo(() => makeCurve(dancer.waypoints), [dancer.waypoints]);
-
-  useLayoutEffect(() => {
-    if (geomRef.current) {
-      geomRef.current.setAttribute(
-        "position",
-        new THREE.BufferAttribute(linePositions, 3)
-      );
-    }
-  }, [linePositions]);
 
   useFrame(() => {
     const { time, duration } = useStore.getState();
@@ -76,33 +72,43 @@ export function Mannequin({
       inst.instanceMatrix.needsUpdate = true;
     }
 
-    // Cập nhật các đoạn xương.
-    const geom = geomRef.current;
-    if (geom) {
-      const arr = linePositions;
-      for (let e = 0; e < clip.edges.length; e++) {
+    // Cập nhật các trụ xương: mỗi trụ đặt ở trung điểm, xoay trục Y sang hướng
+    // khớp a->b, kéo dài theo độ dài xương.
+    const bones = bonesRef.current;
+    if (bones) {
+      for (let e = 0; e < E; e++) {
         const [a, b] = clip.edges[e];
-        const oa = a * 3;
-        const ob = b * 3;
-        const k = e * 6;
-        arr[k] = pose[oa]; arr[k + 1] = pose[oa + 1]; arr[k + 2] = pose[oa + 2];
-        arr[k + 3] = pose[ob]; arr[k + 4] = pose[ob + 1]; arr[k + 5] = pose[ob + 2];
+        vA.set(pose[a * 3], pose[a * 3 + 1], pose[a * 3 + 2]);
+        vB.set(pose[b * 3], pose[b * 3 + 1], pose[b * 3 + 2]);
+        vMid.addVectors(vA, vB).multiplyScalar(0.5);
+        vDir.subVectors(vB, vA);
+        const len = vDir.length();
+        dummy.position.copy(vMid);
+        if (len > 1e-5) {
+          vDir.multiplyScalar(1 / len);
+          quat.setFromUnitVectors(UP, vDir);
+          dummy.quaternion.copy(quat);
+        } else {
+          dummy.quaternion.identity();
+        }
+        dummy.scale.set(1, len, 1);
+        dummy.updateMatrix();
+        bones.setMatrixAt(e, dummy.matrix);
       }
-      (geom.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-      geom.computeBoundingSphere();
+      bones.instanceMatrix.needsUpdate = true;
     }
   });
 
   return (
     <group ref={groupRef}>
       <instancedMesh ref={jointsRef} args={[undefined, undefined, J]}>
-        <sphereGeometry args={[0.035, 12, 12]} />
+        <sphereGeometry args={[0.038, 12, 12]} />
         <meshStandardMaterial color={dancer.color} roughness={0.5} />
       </instancedMesh>
-      <lineSegments>
-        <bufferGeometry ref={geomRef} />
-        <lineBasicMaterial color={dancer.color} linewidth={2} />
-      </lineSegments>
+      <instancedMesh ref={bonesRef} args={[undefined, undefined, E]}>
+        <cylinderGeometry args={[0.024, 0.024, 1, 10]} />
+        <meshStandardMaterial color={dancer.color} roughness={0.55} />
+      </instancedMesh>
 
       {/* Bóng tiếp đất + vòng chọn dưới chân */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
