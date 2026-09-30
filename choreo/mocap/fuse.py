@@ -48,6 +48,7 @@ def fuse_multiview(
     fill_gaps: bool = True,
     robust: bool = False,
     reproj_thresh_px: float = 20.0,
+    confidences: np.ndarray | None = None,
     meta: dict | None = None,
 ) -> MotionClip:
     """Tam giác hoá keypoint 2D đa-view thành MotionClip 3D.
@@ -57,6 +58,10 @@ def fuse_multiview(
     robust=True: loại outlier 2D bằng cổng sai số tái chiếu (triangulate_robust) —
         nên bật khi dùng detector 2D thật (hay có lỗi thô); khớp bị loại sẽ được
         lấp bằng nội suy thời gian (cần fill_gaps=True).
+    confidences: (V, T, J) độ tin cậy mỗi quan sát (confidence detector 2D). Khi có,
+        DLT được **đánh trọng số** — view tin cậy thấp (mờ/bị che) bị giảm ảnh hưởng
+        thay vì bị loại cứng. Bổ trợ cho robust: robust loại lỗi THÔ, weighting xử lý
+        nhiễu MỀM theo độ tin cậy. Bỏ qua khi robust=True (robust đi đường loại-view).
     Trả về MotionClip (T, J, 3) hệ world, đã (tuỳ chọn) lấp khoảng trống + làm mượt,
     kèm contacts đoán từ hình học chân.
     """
@@ -68,20 +73,29 @@ def fuse_multiview(
         raise ValueError(f"Số calib ({len(calibs)}) khác số view ({V})")
     if J != NUM_JOINTS:
         raise ValueError(f"Kỳ vọng {NUM_JOINTS} khớp, nhận {J}")
+    conf = None
+    if confidences is not None:
+        conf = np.asarray(confidences, dtype=np.float64)
+        if conf.shape != (V, T, J):
+            raise ValueError(f"confidences phải (V,T,J)={(V, T, J)}, nhận {conf.shape}")
 
     P = np.stack([c.P for c in calibs], axis=0)  # (V,3,4)
     joints3d = np.empty((T, J, 3), dtype=np.float64)
-    tri = (lambda pts: triangulate_robust(P, pts, reproj_thresh_px)) if robust else \
-          (lambda pts: triangulate_dlt(P, pts))
+    if robust:
+        tri = lambda pts, w: triangulate_robust(P, pts, reproj_thresh_px)
+    else:
+        tri = lambda pts, w: triangulate_dlt(P, pts, weights=w)
     for f in range(T):
-        joints3d[f] = tri(kp[:, f, :, :])  # (V,J,2) -> (J,3)
+        w = None if conf is None else conf[:, f, :]
+        joints3d[f] = tri(kp[:, f, :, :], w)  # (V,J,2) -> (J,3)
 
     if fill_gaps:
         joints3d = _fill_gaps(joints3d)
     if smooth and T >= 3:
         joints3d = savgol_smooth(joints3d, window=smooth_window, polyorder=2)
 
-    m = {"stage": "fuse_multiview", "num_views": V, "robust": robust}
+    m = {"stage": "fuse_multiview", "num_views": V, "robust": robust,
+         "weighted": conf is not None}
     if meta:
         m.update(meta)
     clip = MotionClip(fps=fps, joints3d=joints3d, meta=m)

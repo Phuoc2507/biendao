@@ -17,13 +17,19 @@ import numpy as np
 
 
 def triangulate_dlt(
-    proj_mats: np.ndarray, points2d: np.ndarray
+    proj_mats: np.ndarray,
+    points2d: np.ndarray,
+    weights: np.ndarray | None = None,
 ) -> np.ndarray:
-    """Tam giác hoá N điểm từ V view.
+    """Tam giác hoá N điểm từ V view (tuỳ chọn có trọng số tin cậy).
 
     proj_mats: (V, 3, 4) ma trận chiếu mỗi view.
     points2d:  (V, N, 2) toạ độ pixel mỗi view. NaN = điểm không quan sát được ở
         view đó (bị loại khỏi hệ; cần >=2 view hợp lệ mỗi điểm).
+    weights:   (V, N) độ tin cậy mỗi quan sát (vd confidence của detector 2D), hoặc
+        None = mọi view như nhau. View tin cậy thấp bị **giảm ảnh hưởng** trong hệ
+        (nhân đôi hàng DLT của view đó với trọng số) — quan sát mờ/bị che không kéo
+        lệch điểm 3D. Trọng số ≤0 loại view đó (coi như không quan sát).
     Trả về: (N, 3) toạ độ 3D trong hệ world.
     """
     P = np.asarray(proj_mats, dtype=np.float64)
@@ -34,6 +40,11 @@ def triangulate_dlt(
         raise ValueError(f"points2d phải (V,N,2) khớp V, nhận {x.shape}")
 
     V, N = x.shape[0], x.shape[1]
+    if weights is not None:
+        weights = np.asarray(weights, dtype=np.float64)
+        if weights.shape != (V, N):
+            raise ValueError(f"weights phải (V,N)={ (V, N) }, nhận {weights.shape}")
+
     out = np.full((N, 3), np.nan, dtype=np.float64)
 
     for j in range(N):
@@ -42,9 +53,12 @@ def triangulate_dlt(
             uv = x[v, j]
             if not np.isfinite(uv).all():
                 continue
+            wj = 1.0 if weights is None else weights[v, j]
+            if wj <= 0.0:            # tin cậy 0 -> coi như không quan sát view này
+                continue
             u, w = uv
-            rows.append(u * P[v, 2] - P[v, 0])
-            rows.append(w * P[v, 2] - P[v, 1])
+            rows.append(wj * (u * P[v, 2] - P[v, 0]))
+            rows.append(wj * (w * P[v, 2] - P[v, 1]))
         if len(rows) < 4:  # cần >=2 view (4 phương trình) để định điểm 3D
             continue
         A = np.asarray(rows, dtype=np.float64)
