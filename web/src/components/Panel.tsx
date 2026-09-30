@@ -3,7 +3,7 @@
 
 import { useRef } from "react";
 import { useStore, type CameraMode } from "../store";
-import { FORMATIONS } from "../formation";
+import { FORMATIONS, formationLabel } from "../formation";
 import { clearSaved, exportProjectFile, importProjectFile } from "../persist";
 import { recordCurrentView } from "../record";
 
@@ -23,15 +23,26 @@ export function Panel() {
   const cameraMode = useStore((s) => s.cameraMode);
   const editingPath = useStore((s) => s.editingPath);
   const exporting = useStore((s) => s.exporting);
+  const formations = useStore((s) => s.formations);
   const {
     addDancer, cloneSelected, removeDancer, updateDancer, select, toggleBeatGrid,
-    addClip, setClipAt, removeClipAt, moveClip, applyFormation,
+    addClip, setClipAt, removeClipAt, moveClip,
+    addFormation, removeFormation, clearFormations,
     setCameraMode, setEditingPath, clearPath,
   } = useStore.getState();
 
   const sel = dancers.find((d) => d.id === selectedId) ?? null;
   const beatPeriod = 60 / bpm;
   const hasPath = !!sel && sel.waypoints.length >= 2;
+  const hasFormation = formations.length > 0;
+  // Khi đội hình theo count đang lái, vị trí tĩnh & đường đi bị ghi đè -> khoá.
+  const posLocked = hasPath || hasFormation;
+  // count 1-based -> nhãn ô nhịp "ô B·c" (bar . count-trong-bar) cho dễ đọc.
+  const cueBarLabel = (count: number): string => {
+    const bar = Math.floor((count - 1) / beatsPerBar) + 1;
+    const inBar = ((count - 1) % beatsPerBar) + 1;
+    return `${bar}·${inBar}`;
+  };
   const fileRef = useRef<HTMLInputElement>(null);
 
   const defaultClipName = clipIndex[0]?.name ?? "";
@@ -130,21 +141,50 @@ export function Panel() {
         </button>
       </div>
 
-      {/* Đội hình: một cú bấm xếp CẢ NHÓM thành hình, quay mặt khán giả. Xoá
-          đường đi của từng người (vị trí tĩnh của đội hình mới hiện đúng). */}
-      <div className="camrow">
-        <span className="camlabel">Đội hình:</span>
-        {FORMATIONS.map((f) => (
-          <button
-            key={f.shape}
-            className="cam"
-            title={`Xếp nhóm thành ${f.label.toLowerCase()} (xoá đường đi)`}
-            disabled={dancers.length < 2}
-            onClick={() => applyFormation(f.shape)}
-          >
-            {f.label}
-          </button>
-        ))}
+      {/* Đội hình THEO COUNT: mỗi nút thêm một MỐC đội hình ở count hiện tại của
+          playhead (xem count ở thanh dưới). Nhiều mốc -> cả nhóm TỰ TRƯỢT giữa
+          các đội hình theo nhạc. Trùng count thì đổi hình mốc đó. */}
+      <div className="fmbox">
+        <div className="camrow">
+          <span className="camlabel">Đội hình ở count này:</span>
+          {FORMATIONS.map((f) => (
+            <button
+              key={f.shape}
+              className="cam"
+              title={`Thêm mốc "${f.label.toLowerCase()}" ở count hiện tại của playhead`}
+              disabled={dancers.length < 2}
+              onClick={() => addFormation(f.shape)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        {hasFormation && (
+          <div className="fmlist">
+            {formations.map((c) => (
+              <div className="fmcue" key={c.id}>
+                <span className="fmcount">ô {cueBarLabel(c.count)}</span>
+                <span className="fmshape">{formationLabel(c.shape)}</span>
+                <button
+                  className="x"
+                  title="Xoá mốc đội hình"
+                  onClick={() => removeFormation(c.id)}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <button className="seqadd" onClick={clearFormations}>
+              Xoá tất cả mốc đội hình
+            </button>
+            <span className="mini">
+              {formations.length === 1
+                ? "1 mốc → đội hình tĩnh cả bài."
+                : `${formations.length} mốc → nhóm tự trượt giữa các đội hình.`}{" "}
+              Ghi đè vị trí tĩnh & đường đi.
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="camrow">
@@ -291,10 +331,13 @@ export function Panel() {
             </button>
           </div>
 
-          <label>Vị trí X: {sel.position[0].toFixed(2)} m {hasPath && "(theo đường)"}</label>
+          <label>
+            Vị trí X: {sel.position[0].toFixed(2)} m{" "}
+            {hasFormation ? "(theo đội hình)" : hasPath ? "(theo đường)" : ""}
+          </label>
           <input
             type="range" min={-4} max={4} step={0.1} value={sel.position[0]}
-            disabled={hasPath}
+            disabled={posLocked}
             onChange={(e) =>
               updateDancer(sel.id, {
                 position: [parseFloat(e.target.value), sel.position[1], sel.position[2]],
@@ -302,10 +345,13 @@ export function Panel() {
             }
           />
 
-          <label>Vị trí Z: {sel.position[2].toFixed(2)} m {hasPath && "(theo đường)"}</label>
+          <label>
+            Vị trí Z: {sel.position[2].toFixed(2)} m{" "}
+            {hasFormation ? "(theo đội hình)" : hasPath ? "(theo đường)" : ""}
+          </label>
           <input
             type="range" min={-4} max={4} step={0.1} value={sel.position[2]}
-            disabled={hasPath}
+            disabled={posLocked}
             onChange={(e) =>
               updateDancer(sel.id, {
                 position: [sel.position[0], sel.position[1], parseFloat(e.target.value)],

@@ -3,6 +3,7 @@
 
 import { useStore } from "../store";
 import { sequenceDurations } from "../clip";
+import { formationLabel } from "../formation";
 
 export function Timeline() {
   const { time, duration, playing, bpm, beatsPerBar } = useStore((s) => ({
@@ -21,6 +22,7 @@ export function Timeline() {
   const clipIndex = useStore((s) => s.clipIndex);
   const dancers = useStore((s) => s.dancers);
   const selectedId = useStore((s) => s.selectedId);
+  const formations = useStore((s) => s.formations);
 
   const beatPeriod = 60 / bpm;
   const beatIndex = duration > 0 ? Math.floor(time / beatPeriod) : 0;
@@ -80,6 +82,22 @@ export function Timeline() {
             ))}
           </div>
         )}
+        {/* Cờ mốc đội hình: vạch dọc + nhãn hình, cho thấy chỗ nhóm đổi đội hình. */}
+        {duration > 0 &&
+          formations.map((c) => {
+            const t = (c.count - 1) * beatPeriod;
+            const left = Math.min(100, (t / duration) * 100);
+            return (
+              <div
+                key={c.id}
+                className="fcue-mark"
+                style={{ left: `${left}%` }}
+                title={`Đội hình: ${formationLabel(c.shape)} (count ${c.count})`}
+              >
+                <span className="fcue-tag">{formationLabel(c.shape)}</span>
+              </div>
+            );
+          })}
         <div className="beats">
           {beatTimes.map((bt, i) => {
             const down = i % beatsPerBar === 0;

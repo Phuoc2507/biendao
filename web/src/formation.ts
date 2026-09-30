@@ -106,3 +106,62 @@ export function formationPositions(
   }
   return recenter(pts).map(([x, z]) => [clamp(x), clamp(z)]);
 }
+
+// ============================================================================
+// Đội hình THEO THỜI GIAN (formation keyframes): biên đạo thật đổi đội hình
+// giữa các đoạn nhạc. Một "mốc" (cue) gắn một đội hình với một count (ô nhịp).
+// Giữa hai mốc, mỗi vũ công TRƯỢT từ vị trí đội hình này sang đội hình kia.
+// ============================================================================
+
+export interface FormationCue {
+  id: string;
+  count: number; // ô nhịp 1-based tại BPM sân khấu (count 1 = giây 0)
+  shape: FormationShape;
+}
+
+// Nhãn hiển thị cho một hình (tra từ FORMATIONS).
+export function formationLabel(shape: FormationShape): string {
+  return FORMATIONS.find((f) => f.shape === shape)?.label ?? shape;
+}
+
+// Ease in-out: chuyển đội hình mượt (không giật) thay vì trượt tuyến tính.
+const smoothstep = (t: number): number => t * t * (3 - 2 * t);
+
+// Vị trí [x,z] của vũ công thứ i (trong n người) tại thời điểm tSec, nội suy
+// theo timeline đội hình. GIẢ ĐỊNH `cues` đã sắp tăng dần theo count (store giữ
+// bất biến này). beatSec = 60/bpm để đổi count -> giây. Trả null khi không có
+// mốc nào (khi đó Mannequin quay lại dùng vị trí tĩnh/đường đi cũ).
+export function formationXZ(
+  cues: FormationCue[],
+  i: number,
+  n: number,
+  tSec: number,
+  beatSec: number
+): [number, number] | null {
+  if (cues.length === 0) return null;
+  const at = (c: FormationCue): number => (c.count - 1) * beatSec;
+  const posOf = (c: FormationCue): [number, number] | undefined =>
+    formationPositions(c.shape, n)[i];
+
+  // Trước mốc đầu / sau mốc cuối: giữ nguyên đội hình ở biên (không ngoại suy).
+  if (tSec <= at(cues[0])) return posOf(cues[0]) ?? null;
+  const last = cues[cues.length - 1];
+  if (tSec >= at(last)) return posOf(last) ?? null;
+
+  // Tìm cặp mốc bao quanh t rồi nội suy smoothstep.
+  for (let k = 0; k < cues.length - 1; k++) {
+    const a = cues[k];
+    const b = cues[k + 1];
+    const ta = at(a);
+    const tb = at(b);
+    if (tSec >= ta && tSec <= tb) {
+      const span = tb - ta;
+      const f = span > 1e-6 ? smoothstep((tSec - ta) / span) : 0;
+      const pa = posOf(a);
+      const pb = posOf(b);
+      if (!pa || !pb) return null;
+      return [pa[0] + (pb[0] - pa[0]) * f, pa[1] + (pb[1] - pa[1]) * f];
+    }
+  }
+  return posOf(last) ?? null;
+}

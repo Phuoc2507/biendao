@@ -15,6 +15,7 @@ import type { ClipData } from "../clip";
 import { samplePose, samplePoseSequence } from "../clip";
 import { useStore, type Dancer } from "../store";
 import { makeCurve, sampledPath } from "../path";
+import { formationXZ } from "../formation";
 
 // Bộ đệm tái dùng ở cấp module (mọi vũ công dùng chung, không cấp phát mỗi khung).
 const dummy = new THREE.Object3D();
@@ -29,12 +30,16 @@ export function Mannequin({
   clips,
   fallback,
   dancer,
+  index,
+  count,
   selected,
   showLabel,
 }: {
   clips: Record<string, ClipData>;
   fallback: ClipData; // clip dự phòng khi chuỗi rỗng / thiếu clip
   dancer: Dancer;
+  index: number; // thứ tự trong nhóm (khớp thứ tự formationPositions)
+  count: number; // tổng số vũ công (để tính đội hình)
   selected: boolean;
   showLabel: boolean;
 }) {
@@ -93,16 +98,27 @@ export function Mannequin({
   }, [dancer.color, rightJoint, rightBone, J, E]);
 
   useFrame(() => {
-    const { time, duration } = useStore.getState();
+    const { time, duration, formations, bpm } = useStore.getState();
     // Lấy mẫu theo CHUỖI clip (phát nối tiếp, lặp cả chuỗi). Nếu chuỗi rỗng/thiếu
     // clip thì dùng clip bố cục làm dự phòng.
     if (!samplePoseSequence(clips, dancer.sequence, time - dancer.timeOffset, pose))
       samplePose(clip, time - dancer.timeOffset, pose);
 
-    // Vị trí/hướng của cả nhóm: bám đường đi nếu có, ngược lại tĩnh.
+    // Vị trí/hướng của cả nhóm. ƯU TIÊN: nếu có timeline đội hình (>=1 mốc) thì
+    // vị trí do đội hình lái (ghi đè vị trí tĩnh & đường đi); ngược lại bám đường
+    // đi nếu có, cuối cùng mới dùng vị trí tĩnh.
     const g = groupRef.current;
     if (g) {
-      if (curve) {
+      const fxz =
+        formations.length > 0
+          ? formationXZ(formations, index, count, time, 60 / bpm)
+          : null;
+      if (fxz) {
+        // Đội hình quay mặt về khán giả theo hướng đã đặt của vũ công (mặc định
+        // 0 = +Z); giữ hướng riêng để soloist vẫn tự chỉnh được.
+        g.position.set(fxz[0], dancer.position[1], fxz[1]);
+        g.rotation.y = dancer.rotationY;
+      } else if (curve) {
         const s = sampledPath(curve, time - dancer.timeOffset, duration);
         g.position.set(s.x, dancer.position[1], s.z);
         g.rotation.y = dancer.faceAlongPath ? s.rotationY : dancer.rotationY;

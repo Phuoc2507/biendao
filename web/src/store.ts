@@ -6,7 +6,7 @@
 import { create } from "zustand";
 import type { ClipData, ClipIndexEntry } from "./clip";
 import { sequenceTotal } from "./clip";
-import { formationPositions, type FormationShape } from "./formation";
+import type { FormationShape, FormationCue } from "./formation";
 
 export type CameraMode = "orbit" | "follow" | "front";
 
@@ -36,6 +36,7 @@ const clampXZ = (xz: [number, number]): [number, number] => [
 ];
 
 let counter = 0;
+let fcounter = 0; // sinh id cho mốc đội hình
 function makeDancer(partial: Partial<Dancer> = {}): Dancer {
   const idx = counter++;
   return {
@@ -89,6 +90,7 @@ interface State {
   cameraMode: CameraMode;
   editingPath: boolean;
   dancers: Dancer[];
+  formations: FormationCue[]; // timeline đội hình (cấp NHÓM); luôn sắp tăng theo count
   selectedId: string | null;
   exporting: string | null; // tên vũ công đang xuất video, null = không xuất
   panelOpen: boolean; // trên mobile: bảng điều khiển (drawer) đang mở hay không
@@ -108,8 +110,12 @@ interface State {
   removeDancer: (id: string) => void;
   updateDancer: (id: string, patch: Partial<Dancer>) => void;
   select: (id: string | null) => void;
-  // Đội hình: xếp CẢ NHÓM thành hình khối, quay mặt khán giả (xoá đường đi).
-  applyFormation: (shape: FormationShape) => void;
+  // Đội hình theo count: thêm mốc ở playhead hiện tại (trùng count -> đổi hình),
+  // xoá một mốc, xoá tất cả. Khi có >=1 mốc, timeline đội hình lái vị trí cả nhóm.
+  addFormation: (shape: FormationShape) => void;
+  removeFormation: (id: string) => void;
+  clearFormations: () => void;
+  setFormations: (cues: FormationCue[]) => void;
   toggleBeatGrid: () => void;
   setCameraMode: (m: CameraMode) => void;
   setEditingPath: (v: boolean) => void;
@@ -140,6 +146,7 @@ export const useStore = create<State>((set, get) => ({
   cameraMode: "orbit",
   editingPath: false,
   dancers: [makeDancer({ position: [0, 0, 0] })],
+  formations: [],
   selectedId: "d0",
   exporting: null,
   panelOpen: false, // mặc định đóng để mobile thấy sân khấu 3D trước; desktop luôn hiện qua CSS
@@ -266,20 +273,38 @@ export const useStore = create<State>((set, get) => ({
       dancers: s.dancers.map((d) => (d.id === id ? { ...d, ...patch } : d)),
     })),
   select: (id) => set({ selectedId: id }),
-  applyFormation: (shape) =>
+  addFormation: (shape) =>
     set((s) => {
-      const pos = formationPositions(shape, s.dancers.length);
-      const dancers = s.dancers.map((d, i) => {
-        const p = pos[i] ?? [d.position[0], d.position[2]];
-        return {
-          ...d,
-          // Giữ nguyên chiều cao y; đặt x,z theo đội hình.
-          position: [p[0], d.position[1], p[1]] as [number, number, number],
-          rotationY: 0, // quay mặt về khán giả (+Z)
-          waypoints: [], // xoá đường đi để vị trí tĩnh của đội hình hiện đúng
-        };
+      // Count 1-based tại playhead hiện tại (khớp beatIndex+1 của Timeline).
+      const beat = 60 / s.bpm;
+      const count = beat > 0 ? Math.floor(s.time / beat) + 1 : 1;
+      // Đã có mốc ở count này -> đổi hình (không tạo trùng); ngược lại chèn mới
+      // rồi sắp lại tăng dần theo count (bất biến cho formationXZ).
+      const existing = s.formations.find((c) => c.count === count);
+      let formations: FormationCue[];
+      if (existing) {
+        formations = s.formations.map((c) =>
+          c.count === count ? { ...c, shape } : c
+        );
+      } else {
+        formations = [...s.formations, { id: `f${fcounter++}`, count, shape }].sort(
+          (a, b) => a.count - b.count
+        );
+      }
+      return { formations };
+    }),
+  removeFormation: (id) =>
+    set((s) => ({ formations: s.formations.filter((c) => c.id !== id) })),
+  clearFormations: () => set({ formations: [] }),
+  setFormations: (cues) =>
+    set(() => {
+      const formations = [...cues].sort((a, b) => a.count - b.count);
+      // đảm bảo fcounter không đụng id cũ khi nạp dự án
+      formations.forEach((c) => {
+        const n = parseInt(String(c.id).slice(1), 10);
+        if (!Number.isNaN(n) && n >= fcounter) fcounter = n + 1;
       });
-      return { dancers };
+      return { formations };
     }),
   toggleBeatGrid: () => set((s) => ({ showBeatGrid: !s.showBeatGrid })),
   setCameraMode: (m) => set({ cameraMode: m }),

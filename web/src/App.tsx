@@ -46,6 +46,7 @@ export default function App() {
         if (saved) {
           const st = useStore.getState();
           st.loadProject(saved.dancers);
+          st.setFormations(saved.formations ?? []);
           st.setCameraMode(saved.cameraMode);
           if (saved.showBeatGrid !== st.showBeatGrid) st.toggleBeatGrid();
         }
@@ -59,11 +60,18 @@ export default function App() {
     let prevD = useStore.getState().dancers;
     let prevC = useStore.getState().cameraMode;
     let prevG = useStore.getState().showBeatGrid;
+    let prevF = useStore.getState().formations;
     return useStore.subscribe((s) => {
-      if (s.dancers !== prevD || s.cameraMode !== prevC || s.showBeatGrid !== prevG) {
+      if (
+        s.dancers !== prevD ||
+        s.cameraMode !== prevC ||
+        s.showBeatGrid !== prevG ||
+        s.formations !== prevF
+      ) {
         prevD = s.dancers;
         prevC = s.cameraMode;
         prevG = s.showBeatGrid;
+        prevF = s.formations;
         saveProject();
       }
     });
@@ -134,12 +142,14 @@ export default function App() {
           <CameraRig />
           <CanvasCapture />
           {ready &&
-            dancers.map((d) => (
+            dancers.map((d, i) => (
               <Mannequin
                 key={d.id}
                 clips={clips}
                 fallback={ready}
                 dancer={d}
+                index={i}
+                count={dancers.length}
                 selected={d.id === selectedId}
                 showLabel={dancers.length > 1}
               />

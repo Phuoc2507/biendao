@@ -2,11 +2,13 @@
 // Chỉ giữ phần do người dùng dựng: vũ công + chế độ camera + mốc sân khấu.
 
 import { useStore, type Dancer, type CameraMode } from "./store";
+import type { FormationCue } from "./formation";
 
 const KEY = "choreo.project.v1";
 
 interface Saved {
   dancers: Dancer[];
+  formations?: FormationCue[]; // tuỳ chọn: dự án cũ không có -> nạp thành []
   cameraMode: CameraMode;
   showBeatGrid: boolean;
 }
@@ -16,6 +18,7 @@ export function saveProject(): void {
     const s = useStore.getState();
     const data: Saved = {
       dancers: s.dancers,
+      formations: s.formations,
       cameraMode: s.cameraMode,
       showBeatGrid: s.showBeatGrid,
     };
@@ -61,6 +64,7 @@ export function exportProjectFile(): void {
     version: 1,
     savedAt: new Date().toISOString(),
     dancers: s.dancers,
+    formations: s.formations,
     cameraMode: s.cameraMode,
     showBeatGrid: s.showBeatGrid,
   };
@@ -98,6 +102,7 @@ export async function importProjectFile(file: File): Promise<void> {
   }
   const st = useStore.getState();
   st.loadProject(d.dancers as Dancer[]);
+  st.setFormations(Array.isArray(d.formations) ? d.formations : []);
   if (d.cameraMode) st.setCameraMode(d.cameraMode);
   if (typeof d.showBeatGrid === "boolean" && d.showBeatGrid !== st.showBeatGrid) {
     st.toggleBeatGrid();
