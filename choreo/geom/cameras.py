@@ -94,6 +94,44 @@ def project_points(calib: CameraCalib, pts3d: np.ndarray) -> np.ndarray:
     return uv.reshape(pts.shape[:-1] + (2,))
 
 
+def _rodrigues(axis: np.ndarray, angle_rad: float) -> np.ndarray:
+    """Ma trận quay quanh `axis` (đơn vị) một góc `angle_rad` (công thức Rodrigues)."""
+    u = _normalize(np.asarray(axis, dtype=np.float64))
+    K = np.array([[0, -u[2], u[1]], [u[2], 0, -u[0]], [-u[1], u[0], 0]], dtype=np.float64)
+    c, s = np.cos(angle_rad), np.sin(angle_rad)
+    return np.eye(3) + s * K + (1 - c) * (K @ K)
+
+
+def perturb_calib(
+    calib: CameraCalib,
+    *,
+    rot_deg: float = 0.0,
+    trans_m: float = 0.0,
+    rng: np.random.Generator | None = None,
+) -> CameraCalib:
+    """Nhiễu hoá hiệu chỉnh camera: xoay hướng ngắm `rot_deg` (độ) quanh trục ngẫu
+    nhiên và dời tâm quang `trans_m` (m) theo hướng ngẫu nhiên.
+
+    Mô phỏng sai số ChArUco/hiệu chỉnh thực tế (không hoàn hảo) để đo độ nhạy của
+    tam giác hoá. Giữ nguyên K, dist, image_size. rng cố định -> tái lập được.
+    """
+    rng = rng or np.random.default_rng(0)
+    R, t = calib.R, calib.t
+    C = -R.T @ t                                  # tâm quang world
+
+    if rot_deg != 0.0:
+        axis = rng.normal(size=3)
+        dR = _rodrigues(axis, np.radians(rot_deg))
+        R = dR @ R                                 # xoay hệ trục cam
+    if trans_m != 0.0:
+        dirv = _normalize(rng.normal(size=3))
+        C = C + dirv * trans_m
+
+    t = -R @ C
+    return CameraCalib(K=calib.K.copy(), R=R, t=t,
+                       dist=calib.dist.copy(), image_size=calib.image_size)
+
+
 def ray_angle_deg(
     calib_a: CameraCalib, calib_b: CameraCalib, point: np.ndarray
 ) -> float:

@@ -120,6 +120,16 @@ Các con số này **nhất quán với tài liệu** (1-cam ~64mm → 2-cam ~36
 
 **Bản đồ đặt góc máy (sản phẩm phụ, `experiments/ban_do_dat_may.py`).** Từ cùng bộ máy đó, nhóm quét lưới 2D **độc lập** phương vị của từng máy (−90°…+90°, có che khuất) và chấm điểm đồng thời độ phủ + MPJPE, cho ra một *hướng dẫn đặt máy định lượng* thay vì một con số đơn lẻ — thứ sản phẩm 1-camera của đối thủ (Choreoto) không có. Kết quả (lưới 7×7): dải ~90° đối xứng quanh chính diện cho độ chính xác tốt nhất (<12mm) với độ phủ ~90–97%; cặp ~180° thoái hoá (~247mm); cặp kề nhau phủ cao nhưng kém chính xác. Khuyến nghị tự động: **hai máy lệch ~90°, đối xứng quanh mặt trước** (vd −30°/+60°: phủ 90.7%, MPJPE 11.2mm). Chi tiết: `experiments/ket-qua-ban-do-dat-may.md`.
 
+**Độ nhạy với sai số đồng bộ & hiệu chỉnh (`experiments/do_nhay_sync_calib.py`).** Quay bằng 2 điện thoại có hai nguồn lỗi mà camera đơn không gặp — không genlock (lệch thời gian) và hiệu chỉnh không hoàn hảo — nên nhóm đo ngưỡng chịu đựng để đặt tiêu chí nghiệm thu M1/M2:
+
+| Nguồn sai số | Ảnh hưởng đo được | Ngưỡng thiết kế |
+|---|---|---|
+| **Đồng bộ** (lệch thời gian 2 máy) | nền 11.3mm → nửa khung@30fps (16.7ms) 12.7mm → trọn 1 khung (33ms) 15.9mm (múa thật nhanh hơn ⇒ tệ hơn) | quay **60fps** + căn **vỗ tay**, giữ lệch < nửa khung |
+| **Hướng ngắm** (hiệu chỉnh xoay) | rất nhạy: 0.5°→26mm, **1°→48mm** (đòn bẩy góc) | **ChArUco**, sai < ~0.5° |
+| **Vị trí máy** (hiệu chỉnh dời) | ~tuyến tính 1:1: 5cm→26.6mm | đo vị trí < ~1–2cm |
+
+Ba ngưỡng này là **đóng góp phương pháp**: chúng biến "đồng bộ + hiệu chỉnh không genlock" (điểm §5.2) thành tiêu chí kiểm được, thứ giải pháp 1-camera không phải đối mặt. Chi tiết: `experiments/ket-qua-do-nhay-sync-calib.md`.
+
 ---
 
 ## 6. Kết quả dự kiến và đóng góp
@@ -199,4 +209,4 @@ Các con số này **nhất quán với tài liệu** (1-cam ~64mm → 2-cam ~36
 [19] SMPL-X model license (phi thương mại). https://smpl-x.is.tue.mpg.de/modellicense.html
 [20] Three.js / React Three Fiber. https://threejs.org/ ; https://docs.pmnd.rs/react-three-fiber
 
-*Chi tiết kỹ thuật đầy đủ: `nghien-cuu-choreo-sequencer.md` (khả thi), `dac-ta-mvp-choreo-2cam.md` (đặc tả MVP), `gate0-thiet-ke-thuc-nghiem.md` (thực nghiệm), `experiments/ket-qua-2view-tong-hop.md` (kết quả hình học tổng hợp, §5.4), `experiments/ket-qua-ban-do-dat-may.md` (bản đồ đặt góc máy, §5.4), `teardown-choreoto.md` (phân tích đối thủ).*
+*Chi tiết kỹ thuật đầy đủ: `nghien-cuu-choreo-sequencer.md` (khả thi), `dac-ta-mvp-choreo-2cam.md` (đặc tả MVP), `gate0-thiet-ke-thuc-nghiem.md` (thực nghiệm), `experiments/ket-qua-2view-tong-hop.md` (kết quả hình học tổng hợp, §5.4), `experiments/ket-qua-ban-do-dat-may.md` (bản đồ đặt góc máy, §5.4), `experiments/ket-qua-do-nhay-sync-calib.md` (độ nhạy sync/calib, §5.4), `teardown-choreoto.md` (phân tích đối thủ).*

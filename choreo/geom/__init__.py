@@ -5,11 +5,17 @@ nền cho thực nghiệm tổng hợp đo độ chính xác 2-camera theo góc 
 chứng hình học cho tuyên bố lõi của luận văn (2 máy lệch ~60-90° tốt hơn 1 máy).
 """
 
-from choreo.geom.cameras import look_at_camera, project_points, ray_angle_deg
+from choreo.geom.cameras import (
+    look_at_camera,
+    perturb_calib,
+    project_points,
+    ray_angle_deg,
+)
 from choreo.geom.triangulate import triangulate_dlt
 
 __all__ = [
     "look_at_camera",
+    "perturb_calib",
     "project_points",
     "ray_angle_deg",
     "triangulate_dlt",

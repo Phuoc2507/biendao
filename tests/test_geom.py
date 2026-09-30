@@ -4,13 +4,41 @@ from __future__ import annotations
 
 import numpy as np
 
-from choreo.geom import look_at_camera, project_points, ray_angle_deg, triangulate_dlt
+from choreo.geom import (
+    look_at_camera,
+    perturb_calib,
+    project_points,
+    ray_angle_deg,
+    triangulate_dlt,
+)
 from choreo.geom.cameras import camera_center
 from choreo.synth import synthetic_dance
 
 
 def _stack_P(cams):
     return np.stack([c.P for c in cams], axis=0)
+
+
+def test_perturb_calib_zero_is_identity():
+    cam = look_at_camera(30.0, 4.5)
+    p = perturb_calib(cam, rot_deg=0.0, trans_m=0.0)
+    assert np.allclose(p.R, cam.R) and np.allclose(p.t, cam.t)
+
+
+def test_perturb_calib_rotation_angle_exact():
+    # Góc quay tương đối dR = R'R^T phải đúng bằng rot_deg (bất kể trục ngẫu nhiên).
+    cam = look_at_camera(30.0, 4.5)
+    p = perturb_calib(cam, rot_deg=2.0, rng=np.random.default_rng(3))
+    dR = p.R @ cam.R.T
+    ang = np.degrees(np.arccos(np.clip((np.trace(dR) - 1) / 2, -1, 1)))
+    assert np.isclose(ang, 2.0, atol=1e-6)
+
+
+def test_perturb_calib_translation_magnitude_exact():
+    # Tâm quang dịch đúng trans_m mét.
+    cam = look_at_camera(30.0, 4.5)
+    p = perturb_calib(cam, trans_m=0.05, rng=np.random.default_rng(4))
+    assert np.isclose(np.linalg.norm(camera_center(p) - camera_center(cam)), 0.05, atol=1e-6)
 
 
 def test_camera_center_matches_eye():
