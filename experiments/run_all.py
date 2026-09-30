@@ -56,6 +56,8 @@ EXPERIMENTS = [
      "V51: SỬA bằng loại-từng-view (LOVO) chẩn đoán held-out — đóng đúng khe bias-vừa robust để hở."),
     ("tran_dong_thuan",   "ket-qua-tran-dong-thuan.md",
      "V52: TRẦN chọn-view-đồng-thuận = floor((V-1)/2); LOVO-ngây-thơ phụ-thuộc-hướng, LOVO-bền khử confound."),
+    ("moc_tuyet_doi",     "ket-qua-moc-tuyet-doi.md",
+     "V53: mốc tuyệt-đối phá trần V52 CHỈ cho bias toàn-camera (mù bias 1-khớp) — hai thước bù nhau theo nguồn."),
 ]
 
 
