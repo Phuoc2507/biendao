@@ -147,6 +147,224 @@ export function outlierIndex(g: GroupDeviation): number | null {
   return worst;
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// ĐỒNG BỘ NHẬN BIẾT PHA (V35) — tách TRỄ NHỊP khỏi SAI ĐỘNG TÁC
+// ───────────────────────────────────────────────────────────────────────────
+// Vì sao cần: chỉ số tức thời ở trên KHÔNG phân biệt được "canon/echo cố ý" với
+// "lệch nhịp thật" — cả hai chỉ là "một người ở pha khác" tại một khung. Đo thực
+// nghiệm xác nhận không ngưỡng ratio nào tách sạch (canon4 max 2.11 chồng odd3 2.0).
+// Cách tách chuẩn trong Functional Data Analysis là PHÂN RÃ PHA–BIÊN ĐỘ (phase–
+// amplitude / curve registration, khung elastic Fisher–Rao/SRVF): PHA = phép căn
+// thời gian (warping) = trễ có cấu trúc (canon); BIÊN ĐỘ = phần dư HÌNH DÁNG sau khi
+// căn tối ưu = lỗi thật. Bản demo dùng trường hợp RIGID của warping: độ trễ HẰNG τ.
+//
+// Với mỗi CẶP vũ công, trên một cửa sổ quanh playhead, tìm τ làm khớp nhất quỹ đạo
+// tư thế của người này với người kia. residual(τ*) = khác biệt HÌNH DÁNG còn lại
+// (bất biến theo trễ → canon cho ~0); τ* = độ trễ/sớm nhịp (phản hồi tập luyện:
+// "bạn vào chậm 120ms"). Gộp theo từng người bằng TRUNG VỊ tới người khác (bền với
+// 1 người phá nhịp). Nhờ đó formSync (đồng bộ hình dáng) cao ngay cả trong canon,
+// trong khi groupSync tức thời thấp — hiệu hai chỉ số CHÍNH LÀ phần do timing.
+
+/** Cấu hình căn pha (giây). Mặc định hợp với clip tổng hợp ~8s, tuần hoàn dưới-giây. */
+export interface PhaseCfg {
+  halfWindow: number; // nửa bề rộng cửa sổ quanh playhead
+  samples: number; // số mẫu trong cửa sổ (lẻ để có mẫu ngay playhead)
+  maxLag: number; // biên tìm τ (±)
+  lagStep: number; // bước quét τ
+}
+export const DEFAULT_PHASE: PhaseCfg = {
+  halfWindow: 0.5,
+  samples: 13,
+  maxLag: 0.5,
+  lagStep: 1 / 30,
+};
+
+/**
+ * Kết quả căn pha cho cả nhóm tại một thời điểm.
+ * - `formResidual[k]`: lỗi HÌNH DÁNG của vũ công k = trung vị khác biệt tư thế (sau
+ *   căn trễ tối ưu) tới người khác, mét. Canon lý tưởng → ~0; người múa sai → lớn.
+ * - `lag[k]`: độ trễ NHỊP của k so với nhóm (giây), đã canh để trung vị nhóm = 0;
+ *   dương = vào CHẬM, âm = vào SỚM. Ý nghĩa yếu khi formResidual lớn (không căn nổi).
+ * - `formSpread`: trung bình formResidual (mét).
+ * - `formSync`: exp(-formSpread/SCALE) = đồng bộ HÌNH DÁNG, đã bỏ phần timing.
+ * - `worst`: chỉ số người có formResidual lớn nhất (chưa lọc nổi bật — xem
+ *   `formOutlierIndex`).
+ */
+export interface PhaseAlign {
+  formResidual: number[];
+  lag: number[];
+  formSpread: number;
+  formSync: number;
+  worst: number;
+}
+
+// Lấy mẫu tư thế vũ công `d` tại thời điểm treo `ts` (tự trừ timeOffset, dự phòng
+// clip layout khi chuỗi rỗng). Ghi vào `out`.
+function samplePoseAt(
+  clips: Record<string, ClipData>,
+  layout: ClipData,
+  d: SyncDancer,
+  ts: number,
+  out: Float32Array
+): void {
+  if (!samplePoseSequence(clips, d.sequence, ts - d.timeOffset, out)) {
+    samplePose(layout, ts - d.timeOffset, out);
+  }
+}
+
+// Căn MỘT CẶP: `ref` cố định, `mov` dịch theo τ. Trả residual nhỏ nhất (mét, RMS
+// khớp trên cửa sổ) và τ tối ưu = độ trễ của `mov` so với `ref` (τ>0: mov phải TIẾN
+// tới để khớp ⇒ mov đang chậm hơn ref). `refWin` là các mẫu ref dựng sẵn (K×J*3).
+function alignPair(
+  clips: Record<string, ClipData>,
+  layout: ClipData,
+  refWin: Float32Array[],
+  mov: SyncDancer,
+  t: number,
+  cfg: PhaseCfg,
+  J: number,
+  scratch: Float32Array
+): { residual: number; lag: number } {
+  const K = refWin.length;
+  let best = Infinity;
+  let bestLag = 0;
+  for (let ti = 0; ti <= Math.round((2 * cfg.maxLag) / cfg.lagStep); ti++) {
+    const tau = -cfg.maxLag + ti * cfg.lagStep;
+    let sq = 0;
+    for (let s = 0; s < K; s++) {
+      const ws =
+        K === 1 ? t : t + ((s / (K - 1)) * 2 - 1) * cfg.halfWindow;
+      samplePoseAt(clips, layout, mov, ws + tau, scratch);
+      const A = refWin[s];
+      for (let j = 0; j < J; j++) {
+        const o = j * 3;
+        const dx = A[o] - scratch[o];
+        const dy = A[o + 1] - scratch[o + 1];
+        const dz = A[o + 2] - scratch[o + 2];
+        sq += dx * dx + dy * dy + dz * dz;
+      }
+    }
+    const rms = Math.sqrt(sq / (K * J));
+    if (rms < best) {
+      best = rms;
+      bestLag = tau;
+    }
+  }
+  return { residual: best, lag: bestLag };
+}
+
+function median(xs: number[]): number {
+  if (xs.length === 0) return 0;
+  const a = [...xs].sort((p, q) => p - q);
+  const m = a.length >> 1;
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+}
+
+/**
+ * Căn pha cả nhóm tại `t`: phân rã mỗi vũ công thành lỗi HÌNH DÁNG (formResidual)
+ * và độ TRỄ nhịp (lag), gộp theo trung vị từng-cặp. `null` nếu <2 vũ công.
+ * Chi phí O(n²·nτ·K·J) — nhỏ với n≤~10; người gọi nên tiết lưu (không chạy 60fps).
+ */
+export function phaseAlignAt(
+  clips: Record<string, ClipData>,
+  layout: ClipData,
+  dancers: SyncDancer[],
+  t: number,
+  cfg: PhaseCfg = DEFAULT_PHASE
+): PhaseAlign | null {
+  const n = dancers.length;
+  if (n < 2) return null;
+  const J = layout.jointNames.length;
+  const K = Math.max(1, cfg.samples);
+
+  // Cửa sổ tư thế dựng sẵn cho TỪNG người (mỗi người là `ref` một lần).
+  const wins: Float32Array[][] = [];
+  for (let i = 0; i < n; i++) {
+    const w: Float32Array[] = [];
+    for (let s = 0; s < K; s++) {
+      const ws = K === 1 ? t : t + ((s / (K - 1)) * 2 - 1) * cfg.halfWindow;
+      const p = new Float32Array(J * 3);
+      samplePoseAt(clips, layout, dancers[i], ws, p);
+      w.push(p);
+    }
+    wins.push(w);
+  }
+
+  const scratch = new Float32Array(J * 3);
+  // res[i][j] = residual (đối xứng); lagRel[i][j] = trễ của i so với j (phản đối xứng).
+  const res: number[][] = Array.from({ length: n }, () => new Array(n).fill(0));
+  const lagRel: number[][] = Array.from({ length: n }, () =>
+    new Array(n).fill(0)
+  );
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      // ref = i, mov = j ⇒ lag = trễ của j so với i.
+      const r = alignPair(clips, layout, wins[i], dancers[j], t, cfg, J, scratch);
+      res[i][j] = r.residual;
+      res[j][i] = r.residual;
+      lagRel[j][i] = r.lag; // j so với i
+      lagRel[i][j] = -r.lag; // i so với j
+    }
+  }
+
+  // Gộp theo từng người: trung vị tới người khác.
+  const formResidual = new Array(n).fill(0);
+  const lagRaw = new Array(n).fill(0);
+  for (let k = 0; k < n; k++) {
+    const rs: number[] = [];
+    const ls: number[] = [];
+    for (let j = 0; j < n; j++)
+      if (j !== k) {
+        rs.push(res[k][j]);
+        ls.push(lagRel[k][j]);
+      }
+    formResidual[k] = median(rs);
+    lagRaw[k] = median(ls);
+  }
+  // Canh trễ về trung vị nhóm = 0 (pha tuyệt đối của nhóm là tuỳ ý).
+  const lagCenter = median(lagRaw);
+  const lag = lagRaw.map((x) => x - lagCenter);
+
+  let spreadSum = 0;
+  let worst = 0;
+  let worstV = -1;
+  for (let k = 0; k < n; k++) {
+    spreadSum += formResidual[k];
+    if (formResidual[k] > worstV) {
+      worstV = formResidual[k];
+      worst = k;
+    }
+  }
+  const formSpread = spreadSum / n;
+  return {
+    formResidual,
+    lag,
+    formSpread,
+    formSync: Math.exp(-formSpread / SCALE),
+    worst,
+  };
+}
+
+/**
+ * Người múa SAI ĐỘNG TÁC nổi bật nhất (lỗi hình dáng thật, không phải chỉ trễ nhịp),
+ * hoặc `null` nếu không nên nêu ai. Cùng logic gác như `outlierIndex` nhưng trên
+ * formResidual: nhờ vậy CANON (mọi formResidual ~0) KHÔNG gọi tên ai — khắc phục
+ * đúng giới hạn V34 đã đo.
+ */
+export function formOutlierIndex(pa: PhaseAlign): number | null {
+  if (pa.formSync >= OUTLIER_SYNC_GATE) return null;
+  const n = pa.formResidual.length;
+  if (n < 2) return null;
+  const worst = pa.worst;
+  const worstV = pa.formResidual[worst];
+  if (worstV < OUTLIER_FLOOR) return null;
+  let sumOthers = 0;
+  for (let i = 0; i < n; i++) if (i !== worst) sumOthers += pa.formResidual[i];
+  const meanOthers = sumOthers / (n - 1);
+  if (worstV < meanOthers * OUTLIER_RATIO) return null;
+  return worst;
+}
+
 /** Một mẫu điểm đồng bộ theo thời gian (cho dải nhiệt dưới thanh thời gian). */
 export interface SyncSample {
   t: number;
