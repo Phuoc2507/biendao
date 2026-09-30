@@ -73,10 +73,16 @@ Vì clip tự quay không có GT, dùng 4 proxy không cần GT:
 | **MPJPE** (Đường A, vs AIST++ 9-view) | mm, trung bình khớp | < 60mm | 60–90mm | > 90mm |
 | **PA-MPJPE** (đã căn chỉnh) | mm | < 45mm | 45–70mm | > 70mm |
 | **2-cam so 1-cam** (H1) | % giảm MPJPE | giảm ≥ 30% | 15–30% | < 15% |
-| **Reprojection máy held-out** (Đường B) | px, chuẩn hoá theo chiều cao bbox (%) | < 3% | 3–6% | > 6% |
+| **Reprojection LOCO-mean** (Đường B) | px→% chiều cao bbox; bỏ-một-máy luân phiên rồi trung bình (`reprojection_error_loco`) | < 3% | 3–6% | > 6% |
+| **LOCO-std** (chẩn đoán QA hiện trường) | px, độ lệch giữa các fold | thấp/ổn định | hơi cao (nghi 1 máy lệch) | tăng vọt → có máy hỏng, quay lại |
+| **Bone-length std** (GT-free) | mm, dao động độ dài xương theo thời gian | ~0 sau ràng buộc | còn dao động nhẹ | dao động lớn (calib/sync sai) |
 | **Jitter** (gia tốc khớp) | so ngưỡng cảm nhận; so 1-cam | mượt sau cleanup | rung nhẹ còn dùng được | rung không cứu được |
 | **Foot-slip** | mm trượt ngang khi chạm sàn | < 2cm | 2–5cm | > 5cm |
 | **Chấm chuyên gia** | thang 1–5 usability (xem dưới) | trung vị ≥ 4 | = 3 | ≤ 2 |
+
+> **Đã kiểm định trên synthetic (§5.4, `experiments/`):** reprojection **held-out/LOCO bám sát MPJPE thật** (r≈0.99) nên dùng được làm giám khảo GT-free ở Đường B; **phải held-out**, không dùng in-sample (in-sample bị chính outlier bơm sai, không thấy robust đã sửa). **LOCO-std là cờ QA**: trong thí nghiệm 1-máy-hỏng nó tăng **×43** → quy tắc "std cao bất thường ⇒ quay lại" là có căn cứ. Hệ số quy đổi px→mm còn phụ thuộc hình học, **chốt bằng Đường A (AIST++, có 3D GT)**.
+
+> **Yêu cầu ≥3 máy Ở CỔNG 0 (khác sản phẩm 2 máy):** LOCO/held-out cần còn ≥2 máy dựng mỗi fold ⇒ **buổi nghiệm thu quay ≥3 máy** để tự chấm GT-free; sản phẩm cuối vẫn nhắm 2 điện thoại, nhưng đánh giá độ tin cần máy thứ 3 làm giám khảo.
 
 **Thang usability cho biên đạo (mỗi clip):**
 - 5 = dùng ngay, gần như không sửa
@@ -97,13 +103,17 @@ Vì clip tự quay không có GT, dùng 4 proxy không cần GT:
 
 | Tuần | Việc | Đường |
 |---|---|---|
-| 2 | Quay 24 clip + buổi góc máy; ingest; sync (clap + keypoint) | B (dữ liệu thật) |
-| 3 | Chạy Đường A trên AIST++: dựng 1-view / 2-view / các cặp góc; tính MPJPE | A (số cứng) |
-| 4 | Chạy pipeline trên 24 clip thật; tính reprojection held-out + jitter + foot-slip | B |
+| 2 | Quay 24 clip **≥3 máy** (2 = sản phẩm; máy thứ 3 làm giám khảo LOCO) + buổi góc máy; ingest; sync clap **< nửa khung** | B (dữ liệu thật) |
+| 3 | Chạy Đường A trên AIST++: dựng 1-view / 2-view / các cặp góc; tính MPJPE; **chốt hệ số px→mm** | A (số cứng) |
+| 4 | Chạy pipeline trên 24 clip thật; tính **LOCO-mean + LOCO-std** + bone-length-std + jitter + foot-slip; **std cao ⇒ đánh dấu quay lại** | B |
 | 5 | Buổi chấm chuyên gia (mời 1–2 biên đạo/dancer chấm mù, không biết clip nào 1 hay 2 cam) | Cả hai |
 | 6 | Tổng hợp bảng kết quả theo nhóm; ra quyết định ĐI/DỪNG + phạm vi động tác chốt | Cả hai |
 
 **Công cụ:** EasyMocap/XRMoCap (fuse), RTMPose/ViTPose (2D), OpenCV (ChArUco + chiếu ngược), numpy/scipy (metric), 1 mono method (WHAM) cho nhánh 1-cam. GPU lab.
+
+**Cấu hình pipeline đã chốt từ §5.4 (bật sẵn khi chạy detector thật):** `fuse_multiview(robust=True)` (cổng tái chiếu + loại-dần-view cho lỗi thô) + **trọng số nghịch-phương-sai đã HIỆU CHUẨN** từ confidence (hiệu chuẩn conf→σ trên vài clip qua sai số tái chiếu, KHÔNG dùng confidence sống) + **ràng buộc độ dài xương (PBD)** khi nhiễu detector ≥~3px. Ngưỡng cổng robust đặt **trên** dải nhiễu mềm dự kiến và **dưới** biên lỗi thô (tối ưu ~15–20px trong thí nghiệm). Chấm GT-free bằng `reprojection_error_loco` (mean + std).
+
+**Ngưỡng đồng bộ (đo được, `do_nhay_sync_calib`):** nền 11.3mm khi đồng bộ hoàn hảo; lệch **nửa khung @30fps** (~16.7ms) đẩy lên 12.7mm, **trọn 1 khung** (~33ms) lên 15.9mm ⇒ **yêu cầu đồng bộ < nửa khung** (clap-board + tinh chỉnh theo keypoint). Múa thật (footwork/vung tay nhanh) nhạy hơn synthetic nên đây là **cận dưới**.
 
 **Lưu ý phương pháp để số liệu tin được:**
 - **Chấm mù:** biên đạo không được biết clip nào 1-cam/2-cam → tránh thiên vị (quan trọng cho H1).
