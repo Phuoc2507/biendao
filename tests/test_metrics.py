@@ -105,3 +105,23 @@ def test_reprojection_error_zero_for_perfect_projection():
     proj = homog @ P.T
     uv = proj[..., :2] / proj[..., 2:3]
     assert reprojection_error(X, uv, P) == pytest.approx(0.0, abs=1e-6)
+
+
+def test_reprojection_error_known_offset_and_bbox_percent():
+    # Dịch mọi keypoint 2D đúng 8px -> lỗi tái chiếu = 8px; và nhánh % bbox.
+    rng = np.random.default_rng(9)
+    X = rng.standard_normal((3, NUM_JOINTS, 3)) * 0.3
+    X[..., 2] += 4.0
+    calib = CameraCalib(
+        K=np.array([[1000, 0, 960], [0, 1000, 540], [0, 0, 1]], dtype=float),
+        R=np.eye(3),
+        t=np.zeros(3),
+    )
+    P = calib.P
+    homog = np.concatenate([X, np.ones((*X.shape[:2], 1))], axis=2)
+    proj = homog @ P.T
+    uv = proj[..., :2] / proj[..., 2:3]
+    uv_shift = uv + np.array([8.0, 0.0])                 # lệch 8px theo trục u
+    assert reprojection_error(X, uv_shift, P) == pytest.approx(8.0, abs=1e-6)
+    # Chuẩn hoá theo chiều cao người 400px -> 8/400 = 2%.
+    assert reprojection_error(X, uv_shift, P, bbox_height_px=400.0) == pytest.approx(2.0, abs=1e-6)
