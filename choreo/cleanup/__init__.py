@@ -8,6 +8,12 @@ from choreo.cleanup.smooth import (
     savgol_smooth,
     detect_foot_contacts,
     decouple_root_motion,
+    enforce_bone_lengths,
 )
 
-__all__ = ["savgol_smooth", "detect_foot_contacts", "decouple_root_motion"]
+__all__ = [
+    "savgol_smooth",
+    "detect_foot_contacts",
+    "decouple_root_motion",
+    "enforce_bone_lengths",
+]

@@ -140,6 +140,30 @@ def foot_slip(
     return float(np.mean(slips)) if slips else 0.0
 
 
+def bone_length_std(
+    joints3d: np.ndarray,
+    edges: tuple[tuple[int, int], ...] | None = None,
+) -> float:
+    """Độ lệch chuẩn độ dài xương theo thời gian, trung bình trên các xương (mm).
+
+    Xương của một người là cứng → độ dài phải HẰNG SỐ theo khung. Tam giác hoá độc
+    lập từng khớp khiến độ dài dao động (xương "co giãn") — đây là dấu hiệu nhiễu
+    trực tiếp, KHÔNG cần ground-truth. Đo trước/sau `enforce_bone_lengths` để lượng
+    hoá hiệu quả bước ràng buộc.
+
+    joints3d: (T,J,3), mét. edges: mặc định lấy SKELETON_EDGES. Trả về mm.
+    """
+    x = _as_frames(joints3d)
+    if edges is None:
+        from choreo.schema import SKELETON_EDGES
+        edges = SKELETON_EDGES
+    stds = []
+    for p, c in edges:
+        lengths = np.linalg.norm(x[:, c] - x[:, p], axis=1)  # (T,)
+        stds.append(np.std(lengths))
+    return float(np.mean(stds) * _M_TO_MM) if stds else 0.0
+
+
 def reprojection_error(
     joints3d: np.ndarray,
     joints2d: np.ndarray,

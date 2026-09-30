@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from choreo.schema import MotionClip, FOOT_JOINTS, ROOT_JOINT
+from choreo.schema import MotionClip, FOOT_JOINTS, ROOT_JOINT, SKELETON_EDGES
 
 
 def _savgol_coeffs(window: int, polyorder: int) -> np.ndarray:
@@ -76,6 +76,47 @@ def detect_foot_contacts(
         height = pos[:, 1] - floor
         contacts[:, fi] = (vel < speed_thresh) & (height < height_thresh)
     return contacts
+
+
+def enforce_bone_lengths(
+    clip: MotionClip,
+    target: dict[tuple[int, int], float] | None = None,
+    iters: int = 20,
+) -> np.ndarray:
+    """Ép độ dài mỗi xương về hằng số theo thời gian bằng chiếu ràng buộc đối xứng.
+
+    Tam giác hoá từng khớp độc lập nên độ dài chi dao động phi vật lý theo khung
+    (xương "co giãn"). Vì xương người là **cứng**, độ dài đúng phải là hằng số —
+    đây là một ràng buộc dùng để KHỬ NHIỄU (không cần ground-truth).
+
+    Cách làm (kiểu Position-Based Dynamics): độ dài đích = **trung vị theo thời gian**
+    của từng xương; mỗi vòng lặp, với mỗi xương (p,c) dịch **cả hai** đầu về phía nhau
+    (hoặc ra xa) mỗi bên nửa phần sai lệch độ dài, rồi lặp qua toàn cây vài lần
+    (Jacobi/Gauss–Seidel trên cây → hội tụ về độ dài đúng). Vì sửa **đối xứng** nên
+    sai số được **phân tán** thay vì tích luỹ dồn từ root như cách dựng FK — nhờ vậy
+    độ dài xương thành hằng số MÀ vẫn giữ khớp bám sát quan sát (MPJPE không tệ đi,
+    thường tốt hơn). Đây là điểm khác cốt lõi so với FK: FK cho xương cứng nhưng đội
+    sai số vị trí lên; PBD vừa cứng xương vừa giảm sai số.
+
+    Trả về (T, J, 3) đã hiệu chỉnh. Khớp ngoài SKELETON_EDGES (vd root_floor) giữ
+    nguyên. Truyền `target` để dùng độ dài chuẩn cố định (vd từ chiều cao vũ công).
+    """
+    edges = SKELETON_EDGES
+    out = clip.joints3d.copy()
+    if target is None:
+        target = {
+            (p, c): float(np.median(np.linalg.norm(out[:, c] - out[:, p], axis=1)))
+            for p, c in edges
+        }
+    for _ in range(iters):
+        for p, c in edges:
+            vec = out[:, c] - out[:, p]
+            d = np.linalg.norm(vec, axis=1, keepdims=True)
+            d = np.where(d < 1e-9, 1.0, d)
+            corr = 0.5 * (d - target[(p, c)]) * (vec / d)   # nửa sai lệch mỗi đầu
+            out[:, p] = out[:, p] + corr
+            out[:, c] = out[:, c] - corr
+    return out
 
 
 def decouple_root_motion(clip: MotionClip) -> tuple[np.ndarray, np.ndarray]:
