@@ -62,10 +62,37 @@ nhiều máy như MAMMA (4 iPhone) hay DanceNet3D (29 cam).
 cuối phụ thuộc trực tiếp vào độ chính xác detector 2D (ViTPose/RTMPose). Đây là
 lý do phần cleanup (làm mượt, foot-lock) và detector tốt là bắt buộc.
 
+## D. Độ phủ khớp khi CÓ che khuất (thân người che, cần ≥2 máy thấy mỗi khớp)
+| Bố trí máy | Độ phủ khớp (%) | MPJPE khớp khôi phục (mm) | (độ phủ) |
+|:--|---:|---:|:--|
+| 2 máy cùng phía (lệch 20°) | 96.7 | 27.6 | `###########################.` |
+| 2 máy lệch 60° | 92.5 | 12.6 | `##########################..` |
+| 2 máy lệch 90° | 90.7 | 11.3 | `#########################...` |
+| 2 máy lệch 120° | 89.4 | 12.3 | `#########################...` |
+| 2 máy trước+sau (180°) | 84.0 | 239.7 | `########################....` |
+| 3 máy phủ 180° | 98.5 | 9.7 | `############################` |
+
+**Đọc kết quả — một sự ĐÁNH ĐỔI (đây mới là bức tranh đúng):** che khuất buộc mỗi
+khớp phải được **≥2 máy CÙNG nhìn thấy** mới tam giác hoá được, nên hai chỉ số kéo
+ngược nhau:
+- **Độ phủ** thích hai máy **gần nhau** (tầm nhìn trùng, dư thừa) → 96.7% ở lệch 20°.
+- **Độ chính xác** (giao hội) thích hai máy **lệch rộng** → nhưng lệch 20° cho MPJPE
+  tận 27.6mm (giao hội kém), trong khi lệch 90° chỉ 11.3mm.
+- **Lệch 60–90° là điểm dung hoà**: độ phủ vẫn ~90% mà MPJPE gần tốt nhất.
+- **180° (trước+sau) tệ KÉP**: hai tia gần thẳng hàng → tam giác hoá THOÁI HOÁ
+  (MPJPE ~240mm) và ít khớp cùng thấy → cấu hình cần tránh (khớp với khuyến nghị
+  "không đặt hai máy đối đầu 180°").
+- **Máy thứ 3 gỡ mâu thuẫn**: phủ 180° đạt 98.5% + 9.7mm vì mỗi khớp chỉ cần ≥2
+  trong 3 máy thấy. Đây là lý do THỰC để cân nhắc máy thứ 3 — **bù che khuất khi
+  xoay người**, khác với mục B (máy thứ 3 ở đó chỉ giảm nhẹ nhiễu).
+
 ## Kết luận cho luận văn
 1. **Hình học ủng hộ 2-cam**: đặt 2 máy lệch 60–90° đạt MPJPE tốt gần tối ưu; baseline
    nhỏ là nguyên nhân chính gây sai số — khớp với số liệu tài liệu (1-cam ~64mm → 2-cam ~36mm).
-2. **2 máy là điểm cân bằng chi phí/độ chính xác**: bão hoà nhanh sau đó.
-3. **Nút thắt còn lại là detector 2D**: sai số ~tuyến tính theo nhiễu pixel.
-4. Thí nghiệm này **tái lập được, thuần CPU** — dùng làm chương phương pháp/hiệu chỉnh
+2. **2 máy là điểm cân bằng chi phí/độ chính xác**: bão hoà nhanh sau đó (mục B).
+3. **Che khuất tạo đánh đổi phủ↔chính xác** (mục D): độ phủ thích máy gần, độ chính
+   xác thích máy lệch rộng; ~60–90° là dung hoà. Cần tránh 180° (thoái hoá kép). Máy
+   thứ 3 chủ yếu mua thêm ĐỘ PHỦ khi xoay người, không phải giảm nhiễu.
+4. **Nút thắt còn lại là detector 2D**: sai số ~tuyến tính theo nhiễu pixel (mục C).
+5. Thí nghiệm này **tái lập được, thuần CPU** — dùng làm chương phương pháp/hiệu chỉnh
    trước khi có video múa thật + GPU lab (Gate 0).

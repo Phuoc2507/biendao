@@ -67,3 +67,36 @@ def test_triangulate_needs_two_views():
     x[1, 0] = np.nan
     est = triangulate_dlt(_stack_P(cams), x)
     assert np.isnan(est[0]).all()
+
+
+def test_visibility_occludes_joint_behind_torso():
+    # Khớp nằm sau thân (phía xa camera) bị che; khớp phía trước thì không.
+    from choreo.geom.visibility import visible_mask
+    from choreo.schema import NUM_JOINTS, JOINT_INDEX
+    import numpy as np
+    pose = np.zeros((NUM_JOINTS, 3))
+    pose[JOINT_INDEX["pelvis"]] = (0.0, 0.95, 0.0)
+    pose[JOINT_INDEX["neck"]] = (0.0, 1.45, 0.0)
+    pose[JOINT_INDEX["l_wrist"]] = (0.0, 1.2, -0.3)   # sau thân so với máy ở +Z
+    pose[JOINT_INDEX["r_wrist"]] = (0.0, 1.2, 0.4)    # trước thân, gần máy hơn
+    cam = look_at_camera(0.0, distance=4.0, elevation_deg=0.0, target=(0.0, 1.2, 0.0))
+    mask = visible_mask(cam, pose)
+    assert not mask[JOINT_INDEX["l_wrist"]]  # bị thân che
+    assert mask[JOINT_INDEX["r_wrist"]]      # thấy rõ
+    assert mask[JOINT_INDEX["neck"]]         # khớp trên trục thân luôn thấy
+
+
+def test_visibility_complementary_across_opposite_cameras():
+    # Cùng một khớp bị che ở máy này thì lộ ra ở máy đối diện -> bù nhau.
+    from choreo.geom.visibility import visible_mask
+    from choreo.schema import NUM_JOINTS, JOINT_INDEX
+    import numpy as np
+    pose = np.zeros((NUM_JOINTS, 3))
+    pose[JOINT_INDEX["pelvis"]] = (0.0, 0.95, 0.0)
+    pose[JOINT_INDEX["neck"]] = (0.0, 1.45, 0.0)
+    pose[JOINT_INDEX["l_wrist"]] = (0.0, 1.2, -0.3)
+    front = look_at_camera(0.0, 4.0, elevation_deg=0.0, target=(0.0, 1.2, 0.0))
+    back = look_at_camera(180.0, 4.0, elevation_deg=0.0, target=(0.0, 1.2, 0.0))
+    mf = visible_mask(front, pose)
+    mb = visible_mask(back, pose)
+    assert not mf[JOINT_INDEX["l_wrist"]] and mb[JOINT_INDEX["l_wrist"]]

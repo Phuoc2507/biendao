@@ -32,6 +32,7 @@ except Exception:
 from choreo.eval.metrics import mpjpe                     # noqa: E402
 from choreo.geom import look_at_camera, project_points, ray_angle_deg  # noqa: E402
 from choreo.geom.triangulate import triangulate_dlt       # noqa: E402
+from choreo.geom.visibility import visible_mask           # noqa: E402
 from choreo.synth import synthetic_dance                  # noqa: E402
 
 # ---- Cấu hình chung ----
@@ -68,6 +69,40 @@ def _run_config(cams, gt, noise_px, trials, seed0=1000):
         glob.append(mpjpe(est, gt, root=None))  # sai số tuyệt đối trong hệ world
         root.append(mpjpe(est, gt, root=0))     # root-relative (so literature)
     return float(np.mean(glob)), float(np.mean(root))
+
+
+def _run_config_occluded(cams, gt, noise_px, trials, seed0=2000):
+    """Như _run_config nhưng CHE KHUẤT khớp bị thân che khỏi từng máy.
+
+    Khớp chỉ được tam giác hoá nếu >=2 máy nhìn thấy. Trả về:
+      (coverage_pct, mpjpe_recovered_mm) — % (khung×khớp) khôi phục được, và
+      MPJPE tính TRÊN các khớp khôi phục được (root=None, hệ world).
+    """
+    P = np.stack([c.P for c in cams], axis=0)
+    clean = _project_all(cams, gt)
+    T, J = gt.shape[0], gt.shape[1]
+    V = len(cams)
+    # Mask nhìn thấy không phụ thuộc nhiễu -> tính một lần.
+    vis = np.stack(
+        [np.stack([visible_mask(cams[v], gt[f]) for f in range(T)], axis=0) for v in range(V)],
+        axis=0,
+    )  # (V,T,J)
+    cov, errs = [], []
+    for tr in range(trials):
+        rng = np.random.default_rng(seed0 + tr)
+        est = np.full_like(gt, np.nan)
+        for f in range(T):
+            x = np.stack(
+                [clean[v][f] + rng.normal(0, noise_px, size=(J, 2)) for v in range(V)],
+                axis=0,
+            )
+            x[~vis[:, f, :]] = np.nan   # khớp bị che -> loại khỏi view đó
+            est[f] = triangulate_dlt(P, x)
+        ok = np.isfinite(est).all(axis=2)          # (T,J) khôi phục được?
+        cov.append(float(ok.mean()) * 100.0)
+        if ok.any():
+            errs.append(float(np.linalg.norm(est[ok] - gt[ok], axis=1).mean() * 1000.0))
+    return float(np.mean(cov)), (float(np.mean(errs)) if errs else float("nan"))
 
 
 def _mean_parallax(cam_a, cam_b, gt):
@@ -123,6 +158,35 @@ def exp_noise(gt):
     return rows
 
 
+def exp_coverage(gt):
+    """Thí nghiệm D: độ phủ khớp khi CÓ che khuất, so các cách bố trí máy."""
+    configs = [
+        ("2 máy cùng phía (lệch 20°)", [-10.0, 10.0]),
+        ("2 máy lệch 60°", [-30.0, 30.0]),
+        ("2 máy lệch 90°", [-45.0, 45.0]),
+        ("2 máy lệch 120°", [-60.0, 60.0]),
+        ("2 máy trước+sau (180°)", [-90.0, 90.0]),
+        ("3 máy phủ 180°", [-90.0, 0.0, 90.0]),
+    ]
+    rows = []
+    for name, az in configs:
+        cams = [
+            look_at_camera(a, DISTANCE, elevation_deg=ELEV, fov_y_deg=FOV, image_size=IMAGE)
+            for a in az
+        ]
+        cov, err = _run_config_occluded(cams, gt, DEFAULT_NOISE_PX, TRIALS)
+        rows.append((name, cov, err))
+    return rows
+
+
+def _fmt_coverage(rows):
+    out = ["| Bố trí máy | Độ phủ khớp (%) | MPJPE khớp khôi phục (mm) | (độ phủ) |",
+           "|:--|---:|---:|:--|"]
+    for name, cov, err in rows:
+        out.append(f"| {name} | {cov:.1f} | {err:.1f} | `{_bar(cov, 100.0)}` |")
+    return "\n".join(out)
+
+
 def _fmt_angle(rows):
     vmax = max(r[3] for r in rows)
     out = ["| Góc lệch 2 máy | Góc giao hội TB | MPJPE toàn cục (mm) | MPJPE root-rel (mm) | (root-rel) |",
@@ -158,6 +222,7 @@ def main():
     a = exp_angle(gt)
     b = exp_ncams(gt)
     c = exp_noise(gt)
+    e = exp_coverage(gt)
 
     best = min(a, key=lambda r: r[3])
     worst_small = a[0]  # góc lệch nhỏ nhất
@@ -205,12 +270,32 @@ nhiều máy như MAMMA (4 iPhone) hay DanceNet3D (29 cam).
 cuối phụ thuộc trực tiếp vào độ chính xác detector 2D (ViTPose/RTMPose). Đây là
 lý do phần cleanup (làm mượt, foot-lock) và detector tốt là bắt buộc.
 
+## D. Độ phủ khớp khi CÓ che khuất (thân người che, cần ≥2 máy thấy mỗi khớp)
+{_fmt_coverage(e)}
+
+**Đọc kết quả — một sự ĐÁNH ĐỔI (đây mới là bức tranh đúng):** che khuất buộc mỗi
+khớp phải được **≥2 máy CÙNG nhìn thấy** mới tam giác hoá được, nên hai chỉ số kéo
+ngược nhau:
+- **Độ phủ** thích hai máy **gần nhau** (tầm nhìn trùng, dư thừa) → 96.7% ở lệch 20°.
+- **Độ chính xác** (giao hội) thích hai máy **lệch rộng** → nhưng lệch 20° cho MPJPE
+  tận 27.6mm (giao hội kém), trong khi lệch 90° chỉ 11.3mm.
+- **Lệch 60–90° là điểm dung hoà**: độ phủ vẫn ~90% mà MPJPE gần tốt nhất.
+- **180° (trước+sau) tệ KÉP**: hai tia gần thẳng hàng → tam giác hoá THOÁI HOÁ
+  (MPJPE ~240mm) và ít khớp cùng thấy → cấu hình cần tránh (khớp với khuyến nghị
+  "không đặt hai máy đối đầu 180°").
+- **Máy thứ 3 gỡ mâu thuẫn**: phủ 180° đạt 98.5% + 9.7mm vì mỗi khớp chỉ cần ≥2
+  trong 3 máy thấy. Đây là lý do THỰC để cân nhắc máy thứ 3 — **bù che khuất khi
+  xoay người**, khác với mục B (máy thứ 3 ở đó chỉ giảm nhẹ nhiễu).
+
 ## Kết luận cho luận văn
 1. **Hình học ủng hộ 2-cam**: đặt 2 máy lệch 60–90° đạt MPJPE tốt gần tối ưu; baseline
    nhỏ là nguyên nhân chính gây sai số — khớp với số liệu tài liệu (1-cam ~64mm → 2-cam ~36mm).
-2. **2 máy là điểm cân bằng chi phí/độ chính xác**: bão hoà nhanh sau đó.
-3. **Nút thắt còn lại là detector 2D**: sai số ~tuyến tính theo nhiễu pixel.
-4. Thí nghiệm này **tái lập được, thuần CPU** — dùng làm chương phương pháp/hiệu chỉnh
+2. **2 máy là điểm cân bằng chi phí/độ chính xác**: bão hoà nhanh sau đó (mục B).
+3. **Che khuất tạo đánh đổi phủ↔chính xác** (mục D): độ phủ thích máy gần, độ chính
+   xác thích máy lệch rộng; ~60–90° là dung hoà. Cần tránh 180° (thoái hoá kép). Máy
+   thứ 3 chủ yếu mua thêm ĐỘ PHỦ khi xoay người, không phải giảm nhiễu.
+4. **Nút thắt còn lại là detector 2D**: sai số ~tuyến tính theo nhiễu pixel (mục C).
+5. Thí nghiệm này **tái lập được, thuần CPU** — dùng làm chương phương pháp/hiệu chỉnh
    trước khi có video múa thật + GPU lab (Gate 0).
 """
 
@@ -221,6 +306,7 @@ lý do phần cleanup (làm mượt, foot-lock) và detector tốt là bắt bu�
     print(_fmt_angle(a), "\n")
     print(_fmt_ncams(b), "\n")
     print(_fmt_noise(c), "\n")
+    print(_fmt_coverage(e), "\n")
     print(f"→ Đã ghi {out_path}")
 
 
