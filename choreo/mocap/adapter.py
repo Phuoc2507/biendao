@@ -89,3 +89,39 @@ class DummyAdapter(MocapAdapter):
             contacts=contacts,
             meta={"adapter": self.name, "source": "synthetic"},
         )
+
+
+class TriangulationAdapter(MocapAdapter):
+    """Backend hình học THẬT chạy CPU: nhận keypoint 2D đã có của 2 view rồi tam
+    giác hoá ra 3D (qua choreo.mocap.fuse). Đây là lõi hợp nhất mà EasyMocap/
+    XRMoCap cũng làm ở bước cuối — tách khỏi phần detector 2D (GPU) để test ngay.
+
+    Ở đây `view_a`, `view_b` là mảng keypoint 2D shape (T, J, 2) theo pixel
+    (NaN = khớp bị che ở view đó), KHÔNG phải khung hình thô. Khi có GPU lab, một
+    adapter con chỉ cần chạy 2D pose trên video rồi gọi lại `capture` này.
+    """
+
+    name = "triangulation"
+
+    def __init__(self, smooth: bool = True, smooth_window: int = 7) -> None:
+        self._smooth = smooth
+        self._window = smooth_window
+
+    def capture(
+        self,
+        view_a: np.ndarray,
+        view_b: np.ndarray,
+        calib_a: CameraCalib,
+        calib_b: CameraCalib,
+        fps: float = 30.0,
+    ) -> MotionClip:
+        from choreo.mocap.fuse import fuse_multiview
+
+        kp = np.stack([np.asarray(view_a, dtype=np.float64),
+                       np.asarray(view_b, dtype=np.float64)], axis=0)  # (2,T,J,2)
+        clip = fuse_multiview(
+            kp, [calib_a, calib_b], fps,
+            smooth=self._smooth, smooth_window=self._window,
+            meta={"adapter": self.name},
+        )
+        return clip
