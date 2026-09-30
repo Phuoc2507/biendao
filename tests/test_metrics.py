@@ -10,7 +10,9 @@ from choreo.eval import (
     jitter,
     foot_slip,
     reprojection_error,
+    reprojection_error_loco,
 )
+from choreo.geom import look_at_camera, project_points, triangulate_dlt
 from choreo.schema import CameraCalib, NUM_JOINTS
 
 
@@ -125,3 +127,38 @@ def test_reprojection_error_known_offset_and_bbox_percent():
     assert reprojection_error(X, uv_shift, P) == pytest.approx(8.0, abs=1e-6)
     # Chuẩn hoá theo chiều cao người 400px -> 8/400 = 2%.
     assert reprojection_error(X, uv_shift, P, bbox_height_px=400.0) == pytest.approx(2.0, abs=1e-6)
+
+
+def _reconstruct_clip(kp_subset, P_subset):
+    """Callback dựng 3D cho LOCO: DLT từng khung. kp (v,T,J,2), P (v,3,4)->(T,J,3)."""
+    T, J = kp_subset.shape[1], kp_subset.shape[2]
+    out = np.empty((T, J, 3))
+    for f in range(T):
+        out[f] = triangulate_dlt(P_subset, kp_subset[:, f])
+    return out
+
+
+def test_loco_zero_on_exact_projection_and_zero_spread():
+    # 3 máy nhìn về gốc; pose quanh gốc, chiếu ĐÚNG từ GT -> mọi fold lỗi ~0, spread ~0.
+    gt = _pose(seed=5, T=6)                                # quanh gốc (trong tầm mọi máy)
+    cams = [look_at_camera(a, 4.5) for a in (-50.0, 0.0, 50.0)]
+    P = np.stack([c.P for c in cams], axis=0)
+    kp = np.stack(
+        [np.stack([project_points(c, gt[f]) for f in range(gt.shape[0])], axis=0) for c in cams],
+        axis=0,
+    )  # (V,T,J,2)
+    mean, std = reprojection_error_loco(kp, P, _reconstruct_clip)
+    assert mean == pytest.approx(0.0, abs=1e-6)
+    assert std == pytest.approx(0.0, abs=1e-6)
+
+
+def test_loco_requires_three_cameras():
+    gt = _pose(seed=6, T=3)
+    cams = [look_at_camera(a, 4.5) for a in (-45.0, 45.0)]
+    P = np.stack([c.P for c in cams], axis=0)
+    kp = np.stack(
+        [np.stack([project_points(c, gt[f]) for f in range(gt.shape[0])], axis=0) for c in cams],
+        axis=0,
+    )
+    with pytest.raises(ValueError):
+        reprojection_error_loco(kp, P, _reconstruct_clip)

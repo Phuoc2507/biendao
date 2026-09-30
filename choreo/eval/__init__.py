@@ -9,6 +9,7 @@ from choreo.eval.metrics import (
     jitter,
     foot_slip,
     reprojection_error,
+    reprojection_error_loco,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "jitter",
     "foot_slip",
     "reprojection_error",
+    "reprojection_error_loco",
 ]

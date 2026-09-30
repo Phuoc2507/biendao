@@ -198,3 +198,40 @@ def reprojection_error(
     if bbox_height_px:
         return 100.0 * mean_err / bbox_height_px
     return mean_err
+
+
+def reprojection_error_loco(
+    keypoints2d: np.ndarray,
+    proj_mats: np.ndarray,
+    reconstruct,
+    bbox_height_px: float | None = None,
+) -> tuple[float, float]:
+    """Sai số tái chiếu **leave-one-camera-out** (LOCO) — GT-free, có bất định.
+
+    Thước đo held-out (một máy giữ lại) phụ thuộc *chọn máy nào*: giữ nhầm máy tệ
+    thì nhiễu. LOCO khử phụ thuộc đó bằng cross-validation: lần lượt giữ lại TỪNG
+    máy k, dựng 3D từ các máy còn lại rồi chiếu lên máy k, đo lỗi; trung bình qua
+    mọi fold. Độ lệch chuẩn giữa các fold là một **tín hiệu bất định** (đo được
+    không cần 3D GT).
+
+    keypoints2d : (V,T,J,2) keypoint quan sát ở V máy (V ≥ 3).
+    proj_mats   : (V,3,4) ma trận chiếu từng máy.
+    reconstruct : callable(kp_subset (v,T,J,2), P_subset (v,3,4)) -> joints3d (T,J,3).
+                  Chính pipeline dựng 3D — LOCO đánh giá pipeline, không phải một
+                  đầu ra 3D cố định.
+    bbox_height_px : nếu có, chuẩn hoá lỗi mỗi fold theo chiều cao người (%).
+
+    Trả về (mean, std) sai số tái chiếu qua V fold (px hoặc % nếu có bbox).
+    """
+    kp = np.asarray(keypoints2d, dtype=np.float64)
+    P = np.asarray(proj_mats, dtype=np.float64)
+    V = kp.shape[0]
+    if V < 3:
+        raise ValueError(f"LOCO cần ≥3 máy để còn ≥2 máy dựng mỗi fold, nhận V={V}")
+    fold_errs = []
+    for k in range(V):
+        keep = [i for i in range(V) if i != k]
+        j3d = reconstruct(kp[keep], P[keep])
+        fold_errs.append(reprojection_error(j3d, kp[k], P[k], bbox_height_px))
+    fold_errs = np.asarray(fold_errs, dtype=np.float64)
+    return float(fold_errs.mean()), float(fold_errs.std())
