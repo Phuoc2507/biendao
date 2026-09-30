@@ -172,3 +172,42 @@ Quay 60fps, 2 máy lệch 60–90°, cùng độ cao ngực, vỗ tay 1 cái đ�
 **Phân vai gợi ý theo ngành:** cả hai đều học Robot & AI, nên chia theo sở thích — nhánh A nặng CV/hình học/động học (đúng "chất" ngành nhất, hợp bạn nào thích thuật toán), nhánh B nặng phần mềm/3D web. Chương đánh giá (M5) nên do A chủ trì vì đó là phần "nghiên cứu" ghi điểm hội đồng.
 
 **Còn 1 việc nên làm sớm (ngoài lộ trình code):** hỏi GVHD xem đồ án perception + đồ hoạ thuần phần mềm (không có robot vật lý) có được chấp nhận không — để yên tâm trước khi chạy.
+
+---
+
+## 9. Hiện trạng nghiên cứu đã có (nguyên mẫu TÁI LẬP headless, TRƯỚC Gate 0)
+
+> Mục này ghi phần **đã làm và đo được** tính đến 2026-10-01, để hội đồng thấy novelty (nhất là
+> điểm 2 — **bộ đánh giá**) KHÔNG chỉ là lời hứa mà đã có **bằng chứng tái lập bằng số**. Tất cả
+> chạy **thuần CPU, tất định**, trên **dữ liệu tổng hợp có sự-thật-nền** — thay cho dữ liệu THẬT
+> (cần GPU lab + video múa) sẽ chạy từ Gate 0 (tuần 6). Cấu trúc thuật toán đã khoá; còn lại là
+> thay nguồn dữ liệu.
+
+**Hai tầng đã dựng, mỗi tầng có bộ thực nghiệm + runner tái lập:**
+
+| Tầng | Ở đâu | Đã chứng minh (đo được) | Runner tái lập |
+|---|---|---|---|
+| **Tri giác / hình học** (numpy) | `choreo/` (geom+synth+mocap/fuse), `experiments/` | Lõi 2-view tổng hợp (góc tốt ~90°, đánh đổi phủ↔chính xác); 7 lớp: robust (lỗi thô) · weighted inv-var (nhiễu mềm) · bone-length PBD (nhiễu radial) · capstone hợp nhất · hiệu chuẩn confidence GT-free · thước đo GT-free reproj held-out · cross-val LOCO + QA. **60 test xanh**. | `python experiments/run_all.py` (~173s); `pytest tests/` (60 passed) |
+| **Đánh giá dàn dựng** (web/TS, chấm ngay trên `web/src/sync.ts`) | `web/experiments/` (9 script), doc ở `experiments/ket-qua-*.md` | Xem mạch dưới | `node web/experiments/run-all.mjs` (**9/9 tất định ~177s**) |
+
+**Mạch nghiên cứu tầng đánh giá (đóng góp lõi của M4/M5, đã có bằng chứng):**
+
+1. **Tách "trễ nhịp CỐ Ý" khỏi "sai động tác THẬT"** — khung Phân tích Dữ liệu Hàm (FDA) /
+   tách Pha–Biên độ (SRVF), bản đặc biệt rigid-τ. Thực nghiệm headless **chấm chính mã sản phẩm**
+   chứng minh: dập báo giả canon **51%→0%**, nâng bắt lỗi **80%→100%**. Đã khảo tới hạn warping
+   (coarse-to-fine đóng dải gãy 0.9–1.05s; affine τ×ρ thử rồi TẮT mặc định = **kết quả âm trung
+   thực**; bản đồ biên gãy KHÉP cung: rigid-τ+thô→tinh là điểm phức tạp đúng, không leo thang vô cớ).
+2. **Trần nhận dạng & cách vượt** — chấm nhóm-tương-đối (không cần nhãn) có **điểm sụp đúng 50%**
+   (giới hạn THÔNG TIN, không sửa bằng cài đặt: sai đồng dạng thì sụp, sai đa dạng thì hỏng AN TOÀN
+   = im, không vu oan). Chấm **tuyệt đối theo tham chiếu** (cần NHÃN — có ở DAW clip-gán & ở Gate-0
+   camera held-out) **phá trần đó**: bắt đủ k người sai ở mọi tỉ lệ, vu oan 0%, vẫn bất biến canon.
+   ⇒ **cặp thước BÙ nhau**, chọn theo CÓ/KHÔNG nhãn — không ép một thước gánh cả hai.
+3. **Biện minh tham số** (trả lời trước câu hội đồng "vì sao các hằng số này?") — đường đặc trưng
+   vận hành cho thấy 4 hằng số của bộ chấm quy về **1 ngưỡng vật lý ~2cm** (SCALE & cổng đồng bộ
+   gộp thành 1 bậc tự do) + **các chốt an toàn tuyệt đối** hiếm khi bó — không phải số chọn bừa.
+
+> **Ranh giới trung thực:** mọi số trên là **tổng hợp/headless**. Đóng góp "số liệu trên múa THẬT"
+> (novelty điểm 2) vẫn CHỜ Gate 0 — chạy 2D pose (RTMPose/ViTPose) → `fuse_multiview` trên clip
+> 2 camera thật, và §5.4-kiểu thí nghiệm trên AIST++ với nhiễu detector thật. Phần đã có là **bộ
+> khung + thước đo đã kiểm chứng tái lập**, sẵn sàng đón dữ liệu thật mà không phải sửa thuật toán.
+> Chi tiết từng vòng: `experiments/ket-qua-*.md` và `web/experiments/README.md` (chỉ mục 2 cung).
