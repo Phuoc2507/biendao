@@ -26,6 +26,7 @@ const SCRIPTS = [
   ["breakdown-point.ts",       "V41 điểm sụp — trần 50%"],
   ["absolute-reference.ts",    "V42 chấm tuyệt đối — phá trần 50%"],
   ["gate-sensitivity.ts",      "V44 độ nhạy tham số — đường đặc trưng vận hành"],
+  ["ratio-scapegoat.ts",       "V46 độ nhạy RATIO — chống đổ oan, trần 50% hiện hình"],
 ];
 
 const work = mkdtempSync(join(tmpdir(), "choreo-eval-"));

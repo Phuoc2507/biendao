@@ -86,8 +86,10 @@ Bốn hằng số "định sẵn" **không** tuỳ tiện và **không** phải 
    tư thế ≥~12cm, bỏ qua lệch ≤~8cm.
 3. **FLOOR=5cm** là chốt chặn an toàn tuyệt đối, hiếm khi là ràng buộc bó trong chế độ thường —
    nó bảo đảm sàn "không bao giờ nêu lỗi nhỏ hơn 5cm".
-4. **RATIO=1.3** (không quét ở đây vì cần kịch bản đa-người-lạc) đã được khảo ở V41
-   ([điểm sụp](ket-qua-diem-sup-do.md)): là ngưỡng "nổi trội hơn số đông" để tách 1 kẻ lạc khỏi nền.
+4. **RATIO=1.3** (không quét ở đây vì cần kịch bản đa-người-lạc) được khảo riêng ở V46
+   ([độ nhạy RATIO](ket-qua-do-nhay-ty-le-do-oan.md)): giữ nguyên độ nhạy lỗi-đơn, hỏng an toàn khi
+   đám có nhiễu-nền, và khi ĐA SỐ cùng lệch thì lộ đúng **trần thông tin 50%** của V41 — không núm nào
+   sửa được, phải dùng thước tuyệt đối V42.
 
 Khi hội đồng hỏi "vì sao các số này", câu trả lời có bằng chứng: **chúng quy về MỘT ngưỡng vật lý
 ~2cm spread + MỘT chốt an toàn 5cm**, và điểm vận hành mặc định rơi đúng khoảng "bỏ qua lệch vừa,

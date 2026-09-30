@@ -30,9 +30,9 @@ wrapper `.bin` trên Windows), mỗi script chạy **2 lần** để xác nhận
 benchmark (`coarse-to-fine`, `affine-validation`) CÓ CHỦ Ý in thời gian tường (ms/lượt) — dao
 động hợp lệ, nên runner chuẩn hoá bỏ token `ms` VÀ gộp khoảng trắng ngang TRƯỚC khi so tất định
 (số ms thật vẫn hiển thị; gộp space để timing vượt mốc chữ số không gây lệch-đệm padStart giả).
-Lần đo gần nhất: **9/9 tái lập sạch, ~177s** (ngang runner numpy ~173s).
+Lần đo gần nhất: **10/10 tái lập sạch** (ngang runner numpy ~173s).
 
-## Mạch nghiên cứu tầng đánh giá (V33 → V44)
+## Mạch nghiên cứu tầng đánh giá (V33 → V46)
 
 Hai câu hỏi lớn, mỗi câu khép bằng bằng chứng đo được:
 
@@ -58,6 +58,7 @@ Hai câu hỏi lớn, mỗi câu khép bằng bằng chứng đo được:
 | `breakdown-point.ts` | V41 | ĐIỂM SỤP của chấm NHÓM-TƯƠNG-ĐỐI (tham chiếu = trung vị đồng thuận) | [diem-sup-do](../../experiments/ket-qua-diem-sup-do.md) — sụp ĐÚNG 50% (sai đồng dạng), hỏng AN TOÀN (sai đa dạng) |
 | `absolute-reference.ts` | V42 | Chấm TUYỆT ĐỐI theo clip tham chiếu — phá trần | [tham-chieu-tuyet-doi](../../experiments/ket-qua-tham-chieu-tuyet-doi.md) — KHÔNG điểm sụp, bắt đủ k người sai ở mọi k, vẫn bất biến canon |
 | `gate-sensitivity.ts` | V44 | ĐỘ NHẠY 4 hằng số của metric — đường đặc trưng vận hành | [do-nhay-tham-so](../../experiments/ket-qua-do-nhay-tham-so.md) — SCALE↔GATE gộp 1 núm (ngưỡng ~2cm spread); 0.85 là điểm cân bằng; FLOOR là chốt an toàn |
+| `ratio-scapegoat.ts` | V46 | ĐỘ NHẠY hằng số thứ 4 (RATIO) — chống đổ oan khi nhiều người cùng lệch | [do-nhay-ty-le-do-oan](../../experiments/ket-qua-do-nhay-ty-le-do-oan.md) — 3 chế độ theo k; residual bị TRUNG VỊ đảo tại 50% ⇒ đa-số-lệch vu oan thiểu số ĐÚNG = trần V41 hiện hình, phải dùng V42 |
 
 **Kết cung B — HAI THƯỚC BÙ NHAU (chọn theo việc CÓ hay KHÔNG nhãn tham chiếu):**
 
@@ -82,3 +83,7 @@ vế tuyệt đối để vượt trần 50%; khi không, vế nhóm-tương-đ�
   độc lập** — bộ phân loại chỉ phụ thuộc ngưỡng dẫn xuất `formSpread* = SCALE·ln(1/G) ≈ 2cm` (2 hằng
   số = 1 bậc tự do). 0.85 là điểm cân bằng bỏ-sót↔vu-oan; FLOOR=5cm là chốt an toàn tuyệt đối, hiếm
   khi bó trong chế độ thường. Biện minh được điểm vận hành, không phải số chọn bừa.
+- **V46 ([do-nhay-ty-le-do-oan](../../experiments/ket-qua-do-nhay-ty-le-do-oan.md)):** hằng số thứ tư
+  `OUTLIER_RATIO=1.3` — giữ độ nhạy lỗi-đơn, hỏng an toàn khi đám nhiễu-nền; nhưng khi **đa số** cùng
+  lệch, gộp trung vị **đảo** thứ hạng residual (tại 50%) ⇒ vu oan thiểu số ĐÚNG = **trần thông tin V41**,
+  không núm nào sửa được → ca đa-số-lệch thuộc thước tuyệt đối V42, không thuộc thẩm quyền RATIO.
