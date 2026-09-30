@@ -3,6 +3,7 @@
 
 import { useRef } from "react";
 import { useStore, type CameraMode } from "../store";
+import { FORMATIONS } from "../formation";
 import { clearSaved, exportProjectFile, importProjectFile } from "../persist";
 import { recordCurrentView } from "../record";
 
@@ -24,7 +25,7 @@ export function Panel() {
   const exporting = useStore((s) => s.exporting);
   const {
     addDancer, cloneSelected, removeDancer, updateDancer, select, toggleBeatGrid,
-    addClip, setClipAt, removeClipAt, moveClip,
+    addClip, setClipAt, removeClipAt, moveClip, applyFormation,
     setCameraMode, setEditingPath, clearPath,
   } = useStore.getState();
 
@@ -127,6 +128,23 @@ export function Panel() {
         >
           ↺ Đặt lại
         </button>
+      </div>
+
+      {/* Đội hình: một cú bấm xếp CẢ NHÓM thành hình, quay mặt khán giả. Xoá
+          đường đi của từng người (vị trí tĩnh của đội hình mới hiện đúng). */}
+      <div className="camrow">
+        <span className="camlabel">Đội hình:</span>
+        {FORMATIONS.map((f) => (
+          <button
+            key={f.shape}
+            className="cam"
+            title={`Xếp nhóm thành ${f.label.toLowerCase()} (xoá đường đi)`}
+            disabled={dancers.length < 2}
+            onClick={() => applyFormation(f.shape)}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       <div className="camrow">

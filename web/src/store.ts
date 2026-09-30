@@ -6,6 +6,7 @@
 import { create } from "zustand";
 import type { ClipData, ClipIndexEntry } from "./clip";
 import { sequenceTotal } from "./clip";
+import { formationPositions, type FormationShape } from "./formation";
 
 export type CameraMode = "orbit" | "follow" | "front";
 
@@ -107,6 +108,8 @@ interface State {
   removeDancer: (id: string) => void;
   updateDancer: (id: string, patch: Partial<Dancer>) => void;
   select: (id: string | null) => void;
+  // Đội hình: xếp CẢ NHÓM thành hình khối, quay mặt khán giả (xoá đường đi).
+  applyFormation: (shape: FormationShape) => void;
   toggleBeatGrid: () => void;
   setCameraMode: (m: CameraMode) => void;
   setEditingPath: (v: boolean) => void;
@@ -263,6 +266,21 @@ export const useStore = create<State>((set, get) => ({
       dancers: s.dancers.map((d) => (d.id === id ? { ...d, ...patch } : d)),
     })),
   select: (id) => set({ selectedId: id }),
+  applyFormation: (shape) =>
+    set((s) => {
+      const pos = formationPositions(shape, s.dancers.length);
+      const dancers = s.dancers.map((d, i) => {
+        const p = pos[i] ?? [d.position[0], d.position[2]];
+        return {
+          ...d,
+          // Giữ nguyên chiều cao y; đặt x,z theo đội hình.
+          position: [p[0], d.position[1], p[1]] as [number, number, number],
+          rotationY: 0, // quay mặt về khán giả (+Z)
+          waypoints: [], // xoá đường đi để vị trí tĩnh của đội hình hiện đúng
+        };
+      });
+      return { dancers };
+    }),
   toggleBeatGrid: () => set((s) => ({ showBeatGrid: !s.showBeatGrid })),
   setCameraMode: (m) => set({ cameraMode: m }),
   setEditingPath: (v) => set({ editingPath: v }),
