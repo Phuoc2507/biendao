@@ -170,13 +170,22 @@ export interface PhaseCfg {
   halfWindow: number; // nửa bề rộng cửa sổ quanh playhead
   samples: number; // số mẫu trong cửa sổ (lẻ để có mẫu ngay playhead)
   maxLag: number; // biên tìm τ (±)
-  lagStep: number; // bước quét τ
+  lagStep: number; // bước quét τ (độ phân giải tinh)
+  // Tìm thô→tinh: quét thô với bước coarseFactor·lagStep rồi tinh chỉnh quanh cực
+  // tiểu thô ở bước lagStep. Cho phép NỚI maxLag mà KHÔNG tăng chi phí O(nτ).
+  // =1 ⇒ quét vét cạn (tương thích ngược, dùng khi cần kết quả tham chiếu chính xác).
+  coarseFactor?: number;
 }
+// maxLag=1.0s: đo thực nghiệm (ket-qua-gioi-han-rigid-tau.md, Phần A) cho thấy biên
+// cũ 0.5s để lọt dải gãy trễ-hằng 0.9–1.05s (FP 100%); nới lên 1.0s (≈2 phách
+// @120BPM) đóng dải đó, vẫn dưới 1 chu kỳ clip nên KHÔNG alias. coarseFactor=4 giữ
+// chi phí ~25 phép/cặp (thấp hơn cả vét-cạn 0.5s cũ = 31) — xem ket-qua-tho-tinh.md.
 export const DEFAULT_PHASE: PhaseCfg = {
   halfWindow: 0.5,
   samples: 13,
-  maxLag: 0.5,
+  maxLag: 1.0,
   lagStep: 1 / 30,
+  coarseFactor: 4,
 };
 
 /**
@@ -226,14 +235,11 @@ function alignPair(
   scratch: Float32Array
 ): { residual: number; lag: number } {
   const K = refWin.length;
-  let best = Infinity;
-  let bestLag = 0;
-  for (let ti = 0; ti <= Math.round((2 * cfg.maxLag) / cfg.lagStep); ti++) {
-    const tau = -cfg.maxLag + ti * cfg.lagStep;
+  // Phần dư RMS khớp trên cửa sổ khi dịch `mov` đi τ giây.
+  const evalTau = (tau: number): number => {
     let sq = 0;
     for (let s = 0; s < K; s++) {
-      const ws =
-        K === 1 ? t : t + ((s / (K - 1)) * 2 - 1) * cfg.halfWindow;
+      const ws = K === 1 ? t : t + ((s / (K - 1)) * 2 - 1) * cfg.halfWindow;
       samplePoseAt(clips, layout, mov, ws + tau, scratch);
       const A = refWin[s];
       for (let j = 0; j < J; j++) {
@@ -244,10 +250,38 @@ function alignPair(
         sq += dx * dx + dy * dy + dz * dz;
       }
     }
-    const rms = Math.sqrt(sq / (K * J));
+    return Math.sqrt(sq / (K * J));
+  };
+
+  let best = Infinity;
+  let bestLag = 0;
+  // PASS THÔ: quét cả biên ±maxLag với bước coarseStep. Chuyển động múa trơn nên bề
+  // mặt residual(τ) có lòng chảo rộng ~chu kỳ; bước thô 4·(1/30)≈0.13s lấy ~15 mẫu/chu
+  // kỳ tổng hợp — thừa dày để không nhảy qua lòng chảo chính.
+  const cf = Math.max(1, Math.round(cfg.coarseFactor ?? 1));
+  const coarseStep = cf * cfg.lagStep;
+  const nCoarse = Math.round((2 * cfg.maxLag) / coarseStep);
+  for (let ti = 0; ti <= nCoarse; ti++) {
+    const tau = -cfg.maxLag + ti * coarseStep;
+    const rms = evalTau(tau);
     if (rms < best) {
       best = rms;
       bestLag = tau;
+    }
+  }
+  // PASS TINH: chỉ khi thô>tinh — tinh chỉnh trong ±coarseStep quanh cực tiểu thô ở
+  // bước lagStep (kẹp trong biên). Tổng ≈ nCoarse + 2·cf phép, thấp hơn vét cạn.
+  if (coarseStep > cfg.lagStep + 1e-9) {
+    const lo = Math.max(-cfg.maxLag, bestLag - coarseStep);
+    const hi = Math.min(cfg.maxLag, bestLag + coarseStep);
+    const nFine = Math.round((hi - lo) / cfg.lagStep);
+    for (let ti = 0; ti <= nFine; ti++) {
+      const tau = lo + ti * cfg.lagStep;
+      const rms = evalTau(tau);
+      if (rms < best) {
+        best = rms;
+        bestLag = tau;
+      }
     }
   }
   return { residual: best, lag: bestLag };
