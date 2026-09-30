@@ -140,6 +140,15 @@ button.cam.active { background: var(--accent); }
   box-shadow: 0 0 6px rgba(79, 140, 255, 0.6); z-index: 1;
 }
 .scrub { position: relative; width: 100%; accent-color: var(--accent); z-index: 2; }
+/* Bộ chọn tốc độ phát (segmented). */
+.speed { display: flex; gap: 3px; flex: none; }
+button.spd {
+  background: var(--panel2); color: var(--muted);
+  padding: 5px 8px; font-size: 12px; border-radius: 6px;
+  font-variant-numeric: tabular-nums; min-width: 40px;
+}
+button.spd.active { background: var(--accent); color: #fff; }
+
 .readout { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-variant-numeric: tabular-nums; }
 .readout .count { font-size: 20px; font-weight: 700; color: var(--accent); }
 .readout .secs, .readout .bpm { font-size: 11px; color: var(--muted); }

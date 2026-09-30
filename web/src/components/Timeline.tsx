@@ -13,6 +13,8 @@ export function Timeline() {
   }));
   const setTime = useStore((s) => s.setTime);
   const togglePlay = useStore((s) => s.togglePlay);
+  const speed = useStore((s) => s.speed);
+  const setSpeed = useStore((s) => s.setSpeed);
 
   const beatPeriod = 60 / bpm;
   const beatIndex = duration > 0 ? Math.floor(time / beatPeriod) : 0;
@@ -64,6 +66,19 @@ export function Timeline() {
           value={time}
           onChange={(e) => setTime(parseFloat(e.target.value))}
         />
+      </div>
+
+      {/* Tốc độ phát — làm chậm để tập từng động tác (chuẩn của app học nhảy). */}
+      <div className="speed" title="Tốc độ xem trước (không đổi video xuất)">
+        {[0.25, 0.5, 1].map((r) => (
+          <button
+            key={r}
+            className={"spd" + (speed === r ? " active" : "")}
+            onClick={() => setSpeed(r)}
+          >
+            {r === 1 ? "1×" : `${r}×`}
+          </button>
+        ))}
       </div>
 
       <div className="readout">

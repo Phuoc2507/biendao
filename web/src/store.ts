@@ -60,6 +60,7 @@ interface State {
   duration: number;
   time: number;
   playing: boolean;
+  speed: number; // tốc độ phát (1 = thật, <1 = chậm để tập từng động tác)
   bpm: number;
   beatsPerBar: number;
   showBeatGrid: boolean;
@@ -76,6 +77,7 @@ interface State {
   setTime: (t: number) => void;
   togglePlay: () => void;
   setPlaying: (p: boolean) => void;
+  setSpeed: (v: number) => void;
   addDancer: () => void;
   cloneSelected: () => void;
   removeDancer: (id: string) => void;
@@ -104,6 +106,7 @@ export const useStore = create<State>((set, get) => ({
   duration: 0,
   time: 0,
   playing: false,
+  speed: 1,
   bpm: 120,
   beatsPerBar: 8,
   showBeatGrid: true,
@@ -141,6 +144,7 @@ export const useStore = create<State>((set, get) => ({
   setTime: (t) => set({ time: t }),
   togglePlay: () => set((s) => ({ playing: !s.playing })),
   setPlaying: (p) => set({ playing: p }),
+  setSpeed: (v) => set({ speed: v }),
 
   addDancer: () => {
     const { dancers, defaultClip } = get();

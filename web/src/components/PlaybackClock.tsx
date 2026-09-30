@@ -8,7 +8,9 @@ export function PlaybackClock() {
   useFrame((_, dt) => {
     const s = useStore.getState();
     if (!s.playing || s.duration <= 0) return;
-    let t = s.time + dt;
+    // Nhân tốc độ: <1 = phát chậm để tập từng động tác. Xuất video vẫn ghi theo
+    // thời gian thật (record.ts tự bơm khung), nên slow-mo chỉ ảnh hưởng xem trước.
+    let t = s.time + dt * s.speed;
     if (t >= s.duration) t -= s.duration; // lặp vòng
     s.setTime(t);
   });
