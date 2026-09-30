@@ -24,7 +24,11 @@ export function Timeline() {
 
   return (
     <div className="timeline">
-      <button className="play" onClick={togglePlay}>
+      <button
+        className="play"
+        onClick={togglePlay}
+        title="Phát/Dừng (Space) · ←/→ tua 1 phách"
+      >
         {playing ? "⏸" : "▶"}
       </button>
 

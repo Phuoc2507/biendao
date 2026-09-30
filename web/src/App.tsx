@@ -62,6 +62,37 @@ export default function App() {
     });
   }, []);
 
+  // Phím tắt kiểu DAW: Space = phát/dừng, ←/→ = tua lùi/tới 1 phách.
+  // Bỏ qua khi con trỏ đang trong ô nhập (input/select/textarea) để không
+  // nuốt phím gõ; ←/→ tự dừng phát để tua chính xác.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (
+        t &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "SELECT" ||
+          t.tagName === "TEXTAREA" ||
+          t.isContentEditable)
+      )
+        return;
+      const st = useStore.getState();
+      if (e.code === "Space") {
+        e.preventDefault();
+        st.togglePlay();
+      } else if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
+        e.preventDefault();
+        const beat = 60 / st.bpm;
+        const dir = e.code === "ArrowLeft" ? -1 : 1;
+        st.setPlaying(false);
+        const next = Math.min(st.duration, Math.max(0, st.time + dir * beat));
+        st.setTime(next);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const orbit = cameraMode === "orbit" && !editingPath;
 
   return (

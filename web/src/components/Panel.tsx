@@ -305,8 +305,9 @@ export function Panel() {
       )}
 
       <p className="hint">
-        Kéo chuột để xoay góc nhìn · lăn để zoom. Clip demo là chuyển động tổng
-        hợp — sẽ thay bằng mocap 2-cam thật.
+        Kéo chuột để xoay góc nhìn · lăn để zoom · <b>Space</b> phát/dừng ·
+        <b>←/→</b> tua 1 phách. Clip demo là chuyển động tổng hợp — sẽ thay bằng
+        mocap 2-cam thật.
       </p>
     </div>
   );
