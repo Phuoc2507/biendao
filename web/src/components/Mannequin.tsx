@@ -3,10 +3,11 @@
 // getState -> không re-render). Trụ có độ dày giúp đọc tư thế rõ trong video tập,
 // hơn hẳn đường mảnh. Thêm một "đầu" to hơn ở khớp head và một "mũi" nhỏ chỉ về
 // +Z cục bộ để nhìn rõ vũ công đang quay mặt hướng nào (quan trọng cho bài tập
-// soi gương / POV). Nếu vũ công có đường đi (>=2 waypoint) thì vị trí/hướng bám
-// theo đường; ngược lại dùng vị trí/hướng tĩnh trong store.
+// soi gương / POV). Các chi bên PHẢI (khớp/xương tên "r_") tô đậm hơn để người
+// học đọc được đang cử động bên nào. Nếu vũ công có đường đi (>=2 waypoint) thì
+// vị trí/hướng bám theo đường; ngược lại dùng vị trí/hướng tĩnh trong store.
 
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useLayoutEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
@@ -50,6 +51,41 @@ export function Mannequin({
 
   // Đường cong (chỉ dựng lại khi waypoint đổi).
   const curve = useMemo(() => makeCurve(dancer.waypoints), [dancer.waypoints]);
+
+  // Phân biệt TRÁI/PHẢI: khớp/xương bên phải (tên "r_") tô sắc ĐẬM hơn để người
+  // học đọc được đang cử động bên nào — quan trọng khi tập soi gương/POV. Vẫn
+  // giữ MÀU nhận diện của từng vũ công (chỉ biến sắc độ, không đổi tông).
+  const rightJoint = useMemo(
+    () => clip.jointNames.map((n) => n.startsWith("r_")),
+    [clip]
+  );
+  const rightBone = useMemo(
+    () =>
+      clip.edges.map(
+        ([a, b]) =>
+          clip.jointNames[a].startsWith("r_") ||
+          clip.jointNames[b].startsWith("r_")
+      ),
+    [clip]
+  );
+
+  // Tô màu instance MỘT LẦN (màu tĩnh, không đổi mỗi khung): trái/giữa = màu gốc,
+  // phải = màu gốc nhân 0.6 (đậm hơn). Vật liệu để trắng để instanceColor mang
+  // trọn màu (nếu vật liệu cũng tô màu thì sẽ nhân đôi -> sai tông).
+  useLayoutEffect(() => {
+    const base = new THREE.Color(dancer.color);
+    const dark = base.clone().multiplyScalar(0.6);
+    const joints = jointsRef.current;
+    if (joints) {
+      for (let j = 0; j < J; j++) joints.setColorAt(j, rightJoint[j] ? dark : base);
+      if (joints.instanceColor) joints.instanceColor.needsUpdate = true;
+    }
+    const bones = bonesRef.current;
+    if (bones) {
+      for (let e = 0; e < E; e++) bones.setColorAt(e, rightBone[e] ? dark : base);
+      if (bones.instanceColor) bones.instanceColor.needsUpdate = true;
+    }
+  }, [dancer.color, rightJoint, rightBone, J, E]);
 
   useFrame(() => {
     const { time, duration } = useStore.getState();
@@ -135,13 +171,15 @@ export function Mannequin({
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
 
+      {/* Màu vật liệu để TRẮNG: màu thật do instanceColor mang (xem useEffect tô
+          trái/phải ở trên) — nếu vật liệu cũng tô màu thì sẽ nhân đôi, sai tông. */}
       <instancedMesh ref={jointsRef} args={[undefined, undefined, J]}>
         <sphereGeometry args={[0.038, 12, 12]} />
-        <meshStandardMaterial color={dancer.color} roughness={0.5} />
+        <meshStandardMaterial color="#ffffff" roughness={0.5} />
       </instancedMesh>
       <instancedMesh ref={bonesRef} args={[undefined, undefined, E]}>
         <cylinderGeometry args={[0.024, 0.024, 1, 10]} />
-        <meshStandardMaterial color={dancer.color} roughness={0.55} />
+        <meshStandardMaterial color="#ffffff" roughness={0.55} />
       </instancedMesh>
 
       {/* Đầu (to hơn khớp thường) + mũi trắng chỉ hướng mặt (+Z cục bộ). Group
