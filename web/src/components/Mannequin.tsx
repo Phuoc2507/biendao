@@ -1,7 +1,9 @@
 // Một vũ công ảo: vẽ thân người dạng khối — cầu ở khớp + trụ 3D ở xương (cả hai
 // instanced để nhẹ), cập nhật tư thế mỗi khung bằng useFrame (đọc time qua
 // getState -> không re-render). Trụ có độ dày giúp đọc tư thế rõ trong video tập,
-// hơn hẳn đường mảnh. Nếu vũ công có đường đi (>=2 waypoint) thì vị trí/hướng bám
+// hơn hẳn đường mảnh. Thêm một "đầu" to hơn ở khớp head và một "mũi" nhỏ chỉ về
+// +Z cục bộ để nhìn rõ vũ công đang quay mặt hướng nào (quan trọng cho bài tập
+// soi gương / POV). Nếu vũ công có đường đi (>=2 waypoint) thì vị trí/hướng bám
 // theo đường; ngược lại dùng vị trí/hướng tĩnh trong store.
 
 import { useRef, useMemo } from "react";
@@ -35,6 +37,10 @@ export function Mannequin({
   const groupRef = useRef<THREE.Group>(null);
   const jointsRef = useRef<THREE.InstancedMesh>(null);
   const bonesRef = useRef<THREE.InstancedMesh>(null);
+  const headRef = useRef<THREE.Group>(null);
+
+  // Chỉ số khớp "head" để đặt đầu/mũi; -1 nếu clip không có (khi đó bỏ qua).
+  const headIdx = useMemo(() => clip.jointNames.indexOf("head"), [clip]);
 
   // Bộ đệm tái dùng: tránh cấp phát mỗi khung.
   const pose = useMemo(() => new Float32Array(J * 3), [J]);
@@ -97,6 +103,13 @@ export function Mannequin({
       }
       bones.instanceMatrix.needsUpdate = true;
     }
+
+    // Đầu + mũi bám khớp head (mũi là con, lệch +Z cục bộ -> tự quay theo group).
+    const head = headRef.current;
+    if (head && headIdx >= 0) {
+      const o = headIdx * 3;
+      head.position.set(pose[o], pose[o + 1], pose[o + 2]);
+    }
   });
 
   return (
@@ -109,6 +122,23 @@ export function Mannequin({
         <cylinderGeometry args={[0.024, 0.024, 1, 10]} />
         <meshStandardMaterial color={dancer.color} roughness={0.55} />
       </instancedMesh>
+
+      {/* Đầu (to hơn khớp thường) + mũi trắng chỉ hướng mặt (+Z cục bộ). Group
+          này được đặt vào vị trí khớp head mỗi khung; mũi là con nên tự xoay
+          theo hướng mặt của cả vũ công. */}
+      {headIdx >= 0 && (
+        <group ref={headRef}>
+          <mesh>
+            <sphereGeometry args={[0.085, 20, 16]} />
+            <meshStandardMaterial color={dancer.color} roughness={0.45} />
+          </mesh>
+          <mesh position={[0, 0.01, 0.085]} rotation={[Math.PI / 2, 0, 0]}>
+            <coneGeometry args={[0.032, 0.07, 12]} />
+            {/* basic (không chịu sáng) để mũi luôn trắng rõ dù đứng trong bóng */}
+            <meshBasicMaterial color="#f3f5f8" />
+          </mesh>
+        </group>
+      )}
 
       {/* Bóng tiếp đất + vòng chọn dưới chân */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
