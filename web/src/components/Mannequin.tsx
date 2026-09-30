@@ -15,7 +15,7 @@ import type { ClipData } from "../clip";
 import { samplePose, samplePoseSequence } from "../clip";
 import { useStore, type Dancer } from "../store";
 import { makeCurve, sampledPath } from "../path";
-import { formationPose } from "../formation";
+import { formationPose, waveDelay } from "../formation";
 
 // Bộ đệm tái dùng ở cấp module (mọi vũ công dùng chung, không cấp phát mỗi khung).
 const dummy = new THREE.Object3D();
@@ -98,7 +98,7 @@ export function Mannequin({
   }, [dancer.color, rightJoint, rightBone, J, E]);
 
   useFrame(() => {
-    const { time, duration, formations, bpm } = useStore.getState();
+    const { time, duration, formations, bpm, formationWave } = useStore.getState();
     // Lấy mẫu theo CHUỖI clip (phát nối tiếp, lặp cả chuỗi). Nếu chuỗi rỗng/thiếu
     // clip thì dùng clip bố cục làm dự phòng.
     if (!samplePoseSequence(clips, dancer.sequence, time - dancer.timeOffset, pose))
@@ -109,9 +109,13 @@ export function Mannequin({
     // đi nếu có, cuối cùng mới dùng vị trí tĩnh.
     const g = groupRef.current;
     if (g) {
+      // "Làn sóng"/canon: mỗi người dịch thời gian lấy mẫu đội hình đi `delay` nên
+      // vào/ra đội hình lệch pha theo thứ tự (người 0 trước, người cuối sau).
+      const beatSec = 60 / bpm;
+      const delay = waveDelay(formationWave, index, count, beatSec);
       const fpose =
         formations.length > 0
-          ? formationPose(formations, index, count, time, 60 / bpm)
+          ? formationPose(formations, index, count, time - delay, beatSec)
           : null;
       if (fpose) {
         // Đội hình lái cả vị trí LẪN hướng mặt (nội suy theo mốc): quay khán giả

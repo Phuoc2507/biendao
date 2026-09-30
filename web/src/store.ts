@@ -91,6 +91,7 @@ interface State {
   editingPath: boolean;
   dancers: Dancer[];
   formations: FormationCue[]; // timeline đội hình (cấp NHÓM); luôn sắp tăng theo count
+  formationWave: number; // "làn sóng"/canon: độ trải thời gian (COUNT) khi chuyển đội hình; 0 = đồng thời
   selectedId: string | null;
   exporting: string | null; // tên vũ công đang xuất video, null = không xuất
   panelOpen: boolean; // trên mobile: bảng điều khiển (drawer) đang mở hay không
@@ -115,6 +116,7 @@ interface State {
   addFormation: (shape: FormationShape) => void;
   removeFormation: (id: string) => void;
   setFormationFacing: (id: string, facing: FormationFacing) => void;
+  setFormationWave: (v: number) => void;
   clearFormations: () => void;
   setFormations: (cues: FormationCue[]) => void;
   toggleBeatGrid: () => void;
@@ -148,6 +150,7 @@ export const useStore = create<State>((set, get) => ({
   editingPath: false,
   dancers: [makeDancer({ position: [0, 0, 0] })],
   formations: [],
+  formationWave: 0,
   selectedId: "d0",
   exporting: null,
   panelOpen: false, // mặc định đóng để mobile thấy sân khấu 3D trước; desktop luôn hiện qua CSS
@@ -303,6 +306,7 @@ export const useStore = create<State>((set, get) => ({
     set((s) => ({
       formations: s.formations.map((c) => (c.id === id ? { ...c, facing } : c)),
     })),
+  setFormationWave: (v) => set({ formationWave: v }),
   clearFormations: () => set({ formations: [] }),
   setFormations: (cues) =>
     set(() => {

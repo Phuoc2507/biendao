@@ -24,10 +24,11 @@ export function Panel() {
   const editingPath = useStore((s) => s.editingPath);
   const exporting = useStore((s) => s.exporting);
   const formations = useStore((s) => s.formations);
+  const formationWave = useStore((s) => s.formationWave);
   const {
     addDancer, cloneSelected, removeDancer, updateDancer, select, toggleBeatGrid,
     addClip, setClipAt, removeClipAt, moveClip,
-    addFormation, removeFormation, setFormationFacing, clearFormations,
+    addFormation, removeFormation, setFormationFacing, setFormationWave, clearFormations,
     setCameraMode, setEditingPath, clearPath,
   } = useStore.getState();
 
@@ -201,6 +202,23 @@ export function Panel() {
                 : `${formations.length} mốc → nhóm tự trượt giữa các đội hình.`}{" "}
               Ghi đè vị trí, hướng mặt & đường đi của mỗi vũ công.
             </span>
+            {/* Làn sóng/canon: chỉ có nghĩa khi có ≥2 mốc (lúc nhóm đang chuyển). */}
+            {formations.length >= 2 && (
+              <label className="fmwave" title="Người trước rời chỗ trước, người sau rời sau — sóng lan dọc nhóm">
+                <span>
+                  Làn sóng (canon):{" "}
+                  <b>{formationWave === 0 ? "tắt" : `${formationWave.toFixed(2)} count`}</b>
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={2}
+                  step={0.25}
+                  value={formationWave}
+                  onChange={(e) => setFormationWave(parseFloat(e.target.value))}
+                />
+              </label>
+            )}
           </div>
         )}
       </div>

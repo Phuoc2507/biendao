@@ -9,6 +9,7 @@ const KEY = "choreo.project.v1";
 interface Saved {
   dancers: Dancer[];
   formations?: FormationCue[]; // tuỳ chọn: dự án cũ không có -> nạp thành []
+  formationWave?: number; // tuỳ chọn: dự án cũ không có -> nạp thành 0
   cameraMode: CameraMode;
   showBeatGrid: boolean;
 }
@@ -19,6 +20,7 @@ export function saveProject(): void {
     const data: Saved = {
       dancers: s.dancers,
       formations: s.formations,
+      formationWave: s.formationWave,
       cameraMode: s.cameraMode,
       showBeatGrid: s.showBeatGrid,
     };
@@ -65,6 +67,7 @@ export function exportProjectFile(): void {
     savedAt: new Date().toISOString(),
     dancers: s.dancers,
     formations: s.formations,
+    formationWave: s.formationWave,
     cameraMode: s.cameraMode,
     showBeatGrid: s.showBeatGrid,
   };
@@ -103,6 +106,7 @@ export async function importProjectFile(file: File): Promise<void> {
   const st = useStore.getState();
   st.loadProject(d.dancers as Dancer[]);
   st.setFormations(Array.isArray(d.formations) ? d.formations : []);
+  st.setFormationWave(typeof d.formationWave === "number" ? d.formationWave : 0);
   if (d.cameraMode) st.setCameraMode(d.cameraMode);
   if (typeof d.showBeatGrid === "boolean" && d.showBeatGrid !== st.showBeatGrid) {
     st.toggleBeatGrid();

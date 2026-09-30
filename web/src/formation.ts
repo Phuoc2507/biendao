@@ -221,3 +221,20 @@ export function formationPose(
   }
   return poseOf(last);
 }
+
+// Độ trễ (giây) của vũ công thứ i (trong n người) cho hiệu ứng "làn sóng"/canon
+// khi chuyển đội hình: người đầu (i=0) rời chỗ TRƯỚC, người cuối (i=n-1) rời SAU
+// cùng, tạo sóng lan chạy dọc nhóm — rất đặc trưng đội hình K-pop. `wave` tính
+// bằng COUNT (đơn vị nhịp) = TỔNG độ trải của cả nhóm (không phụ thuộc sĩ số);
+// 0 = mọi người chuyển đồng thời (hành vi cũ). Cách dùng: lấy mẫu đội hình của
+// người i tại thời gian ĐÃ DỊCH `tSec - waveDelay(...)` — họ vào/ra đội hình muộn
+// hơn nhưng trước mốc đầu vẫn kẹp về đội hình đầu nên lúc đứng yên không lệch.
+export function waveDelay(
+  wave: number,
+  i: number,
+  n: number,
+  beatSec: number
+): number {
+  if (wave === 0 || n <= 1) return 0;
+  return wave * beatSec * (i / (n - 1));
+}
