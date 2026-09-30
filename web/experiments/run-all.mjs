@@ -25,6 +25,7 @@ const SCRIPTS = [
   ["failure-frontier.ts",      "V40 bản đồ biên gãy"],
   ["breakdown-point.ts",       "V41 điểm sụp — trần 50%"],
   ["absolute-reference.ts",    "V42 chấm tuyệt đối — phá trần 50%"],
+  ["gate-sensitivity.ts",      "V44 độ nhạy tham số — đường đặc trưng vận hành"],
 ];
 
 const work = mkdtempSync(join(tmpdir(), "choreo-eval-"));
@@ -46,7 +47,12 @@ function bundleAndRun(tsFile) {
 // Loại token THỜI GIAN TƯỜNG (vd "  123 ms") khỏi phép so tất định: vài script CÓ CHỦ Ý
 // in chi phí đo được (coarse-to-fine benchmark) — dao động hợp lệ, KHÔNG phải phi tất định
 // về KẾT QUẢ. Chỉ chuẩn hoá để so, output hiển thị vẫn giữ nguyên số ms thật.
-const normalize = (s) => s.replace(/\d+(\.\d+)?\s*ms/g, "<ms>");
+// Thu gọn cả KHOẢNG TRẮNG NGANG sau khi bỏ ms: số ms in bằng padStart(width) cố định, nên khi
+// timing vượt mốc chữ số giữa 2 lần (vd 9972→10231, 4↔5 chữ số) phần đệm canh lề đổi 1 space;
+// regex ms nuốt chữ số+"ms" nhưng KHÔNG nuốt space đệm phía trước → " <ms>" vs "<ms>" lệch giả.
+// Gộp mọi dải space/tab về 1 ký tự triệt tiêu lệch-đệm này mà VẪN bắt khác biệt kết quả thật
+// (chữ/số khác nhau vẫn khác sau khi gộp). Đây là lỗi ngắt quãng của RUNNER, không phải script.
+const normalize = (s) => s.replace(/\d+(\.\d+)?\s*ms/g, "<ms>").replace(/[ \t]+/g, " ");
 
 let allOk = true;
 const rows = [];

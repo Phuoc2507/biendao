@@ -28,10 +28,11 @@ node experiments/run-all.mjs
 Runner bundle từng script ra CJS tạm rồi chạy bằng chính Node này (dùng esbuild JS API, né
 wrapper `.bin` trên Windows), mỗi script chạy **2 lần** để xác nhận KẾT QUẢ tất định. Hai script
 benchmark (`coarse-to-fine`, `affine-validation`) CÓ CHỦ Ý in thời gian tường (ms/lượt) — dao
-động hợp lệ, nên runner chuẩn hoá bỏ token `ms` TRƯỚC khi so tất định (số ms thật vẫn hiển thị).
-Lần đo gần nhất: **8/8 tái lập sạch, ~177s** (ngang runner numpy ~173s).
+động hợp lệ, nên runner chuẩn hoá bỏ token `ms` VÀ gộp khoảng trắng ngang TRƯỚC khi so tất định
+(số ms thật vẫn hiển thị; gộp space để timing vượt mốc chữ số không gây lệch-đệm padStart giả).
+Lần đo gần nhất: **9/9 tái lập sạch, ~177s** (ngang runner numpy ~173s).
 
-## Mạch nghiên cứu tầng đánh giá (V33 → V42)
+## Mạch nghiên cứu tầng đánh giá (V33 → V44)
 
 Hai câu hỏi lớn, mỗi câu khép bằng bằng chứng đo được:
 
@@ -56,6 +57,7 @@ Hai câu hỏi lớn, mỗi câu khép bằng bằng chứng đo được:
 |--------|:----:|----------|---------|
 | `breakdown-point.ts` | V41 | ĐIỂM SỤP của chấm NHÓM-TƯƠNG-ĐỐI (tham chiếu = trung vị đồng thuận) | [diem-sup-do](../../experiments/ket-qua-diem-sup-do.md) — sụp ĐÚNG 50% (sai đồng dạng), hỏng AN TOÀN (sai đa dạng) |
 | `absolute-reference.ts` | V42 | Chấm TUYỆT ĐỐI theo clip tham chiếu — phá trần | [tham-chieu-tuyet-doi](../../experiments/ket-qua-tham-chieu-tuyet-doi.md) — KHÔNG điểm sụp, bắt đủ k người sai ở mọi k, vẫn bất biến canon |
+| `gate-sensitivity.ts` | V44 | ĐỘ NHẠY 4 hằng số của metric — đường đặc trưng vận hành | [do-nhay-tham-so](../../experiments/ket-qua-do-nhay-tham-so.md) — SCALE↔GATE gộp 1 núm (ngưỡng ~2cm spread); 0.85 là điểm cân bằng; FLOOR là chốt an toàn |
 
 **Kết cung B — HAI THƯỚC BÙ NHAU (chọn theo việc CÓ hay KHÔNG nhãn tham chiếu):**
 
@@ -76,3 +78,7 @@ vế tuyệt đối để vượt trần 50%; khi không, vế nhóm-tương-đ�
   (maxRate:0 ⇒ affine TẮT, hành vi chỉ-dịch).
 - `formSync = exp(-formSpread / SCALE)`, **SCALE=0.12** (neo vật lý ~12cm lệch khớp TB → ~37%).
 - Cổng `formOutlierIndex`: `OUTLIER_SYNC_GATE=0.85`, `OUTLIER_FLOOR=0.05` (5cm), `OUTLIER_RATIO=1.3`.
+- **V44 ([do-nhay-tham-so](../../experiments/ket-qua-do-nhay-tham-so.md)):** SCALE & SYNC_GATE **không
+  độc lập** — bộ phân loại chỉ phụ thuộc ngưỡng dẫn xuất `formSpread* = SCALE·ln(1/G) ≈ 2cm` (2 hằng
+  số = 1 bậc tự do). 0.85 là điểm cân bằng bỏ-sót↔vu-oan; FLOOR=5cm là chốt an toàn tuyệt đối, hiếm
+  khi bó trong chế độ thường. Biện minh được điểm vận hành, không phải số chọn bừa.
