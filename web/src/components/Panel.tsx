@@ -24,13 +24,16 @@ export function Panel() {
   const exporting = useStore((s) => s.exporting);
   const {
     addDancer, cloneSelected, removeDancer, updateDancer, select, toggleBeatGrid,
-    setDancerClip, setCameraMode, setEditingPath, clearPath,
+    addClip, setClipAt, removeClipAt, moveClip,
+    setCameraMode, setEditingPath, clearPath,
   } = useStore.getState();
 
   const sel = dancers.find((d) => d.id === selectedId) ?? null;
   const beatPeriod = 60 / bpm;
   const hasPath = !!sel && sel.waypoints.length >= 2;
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const defaultClipName = clipIndex[0]?.name ?? "";
 
   // Nạp dàn dựng từ tệp .json người dùng chọn.
   function onImportFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -192,6 +195,9 @@ export function Panel() {
           >
             <span className="dot" style={{ background: d.color }} />
             <span className="nm">{d.name}</span>
+            {d.sequence.length > 1 && (
+              <span className="tag">×{d.sequence.length} clip</span>
+            )}
             {d.mirror && <span className="tag">gương</span>}
             {d.waypoints.length >= 2 && <span className="tag">đường</span>}
             {d.timeOffset !== 0 && (
@@ -214,17 +220,58 @@ export function Panel() {
         <div className="editor">
           <h2>{sel.name}</h2>
 
-          <label>Động tác</label>
-          <select
-            value={sel.clipName}
-            onChange={(e) => setDancerClip(sel.id, e.target.value)}
-          >
-            {clipIndex.map((c) => (
-              <option key={c.name} value={c.name}>
-                {c.label} · {c.bpm}bpm
-              </option>
+          <label>Chuỗi động tác ({sel.sequence.length} clip)</label>
+          {/* Mỗi hàng = một đoạn trong chuỗi, phát nối tiếp rồi lặp cả chuỗi.
+              Đổi clip qua ô chọn; ↑/↓ đổi thứ tự; × xoá (giữ tối thiểu 1). */}
+          <div className="seq">
+            {sel.sequence.map((name, i) => (
+              <div className="seqrow" key={i}>
+                <span className="seqnum">{i + 1}</span>
+                <select
+                  value={name}
+                  onChange={(e) => setClipAt(sel.id, i, e.target.value)}
+                >
+                  {clipIndex.map((c) => (
+                    <option key={c.name} value={c.name}>
+                      {c.label} · {c.bpm}bpm
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="seqbtn"
+                  title="Lên"
+                  disabled={i === 0}
+                  onClick={() => moveClip(sel.id, i, -1)}
+                >
+                  ↑
+                </button>
+                <button
+                  className="seqbtn"
+                  title="Xuống"
+                  disabled={i === sel.sequence.length - 1}
+                  onClick={() => moveClip(sel.id, i, 1)}
+                >
+                  ↓
+                </button>
+                <button
+                  className="seqbtn x"
+                  title="Xoá đoạn"
+                  disabled={sel.sequence.length <= 1}
+                  onClick={() => removeClipAt(sel.id, i)}
+                >
+                  ×
+                </button>
+              </div>
             ))}
-          </select>
+            <button
+              className="seqadd"
+              onClick={() =>
+                addClip(sel.id, sel.sequence[sel.sequence.length - 1] ?? defaultClipName)
+              }
+            >
+              ＋ Thêm clip
+            </button>
+          </div>
 
           <label>Vị trí X: {sel.position[0].toFixed(2)} m {hasPath && "(theo đường)"}</label>
           <input

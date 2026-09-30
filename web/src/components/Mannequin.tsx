@@ -12,7 +12,7 @@ import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import type { ClipData } from "../clip";
-import { samplePose } from "../clip";
+import { samplePose, samplePoseSequence } from "../clip";
 import { useStore, type Dancer } from "../store";
 import { makeCurve, sampledPath } from "../path";
 
@@ -26,16 +26,21 @@ const UP = new THREE.Vector3(0, 1, 0);
 const quat = new THREE.Quaternion();
 
 export function Mannequin({
-  clip,
+  clips,
+  fallback,
   dancer,
   selected,
   showLabel,
 }: {
-  clip: ClipData;
+  clips: Record<string, ClipData>;
+  fallback: ClipData; // clip dự phòng khi chuỗi rỗng / thiếu clip
   dancer: Dancer;
   selected: boolean;
   showLabel: boolean;
 }) {
+  // Clip "bố cục": lấy khớp/xương/đầu từ clip đầu chuỗi (mọi clip cùng layout 17
+  // khớp nên dùng clip nào cũng được); dự phòng khi chuỗi rỗng.
+  const clip = clips[dancer.sequence[0]] ?? fallback;
   const J = clip.jointNames.length;
   const E = clip.edges.length;
   const groupRef = useRef<THREE.Group>(null);
@@ -89,7 +94,10 @@ export function Mannequin({
 
   useFrame(() => {
     const { time, duration } = useStore.getState();
-    samplePose(clip, time - dancer.timeOffset, pose);
+    // Lấy mẫu theo CHUỖI clip (phát nối tiếp, lặp cả chuỗi). Nếu chuỗi rỗng/thiếu
+    // clip thì dùng clip bố cục làm dự phòng.
+    if (!samplePoseSequence(clips, dancer.sequence, time - dancer.timeOffset, pose))
+      samplePose(clip, time - dancer.timeOffset, pose);
 
     // Vị trí/hướng của cả nhóm: bám đường đi nếu có, ngược lại tĩnh.
     const g = groupRef.current;

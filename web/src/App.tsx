@@ -137,7 +137,8 @@ export default function App() {
             dancers.map((d) => (
               <Mannequin
                 key={d.id}
-                clip={clips[d.clipName] ?? ready}
+                clips={clips}
+                fallback={ready}
                 dancer={d}
                 selected={d.id === selectedId}
                 showLabel={dancers.length > 1}

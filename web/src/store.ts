@@ -5,7 +5,7 @@
 
 import { create } from "zustand";
 import type { ClipData, ClipIndexEntry } from "./clip";
-import { clipDuration } from "./clip";
+import { sequenceTotal } from "./clip";
 
 export type CameraMode = "orbit" | "follow" | "front";
 
@@ -13,7 +13,7 @@ export interface Dancer {
   id: string;
   name: string;
   color: string;
-  clipName: string; // clip động tác đang gán
+  sequence: string[]; // CHUỖI clip phát nối tiếp (lặp cả chuỗi); >=0 phần tử
   position: [number, number, number]; // vị trí trên sàn khi KHÔNG có đường đi (mét)
   rotationY: number; // hướng mặt (radian)
   mirror: boolean; // lật gương (bài tập soi gương)
@@ -41,7 +41,7 @@ function makeDancer(partial: Partial<Dancer> = {}): Dancer {
     id: `d${idx}`,
     name: `Vũ công ${idx + 1}`,
     color: PALETTE[idx % PALETTE.length],
-    clipName: "",
+    sequence: [],
     position: [0, 0, 0],
     rotationY: 0,
     mirror: false,
@@ -50,6 +50,27 @@ function makeDancer(partial: Partial<Dancer> = {}): Dancer {
     faceAlongPath: true,
     ...partial,
   };
+}
+
+// Thời lượng chung của dàn dựng = chuỗi DÀI NHẤT trong các vũ công (kiểu DAW:
+// độ dài bản phối = track dài nhất). Vũ công ngắn hơn tự lặp chuỗi của mình.
+function stageDuration(
+  clips: Record<string, ClipData>,
+  dancers: Dancer[]
+): number {
+  let max = 0;
+  for (const d of dancers) max = Math.max(max, sequenceTotal(clips, d.sequence));
+  return max;
+}
+
+// Di trú dự án cũ: bản lưu trước đây mỗi vũ công có `clipName` (một clip); nay
+// dùng `sequence` (chuỗi). Chuyển clipName -> [clipName], đảm bảo luôn có mảng.
+function normalizeDancer(d: Dancer & { clipName?: string }): Dancer {
+  if (Array.isArray(d.sequence)) return d;
+  const seq = d.clipName ? [d.clipName] : [];
+  const { clipName: _drop, ...rest } = d;
+  void _drop;
+  return { ...rest, sequence: seq } as Dancer;
 }
 
 interface State {
@@ -72,8 +93,11 @@ interface State {
   panelOpen: boolean; // trên mobile: bảng điều khiển (drawer) đang mở hay không
 
   setLibrary: (index: ClipIndexEntry[], clips: Record<string, ClipData>) => void;
-  clipFor: (d: Dancer) => ClipData | null;
-  setDancerClip: (id: string, clipName: string) => void;
+  // Chuỗi động tác (sequencer): thêm/đổi/xoá/di chuyển clip trong chuỗi vũ công
+  addClip: (id: string, clipName: string) => void;
+  setClipAt: (id: string, i: number, clipName: string) => void;
+  removeClipAt: (id: string, i: number) => void;
+  moveClip: (id: string, i: number, dir: -1 | 1) => void;
   setTime: (t: number) => void;
   togglePlay: () => void;
   setPlaying: (p: boolean) => void;
@@ -120,27 +144,67 @@ export const useStore = create<State>((set, get) => ({
   setLibrary: (index, clips) => {
     const defaultClip = index[0]?.name ?? "";
     const ref = clips[defaultClip] ?? null;
-    set((s) => ({
-      clips,
-      clipIndex: index,
-      defaultClip,
-      clip: ref,
-      duration: ref ? clipDuration(ref) : 0,
-      bpm: ref?.beatGrid?.bpm ?? s.bpm,
-      time: 0,
-      dancers: s.dancers.map((d) =>
-        d.clipName ? d : { ...d, clipName: defaultClip }
-      ),
-    }));
+    set((s) => {
+      // Vũ công chưa có chuỗi (mới tạo / dự án cũ đã di trú thành []) được gán
+      // clip mặc định làm đoạn đầu tiên để luôn có động tác để phát.
+      const dancers = s.dancers.map((d) =>
+        d.sequence.length ? d : { ...d, sequence: [defaultClip] }
+      );
+      return {
+        clips,
+        clipIndex: index,
+        defaultClip,
+        clip: ref, // clip "chuẩn" để suy ra bpm/lưới nhịp
+        duration: stageDuration(clips, dancers),
+        bpm: ref?.beatGrid?.bpm ?? s.bpm,
+        time: 0,
+        dancers,
+      };
+    });
   },
-  clipFor: (d) => {
-    const { clips, defaultClip } = get();
-    return clips[d.clipName] ?? clips[defaultClip] ?? null;
-  },
-  setDancerClip: (id, clipName) =>
-    set((s) => ({
-      dancers: s.dancers.map((d) => (d.id === id ? { ...d, clipName } : d)),
-    })),
+  addClip: (id, clipName) =>
+    set((s) => {
+      const dancers = s.dancers.map((d) =>
+        d.id === id ? { ...d, sequence: [...d.sequence, clipName] } : d
+      );
+      return { dancers, duration: stageDuration(s.clips, dancers) };
+    }),
+  setClipAt: (id, i, clipName) =>
+    set((s) => {
+      const dancers = s.dancers.map((d) =>
+        d.id === id
+          ? { ...d, sequence: d.sequence.map((c, k) => (k === i ? clipName : c)) }
+          : d
+      );
+      return { dancers, duration: stageDuration(s.clips, dancers) };
+    }),
+  removeClipAt: (id, i) =>
+    set((s) => {
+      const dancers = s.dancers.map((d) => {
+        if (d.id !== id) return d;
+        // Giữ tối thiểu 1 đoạn: không cho xoá đoạn cuối cùng.
+        if (d.sequence.length <= 1) return d;
+        return { ...d, sequence: d.sequence.filter((_, k) => k !== i) };
+      });
+      return {
+        dancers,
+        duration: stageDuration(s.clips, dancers),
+        time: Math.min(s.time, stageDuration(s.clips, dancers)),
+      };
+    }),
+  moveClip: (id, i, dir) =>
+    set((s) => {
+      const dancers = s.dancers.map((d) => {
+        if (d.id !== id) return d;
+        const j = i + dir;
+        if (j < 0 || j >= d.sequence.length) return d;
+        const seq = d.sequence.slice();
+        [seq[i], seq[j]] = [seq[j], seq[i]];
+        return { ...d, sequence: seq };
+      });
+      // Đổi thứ tự không đổi tổng thời lượng, nhưng gọi lại cho nhất quán.
+      return { dancers, duration: stageDuration(s.clips, dancers) };
+    }),
   setTime: (t) => set({ time: t }),
   togglePlay: () => set((s) => ({ playing: !s.playing })),
   setPlaying: (p) => set({ playing: p }),
@@ -150,17 +214,25 @@ export const useStore = create<State>((set, get) => ({
     const { dancers, defaultClip } = get();
     const n = dancers.length;
     const d = makeDancer({
-      clipName: defaultClip,
+      sequence: defaultClip ? [defaultClip] : [],
       position: [(n % 4) * 0.8 - 1.2, 0, Math.floor(n / 4) * 0.8],
     });
-    set((s) => ({ dancers: [...s.dancers, d], selectedId: d.id }));
+    set((s) => {
+      const list = [...s.dancers, d];
+      return {
+        dancers: list,
+        selectedId: d.id,
+        duration: stageDuration(s.clips, list),
+      };
+    });
   },
   cloneSelected: () => {
     const { dancers, selectedId, defaultClip } = get();
     const src = dancers.find((d) => d.id === selectedId) ?? dancers[0];
     if (!src) return;
     const d = makeDancer({
-      clipName: src.clipName || defaultClip,
+      // Nhân bản trọn CHUỖI động tác của người nguồn.
+      sequence: src.sequence.length ? [...src.sequence] : defaultClip ? [defaultClip] : [],
       position: [src.position[0] + 0.8, src.position[1], src.position[2]],
       rotationY: src.rotationY,
       mirror: src.mirror,
@@ -168,12 +240,23 @@ export const useStore = create<State>((set, get) => ({
       waypoints: src.waypoints.map((w) => [w[0] + 0.8, w[1]] as [number, number]),
       faceAlongPath: src.faceAlongPath,
     });
-    set((s) => ({ dancers: [...s.dancers, d], selectedId: d.id }));
+    set((s) => {
+      const list = [...s.dancers, d];
+      return {
+        dancers: list,
+        selectedId: d.id,
+        duration: stageDuration(s.clips, list),
+      };
+    });
   },
   removeDancer: (id) =>
     set((s) => {
       const dancers = s.dancers.filter((d) => d.id !== id);
-      return { dancers, selectedId: dancers.length ? dancers[0].id : null };
+      return {
+        dancers,
+        selectedId: dancers.length ? dancers[0].id : null,
+        duration: stageDuration(s.clips, dancers),
+      };
     }),
   updateDancer: (id, patch) =>
     set((s) => ({
@@ -215,11 +298,17 @@ export const useStore = create<State>((set, get) => ({
     })),
 
   loadProject: (dancers) => {
+    // Di trú dự án cũ (clipName -> sequence) trước khi nạp.
+    const migrated = dancers.map((d) => normalizeDancer(d as Dancer));
     // đảm bảo counter không đụng id cũ
-    dancers.forEach((d) => {
+    migrated.forEach((d) => {
       const n = parseInt(d.id.slice(1), 10);
       if (!Number.isNaN(n) && n >= counter) counter = n + 1;
     });
-    set({ dancers, selectedId: dancers[0]?.id ?? null });
+    set((s) => ({
+      dancers: migrated,
+      selectedId: migrated[0]?.id ?? null,
+      duration: stageDuration(s.clips, migrated),
+    }));
   },
 }));

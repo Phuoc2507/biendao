@@ -1,28 +1,55 @@
-// Thanh thời gian: play/pause, thanh trượt tua, hiển thị 8-count + nhịp hiện tại.
+// Thanh thời gian: play/pause, thanh trượt tua, hiển thị 8-count + nhịp hiện tại,
+// và DẢI CHUỖI động tác của vũ công đang chọn (các clip xếp nối tiếp).
 
 import { useStore } from "../store";
+import { sequenceDurations } from "../clip";
 
 export function Timeline() {
-  const { time, duration, playing, bpm, beatsPerBar, clip } = useStore((s) => ({
+  const { time, duration, playing, bpm, beatsPerBar } = useStore((s) => ({
     time: s.time,
     duration: s.duration,
     playing: s.playing,
     bpm: s.bpm,
     beatsPerBar: s.beatsPerBar,
-    clip: s.clip,
   }));
   const setTime = useStore((s) => s.setTime);
   const togglePlay = useStore((s) => s.togglePlay);
   const speed = useStore((s) => s.speed);
   const setSpeed = useStore((s) => s.setSpeed);
+  // Chuỗi của vũ công đang chọn — để vẽ dải phân đoạn dưới thanh thời gian.
+  const clips = useStore((s) => s.clips);
+  const clipIndex = useStore((s) => s.clipIndex);
+  const dancers = useStore((s) => s.dancers);
+  const selectedId = useStore((s) => s.selectedId);
 
   const beatPeriod = 60 / bpm;
   const beatIndex = duration > 0 ? Math.floor(time / beatPeriod) : 0;
   const bar = Math.floor(beatIndex / beatsPerBar) + 1;
   const countInBar = (beatIndex % beatsPerBar) + 1;
 
-  const beatTimes = clip?.beatGrid?.beatTimes ?? [];
+  // Sinh vạch nhịp phủ TOÀN BỘ thời lượng (chuỗi có thể dài hơn một clip nên
+  // không dùng beatGrid của clip chuẩn nữa — dựng thẳng từ bpm).
+  const beatTimes: number[] = [];
+  if (duration > 0 && beatPeriod > 0) {
+    for (let t = 0; t <= duration + 1e-6; t += beatPeriod) beatTimes.push(t);
+  }
   const playPct = duration > 0 ? (time / duration) * 100 : 0;
+
+  // Dải phân đoạn: một lượt chuỗi (0..tổng) của vũ công đang chọn.
+  const sel = dancers.find((d) => d.id === selectedId) ?? null;
+  const segDurs = sel ? sequenceDurations(clips, sel.sequence) : [];
+  const clipLabel = (name: string) =>
+    clipIndex.find((c) => c.name === name)?.label ?? name;
+  let segAcc = 0;
+  const segments =
+    sel && duration > 0
+      ? sel.sequence.map((name, i) => {
+          const left = (segAcc / duration) * 100;
+          const width = (segDurs[i] / duration) * 100;
+          segAcc += segDurs[i];
+          return { name, left, width, alt: i % 2 === 1 };
+        })
+      : [];
 
   return (
     <div className="timeline">
@@ -35,6 +62,24 @@ export function Timeline() {
       </button>
 
       <div className="track">
+        {/* Dải chuỗi động tác của vũ công đang chọn: mỗi ô = một clip nối tiếp. */}
+        {segments.length > 1 && (
+          <div className="segstrip" title="Chuỗi động tác của vũ công đang chọn">
+            {segments.map((s, i) => (
+              <div
+                key={i}
+                className={"seg" + (s.alt ? " alt" : "")}
+                style={{
+                  left: `${s.left}%`,
+                  width: `${s.width}%`,
+                  background: sel ? sel.color : "var(--accent)",
+                }}
+              >
+                <span>{clipLabel(s.name)}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="beats">
           {beatTimes.map((bt, i) => {
             const down = i % beatsPerBar === 0;
