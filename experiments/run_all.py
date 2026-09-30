@@ -50,6 +50,8 @@ EXPERIMENTS = [
      "LOCO: bỏ-một-máy luân phiên -> ước lượng ổn định + chẩn đoán QA."),
     ("phan_biet_lech_he_thong", "ket-qua-phan-biet-lech.md",
      "V49: tái chiếu held-out tách detector lệch hệ thống khỏi múa sai thật (khép điểm mù V48)."),
+    ("phong_thu_bo_tuc",  "ket-qua-phong-thu-bo-tuc.md",
+     "V50: robust vs held-out — bổ túc, không dư thừa; robust còn HẠI ở bias hệ thống lớn."),
 ]
 
 
