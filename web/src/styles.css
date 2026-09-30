@@ -125,9 +125,21 @@ button.cam.active { background: var(--accent); }
 .timeline .play { width: 42px; height: 42px; border-radius: 50%; font-size: 16px; flex: none; }
 .track { position: relative; flex: 1; height: 34px; display: flex; align-items: center; }
 .beats { position: absolute; inset: 0; pointer-events: none; }
-.beat { position: absolute; top: 4px; width: 1px; height: 10px; background: var(--line); }
-.beat.down { height: 18px; background: var(--muted); }
-.scrub { width: 100%; accent-color: var(--accent); }
+.beat { position: absolute; top: 10px; width: 1px; height: 8px; background: var(--line); }
+.beat.down { top: 8px; height: 14px; background: var(--muted); }
+/* Số ô nhịp phía trên mỗi phách mạnh. */
+.barnum {
+  position: absolute; top: -3px; transform: translateX(-50%);
+  font-size: 9px; color: var(--muted); font-variant-numeric: tabular-nums;
+  pointer-events: none; user-select: none;
+}
+/* Vạch playhead — chạy theo thời gian, nổi trên nốt nhịp. */
+.playhead {
+  position: absolute; top: 2px; bottom: 2px; width: 2px;
+  background: var(--accent); border-radius: 1px; pointer-events: none;
+  box-shadow: 0 0 6px rgba(79, 140, 255, 0.6); z-index: 1;
+}
+.scrub { position: relative; width: 100%; accent-color: var(--accent); z-index: 2; }
 .readout { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-variant-numeric: tabular-nums; }
 .readout .count { font-size: 20px; font-weight: 700; color: var(--accent); }
 .readout .secs, .readout .bpm { font-size: 11px; color: var(--muted); }

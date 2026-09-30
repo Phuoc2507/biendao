@@ -20,6 +20,7 @@ export function Timeline() {
   const countInBar = (beatIndex % beatsPerBar) + 1;
 
   const beatTimes = clip?.beatGrid?.beatTimes ?? [];
+  const playPct = duration > 0 ? (time / duration) * 100 : 0;
 
   return (
     <div className="timeline">
@@ -29,14 +30,27 @@ export function Timeline() {
 
       <div className="track">
         <div className="beats">
-          {beatTimes.map((bt, i) => (
-            <div
-              key={i}
-              className={"beat" + (i % beatsPerBar === 0 ? " down" : "")}
-              style={{ left: `${duration > 0 ? (bt / duration) * 100 : 0}%` }}
-            />
-          ))}
+          {beatTimes.map((bt, i) => {
+            const down = i % beatsPerBar === 0;
+            const left = duration > 0 ? (bt / duration) * 100 : 0;
+            return (
+              <div key={i}>
+                <div
+                  className={"beat" + (down ? " down" : "")}
+                  style={{ left: `${left}%` }}
+                />
+                {/* Số ô nhịp trên mỗi phách mạnh — giúp đọc cấu trúc 8-count. */}
+                {down && (
+                  <span className="barnum" style={{ left: `${left}%` }}>
+                    {i / beatsPerBar + 1}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
+        {/* Vạch playhead theo thời gian hiện tại (rõ hơn nút trượt). */}
+        <div className="playhead" style={{ left: `${playPct}%` }} />
         <input
           className="scrub"
           type="range"
