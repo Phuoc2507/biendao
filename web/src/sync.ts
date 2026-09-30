@@ -175,17 +175,32 @@ export interface PhaseCfg {
   // tiểu thô ở bước lagStep. Cho phép NỚI maxLag mà KHÔNG tăng chi phí O(nτ).
   // =1 ⇒ quét vét cạn (tương thích ngược, dùng khi cần kết quả tham chiếu chính xác).
   coarseFactor?: number;
+  // Warping AFFINE (V37): ngoài DỊCH τ còn tìm NHỊP ρ, map thời gian mov là
+  // m(w)=t*+ρ(w−t*)+τ. Tách TRÔI TEMPO khỏi SAI HÌNH DÁNG (ket-qua-warp-affine-*).
+  // maxRate=0/undef ⇒ chỉ-dịch (ρ=1, hành vi cũ y hệt). ρ quét trong 1±maxRate.
+  maxRate?: number; // biên nhịp quanh 1 (vd 0.25 ⇒ ρ∈[0.75,1.25])
+  rateStep?: number; // bước tinh ρ
+  rateCoarseFactor?: number; // hệ số thô cho ρ (bước thô = rateCoarseFactor·rateStep)
 }
 // maxLag=1.0s: đo thực nghiệm (ket-qua-gioi-han-rigid-tau.md, Phần A) cho thấy biên
 // cũ 0.5s để lọt dải gãy trễ-hằng 0.9–1.05s (FP 100%); nới lên 1.0s (≈2 phách
 // @120BPM) đóng dải đó, vẫn dưới 1 chu kỳ clip nên KHÔNG alias. coarseFactor=4 giữ
 // chi phí ~25 phép/cặp (thấp hơn cả vét-cạn 0.5s cũ = 31) — xem ket-qua-tho-tinh.md.
+// maxRate=0 (AFFINE TẮT mặc định): warping affine giảm residual TRÔI TEMPO trên CẶP
+// cô lập (−56…−85%, ket-qua-warp-affine-nguyen-mau.md) NHƯNG đo trên TOÀN pipeline
+// (ket-qua-affine-toan-pipeline.md) thì KHÔNG đáng 7× chi phí: nới maxLag ở V36 đã đẩy
+// residual trôi tempo xuống dưới ngưỡng gác, formSync hiển thị vẫn ≥95% tới g=30% khi
+// CHỈ-DỊCH; affine còn hơi TỆ hơn ở g nhỏ (sàn lưới ρ). Giữ mã affine làm TUỲ CHỌN
+// (đặt maxRate>0) — có thể cần cho mocap THẬT (trôi lớn/phi tuyến) hoặc gác chặt hơn.
 export const DEFAULT_PHASE: PhaseCfg = {
   halfWindow: 0.5,
   samples: 13,
   maxLag: 1.0,
   lagStep: 1 / 30,
   coarseFactor: 4,
+  maxRate: 0, // affine tắt — xem lý do đo ở trên
+  rateStep: 0.02,
+  rateCoarseFactor: 4,
 };
 
 /**
@@ -235,12 +250,13 @@ function alignPair(
   scratch: Float32Array
 ): { residual: number; lag: number } {
   const K = refWin.length;
-  // Phần dư RMS khớp trên cửa sổ khi dịch `mov` đi τ giây.
-  const evalTau = (tau: number): number => {
+  // Phần dư RMS khớp khi map thời gian mov AFFINE: m(w)=t+ρ(w−t)+τ (ρ=1 ⇒ chỉ dịch τ).
+  const evalTR = (tau: number, rho: number): number => {
     let sq = 0;
     for (let s = 0; s < K; s++) {
       const ws = K === 1 ? t : t + ((s / (K - 1)) * 2 - 1) * cfg.halfWindow;
-      samplePoseAt(clips, layout, mov, ws + tau, scratch);
+      const mapped = t + rho * (ws - t) + tau;
+      samplePoseAt(clips, layout, mov, mapped, scratch);
       const A = refWin[s];
       for (let j = 0; j < J; j++) {
         const o = j * 3;
@@ -253,34 +269,58 @@ function alignPair(
     return Math.sqrt(sq / (K * J));
   };
 
-  let best = Infinity;
-  let bestLag = 0;
-  // PASS THÔ: quét cả biên ±maxLag với bước coarseStep. Chuyển động múa trơn nên bề
-  // mặt residual(τ) có lòng chảo rộng ~chu kỳ; bước thô 4·(1/30)≈0.13s lấy ~15 mẫu/chu
-  // kỳ tổng hợp — thừa dày để không nhảy qua lòng chảo chính.
+  // Lưới NHỊP ρ (thô→tinh). maxRate=0/undef ⇒ chỉ một mức ρ=1 (chỉ-dịch, hành vi cũ).
+  const maxRate = Math.max(0, cfg.maxRate ?? 0);
+  const rateStep = cfg.rateStep ?? 0.02;
+  const rcf = Math.max(1, Math.round(cfg.rateCoarseFactor ?? 1));
+  const rhoCoarseStep = rcf * rateStep;
+  const rhoCoarse: number[] = [];
+  if (maxRate > 1e-9) {
+    const nR = Math.round((2 * maxRate) / rhoCoarseStep);
+    for (let ri = 0; ri <= nR; ri++) rhoCoarse.push(1 - maxRate + ri * rhoCoarseStep);
+  } else {
+    rhoCoarse.push(1);
+  }
+
   const cf = Math.max(1, Math.round(cfg.coarseFactor ?? 1));
   const coarseStep = cf * cfg.lagStep;
   const nCoarse = Math.round((2 * cfg.maxLag) / coarseStep);
-  for (let ti = 0; ti <= nCoarse; ti++) {
-    const tau = -cfg.maxLag + ti * coarseStep;
-    const rms = evalTau(tau);
-    if (rms < best) {
-      best = rms;
-      bestLag = tau;
-    }
-  }
-  // PASS TINH: chỉ khi thô>tinh — tinh chỉnh trong ±coarseStep quanh cực tiểu thô ở
-  // bước lagStep (kẹp trong biên). Tổng ≈ nCoarse + 2·cf phép, thấp hơn vét cạn.
-  if (coarseStep > cfg.lagStep + 1e-9) {
-    const lo = Math.max(-cfg.maxLag, bestLag - coarseStep);
-    const hi = Math.min(cfg.maxLag, bestLag + coarseStep);
-    const nFine = Math.round((hi - lo) / cfg.lagStep);
-    for (let ti = 0; ti <= nFine; ti++) {
-      const tau = lo + ti * cfg.lagStep;
-      const rms = evalTau(tau);
+
+  // PASS THÔ (2D): quét τ×ρ. Bề mặt residual trơn nên lưới thô đủ tìm lòng chảo chính.
+  let best = Infinity;
+  let bestLag = 0;
+  let bestRho = 1;
+  for (const rho of rhoCoarse) {
+    for (let ti = 0; ti <= nCoarse; ti++) {
+      const tau = -cfg.maxLag + ti * coarseStep;
+      const rms = evalTR(tau, rho);
       if (rms < best) {
         best = rms;
         bestLag = tau;
+        bestRho = rho;
+      }
+    }
+  }
+  // PASS TINH (2D): tinh chỉnh trong hộp ±coarseStep×±rhoCoarseStep quanh cực tiểu thô.
+  const fineTau = coarseStep > cfg.lagStep + 1e-9;
+  const fineRho = maxRate > 1e-9 && rhoCoarseStep > rateStep + 1e-9;
+  if (fineTau || fineRho) {
+    const loT = fineTau ? Math.max(-cfg.maxLag, bestLag - coarseStep) : bestLag;
+    const hiT = fineTau ? Math.min(cfg.maxLag, bestLag + coarseStep) : bestLag;
+    const nFT = fineTau ? Math.round((hiT - loT) / cfg.lagStep) : 0;
+    const loR = fineRho ? Math.max(1 - maxRate, bestRho - rhoCoarseStep) : bestRho;
+    const hiR = fineRho ? Math.min(1 + maxRate, bestRho + rhoCoarseStep) : bestRho;
+    const nFR = fineRho ? Math.round((hiR - loR) / rateStep) : 0;
+    for (let ri = 0; ri <= nFR; ri++) {
+      const rho = loR + ri * rateStep;
+      for (let ti = 0; ti <= nFT; ti++) {
+        const tau = loT + ti * cfg.lagStep;
+        const rms = evalTR(tau, rho);
+        if (rms < best) {
+          best = rms;
+          bestLag = tau;
+          bestRho = rho;
+        }
       }
     }
   }
