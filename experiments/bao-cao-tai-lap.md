@@ -2,26 +2,27 @@
 
 Sinh tự động bởi `experiments/run_all.py`. Mỗi dòng xác nhận script chạy được (mã thoát 0) VÀ tái sinh đúng file kết quả của nó. Các con số khoa học nằm trong từng `ket-qua-*.md` tương ứng.
 
-**Kết quả: 16/16 thực nghiệm tái lập thành công.** Tổng thời gian 294.6s.
+**Kết quả: 17/17 thực nghiệm tái lập thành công.** Tổng thời gian 401.2s.
 
 | # | Script | File kết quả | Trạng thái | Thời gian |
 |---|--------|--------------|-----------|-----------|
-| 1 | `synthetic_2view.py` | `ket-qua-2view-tong-hop.md` | ✅ OK | 37.6s |
-| 2 | `ban_do_dat_may.py` | `ket-qua-ban-do-dat-may.md` | ✅ OK | 7.6s |
-| 3 | `do_nhay_sync_calib.py` | `ket-qua-do-nhay-sync-calib.md` | ✅ OK | 9.6s |
-| 4 | `robust_outliers.py` | `ket-qua-robust-outliers.md` | ✅ OK | 8.4s |
-| 5 | `rang_buoc_xuong.py` | `ket-qua-rang-buoc-xuong.md` | ✅ OK | 1.9s |
-| 6 | `trong_so_tin_cay.py` | `ket-qua-trong-so-tin-cay.md` | ✅ OK | 13.0s |
-| 7 | `hieu_chuan_tin_cay.py` | `ket-qua-hieu-chuan-tin-cay.md` | ✅ OK | 11.1s |
-| 8 | `tong_hop_khu_nhieu.py` | `ket-qua-tong-hop-khu-nhieu.md` | ✅ OK | 33.6s |
-| 9 | `danh_gia_khong_gt.py` | `ket-qua-danh-gia-khong-gt.md` | ✅ OK | 10.6s |
-| 10 | `danh_gia_loco.py` | `ket-qua-danh-gia-loco.md` | ✅ OK | 59.4s |
-| 11 | `phan_biet_lech_he_thong.py` | `ket-qua-phan-biet-lech.md` | ✅ OK | 5.4s |
-| 12 | `phong_thu_bo_tuc.py` | `ket-qua-phong-thu-bo-tuc.md` | ✅ OK | 10.7s |
-| 13 | `sua_bang_held_out.py` | `ket-qua-sua-bang-held-out.md` | ✅ OK | 15.6s |
-| 14 | `tran_dong_thuan.py` | `ket-qua-tran-dong-thuan.md` | ✅ OK | 11.5s |
-| 15 | `moc_tuyet_doi.py` | `ket-qua-moc-tuyet-doi.md` | ✅ OK | 8.1s |
-| 16 | `bias_tron.py` | `ket-qua-bias-tron.md` | ✅ OK | 50.5s |
+| 1 | `synthetic_2view.py` | `ket-qua-2view-tong-hop.md` | ✅ OK | 34.1s |
+| 2 | `ban_do_dat_may.py` | `ket-qua-ban-do-dat-may.md` | ✅ OK | 6.7s |
+| 3 | `do_nhay_sync_calib.py` | `ket-qua-do-nhay-sync-calib.md` | ✅ OK | 8.5s |
+| 4 | `robust_outliers.py` | `ket-qua-robust-outliers.md` | ✅ OK | 7.4s |
+| 5 | `rang_buoc_xuong.py` | `ket-qua-rang-buoc-xuong.md` | ✅ OK | 1.7s |
+| 6 | `trong_so_tin_cay.py` | `ket-qua-trong-so-tin-cay.md` | ✅ OK | 12.1s |
+| 7 | `hieu_chuan_tin_cay.py` | `ket-qua-hieu-chuan-tin-cay.md` | ✅ OK | 10.1s |
+| 8 | `tong_hop_khu_nhieu.py` | `ket-qua-tong-hop-khu-nhieu.md` | ✅ OK | 32.0s |
+| 9 | `danh_gia_khong_gt.py` | `ket-qua-danh-gia-khong-gt.md` | ✅ OK | 9.3s |
+| 10 | `danh_gia_loco.py` | `ket-qua-danh-gia-loco.md` | ✅ OK | 50.1s |
+| 11 | `phan_biet_lech_he_thong.py` | `ket-qua-phan-biet-lech.md` | ✅ OK | 4.9s |
+| 12 | `phong_thu_bo_tuc.py` | `ket-qua-phong-thu-bo-tuc.md` | ✅ OK | 10.3s |
+| 13 | `sua_bang_held_out.py` | `ket-qua-sua-bang-held-out.md` | ✅ OK | 14.0s |
+| 14 | `tran_dong_thuan.py` | `ket-qua-tran-dong-thuan.md` | ✅ OK | 10.3s |
+| 15 | `moc_tuyet_doi.py` | `ket-qua-moc-tuyet-doi.md` | ✅ OK | 7.3s |
+| 16 | `bias_tron.py` | `ket-qua-bias-tron.md` | ✅ OK | 43.6s |
+| 17 | `kiem_dinh_envelope.py` | `ket-qua-kiem-dinh-envelope.md` | ✅ OK | 138.9s |
 
 ## Tiêu đề từng doc (đối chiếu nội dung)
 
@@ -41,3 +42,4 @@ Sinh tự động bởi `experiments/run_all.py`. Mỗi dòng xác nhận script
 14. **tran_dong_thuan** → V52 — TRẦN của chọn-view-bằng-đồng-thuận (LOVO) khi NHIỀU camera cùng lệch
 15. **moc_tuyet_doi** → V53 — Mốc TUYỆT ĐỐI (tham chiếu ngoài đồng thuận) phá trần V52 tới đâu, cho bias nào?
 16. **bias_tron** → V54 — Bias TRỘN hai nguồn: giao thức 2-tầng (mốc→LOVO) compose tới đâu, và vì sao THỨ TỰ?
+17. **kiem_dinh_envelope** → V55 — Kiểm định envelope V54 như một LUẬT DỰ ĐOÁN (Monte-Carlo, gồm confound)

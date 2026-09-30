@@ -60,6 +60,8 @@ EXPERIMENTS = [
      "V53: mốc tuyệt-đối phá trần V52 CHỈ cho bias toàn-camera (mù bias 1-khớp) — hai thước bù nhau theo nguồn."),
     ("bias_tron",         "ket-qua-bias-tron.md",
      "V54: bias TRỘN — giao thức 2-tầng (anchor→LOVO) compose CÓ ĐIỀU KIỆN (envelope V−k_cam≥4), thứ tự bất-hoán."),
+    ("kiem_dinh_envelope","ket-qua-kiem-dinh-envelope.md",
+     "V55: kiểm định Monte-Carlo envelope V54 (gồm confound) — đếm chỉ đúng bậc-một (81.6%), phần hở rơi đúng vào vùng phụ-thuộc-hình-học."),
 ]
 
 
