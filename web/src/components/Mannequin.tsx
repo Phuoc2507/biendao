@@ -8,6 +8,7 @@
 
 import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
+import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import type { ClipData } from "../clip";
 import { samplePose } from "../clip";
@@ -27,10 +28,12 @@ export function Mannequin({
   clip,
   dancer,
   selected,
+  showLabel,
 }: {
   clip: ClipData;
   dancer: Dancer;
   selected: boolean;
+  showLabel: boolean;
 }) {
   const J = clip.jointNames.length;
   const E = clip.edges.length;
@@ -138,6 +141,35 @@ export function Mannequin({
             <meshBasicMaterial color="#f3f5f8" />
           </mesh>
         </group>
+      )}
+
+      {/* Nhãn tên nổi trên đầu — chỉ khi có nhiều vũ công (đội hình nhóm). Dùng
+          Html (DOM overlay) nên KHÔNG lọt vào video xuất; vị trí x=0 nên không bị
+          lật khi bật gương. */}
+      {showLabel && (
+        <Html
+          position={[0, 2.05, 0]}
+          center
+          pointerEvents="none"
+          style={{ pointerEvents: "none", userSelect: "none" }}
+          zIndexRange={[10, 0]}
+        >
+          <div
+            style={{
+              whiteSpace: "nowrap",
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#fff",
+              background: "rgba(18,22,28,0.82)",
+              border: `1px solid ${dancer.color}`,
+              borderRadius: 6,
+              padding: "2px 7px",
+              transform: selected ? "scale(1.08)" : "none",
+            }}
+          >
+            {dancer.name}
+          </div>
+        </Html>
       )}
 
       {/* Bóng tiếp đất + vòng chọn dưới chân */}

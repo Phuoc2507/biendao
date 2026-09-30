@@ -102,6 +102,7 @@ export default function App() {
                 clip={clips[d.clipName] ?? ready}
                 dancer={d}
                 selected={d.id === selectedId}
+                showLabel={dancers.length > 1}
               />
             ))}
           <OrbitControls
