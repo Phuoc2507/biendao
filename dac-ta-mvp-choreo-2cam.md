@@ -187,7 +187,7 @@ Quay 60fps, 2 máy lệch 60–90°, cùng độ cao ngực, vỗ tay 1 cái đ�
 
 | Tầng | Ở đâu | Đã chứng minh (đo được) | Runner tái lập |
 |---|---|---|---|
-| **Tri giác / hình học** (numpy) | `choreo/` (geom+synth+mocap/fuse), `experiments/` | Lõi 2-view tổng hợp (góc tốt ~90°, đánh đổi phủ↔chính xác); 7 lớp: robust (lỗi thô) · weighted inv-var (nhiễu mềm) · bone-length PBD (nhiễu radial) · capstone hợp nhất · hiệu chuẩn confidence GT-free · thước đo GT-free reproj held-out · cross-val LOCO + QA. **60 test xanh**. | `python experiments/run_all.py` (~173s); `pytest tests/` (60 passed) |
+| **Tri giác / hình học** (numpy) | `choreo/` (geom+synth+mocap/fuse), `experiments/` (18 script) | Lõi 2-view tổng hợp (góc tốt ~90°, đánh đổi phủ↔chính xác); 7 lớp khử-nhiễu/GT-free: robust (lỗi thô) · weighted inv-var (nhiễu mềm) · bone-length PBD (nhiễu radial) · capstone hợp nhất · hiệu chuẩn confidence GT-free · thước đo GT-free reproj held-out · cross-val LOCO + QA; **cộng cung V49–V56** tách & sửa lỗi lệch HỆ THỐNG đa-view (xem mạch dưới). **60 test xanh**. | `python experiments/run_all.py` (**18/18 tái lập ~604s**); `pytest tests/` (60 passed) |
 | **Đánh giá dàn dựng** (web/TS, chấm ngay trên `web/src/sync.ts`) | `web/experiments/` (9 script), doc ở `experiments/ket-qua-*.md` | Xem mạch dưới | `node web/experiments/run-all.mjs` (**9/9 tất định ~177s**) |
 
 **Mạch nghiên cứu tầng đánh giá (đóng góp lõi của M4/M5, đã có bằng chứng):**
@@ -206,8 +206,35 @@ Quay 60fps, 2 máy lệch 60–90°, cùng độ cao ngực, vỗ tay 1 cái đ�
    vận hành cho thấy 4 hằng số của bộ chấm quy về **1 ngưỡng vật lý ~2cm** (SCALE & cổng đồng bộ
    gộp thành 1 bậc tự do) + **các chốt an toàn tuyệt đối** hiếm khi bó — không phải số chọn bừa.
 
+**Mạch nghiên cứu tầng tri giác — tách & sửa lỗi lệch HỆ THỐNG đa-view (cung V49–V56):**
+
+Cung này khép **điểm mù duy nhất** của tầng đánh giá: lỗi detector/calib **lệch hệ thống một nguồn**
+ở tầng toạ-độ-3D **bất khả phân** với vũ công múa sai (cùng độ lệch 3D) — không núm đánh giá nào tách
+được. Lời giải: **chiều dữ liệu thêm** + **cộng dồn bằng chứng ở đúng granularity nguồn**.
+
+1. **Chẩn đoán** — tái chiếu camera **held-out** (V49) tách "detector lệch" khỏi "múa sai": dời 3D
+   THẬT 20cm reproj vẫn ~2.7px (mọi máy đồng thuận), còn bias 1-view **cùng độ lệch 3D** làm reproj
+   vọt (tỉ số **2.3×→8.7×**); cổng τ=2.80px bắt **100% (6/6)**. Robust vs held-out **bổ túc** (V50):
+   robust MÙ bias nhỏ và **HẠI** bias lớn (b=80px 28.7→42.0cm, loại nhầm view sạch) — minh hoạ sắc
+   nét "lọc mạnh hơn cùng chiều còn phản tác dụng".
+2. **Sửa & trần** — LOVO (loại-từng-view, cộng dồn per-CAMERA) (V51) đóng khe bias-vừa robust để hở
+   (b=10px 2.55→0.65cm = oracle), nhưng chọn-view-đồng-thuận có **trần `floor((V-1)/2)`** (V52, gãy ở
+   k=2). Phá trần cần **tham chiếu ngoài**: mốc tuyệt-đối/bảng calib (V53) bắt bias **toàn-camera**
+   kể cả khi ≥2 máy lệch, nhưng **mù** bias 1-khớp ⇒ **cặp thước bù nhau theo NGUỒN** (song song đúng
+   điểm 2 ở trên: nhóm-tương-đối↔tuyệt-đối-nhãn).
+3. **Hợp nhất & ranh giới đoán-được** — bias TRỘN → giao thức 2-tầng **anchor TRƯỚC → LOVO**, compose
+   CÓ ĐIỀU KIỆN (envelope `V−k_cam≥4`, thứ tự bất-hoán) (V54); kiểm định Monte-Carlo (V55) cho thấy
+   envelope chỉ đúng **bậc một 81.6%**, phần hở rơi **đúng** vào vùng phụ-thuộc-hình-học (confound
+   14/76 cấu hình); và phần dư đó (V56) là hình-học **đa-yếu-tố** — không **một** scalar rig nào tách
+   được sau khi khử confound đếm (Simpson: 0.818→0.227). ⇒ **Hệ quả thiết kế rig**: cấu hình ĐÚNG-2-máy
+   KHÔNG tự chữa bias-detector-1-khớp và KHÔNG thoả envelope TRỘN; các lá chắn LOVO/anchor là cho cấu
+   hình **≥3 (–6) máy**. Đây là kết luận trung thực đóng cung ở mức tổng hợp, chờ Gate 0 chạy trên
+   detector thật.
+
 > **Ranh giới trung thực:** mọi số trên là **tổng hợp/headless**. Đóng góp "số liệu trên múa THẬT"
 > (novelty điểm 2) vẫn CHỜ Gate 0 — chạy 2D pose (RTMPose/ViTPose) → `fuse_multiview` trên clip
 > 2 camera thật, và §5.4-kiểu thí nghiệm trên AIST++ với nhiễu detector thật. Phần đã có là **bộ
 > khung + thước đo đã kiểm chứng tái lập**, sẵn sàng đón dữ liệu thật mà không phải sửa thuật toán.
-> Chi tiết từng vòng: `experiments/ket-qua-*.md` và `web/experiments/README.md` (chỉ mục 2 cung).
+> Riêng cung tri-giác V49–V56 còn chờ chạy chính **cổng held-out V49 + LOVO V51** trên đầu ra
+> detector thật 2–3 máy. Chi tiết từng vòng: `experiments/README.md` (chỉ mục 18 thực nghiệm + arc
+> V49–V56 + checklist Cổng 0), `experiments/ket-qua-*.md`, và `web/experiments/README.md`.
