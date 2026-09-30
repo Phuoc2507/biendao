@@ -1,6 +1,7 @@
 // Thanh thời gian: play/pause, thanh trượt tua, hiển thị 8-count + nhịp hiện tại,
 // và DẢI CHUỖI động tác của vũ công đang chọn (các clip xếp nối tiếp).
 
+import { useMemo } from "react";
 import { useStore } from "../store";
 import {
   sequenceDurations,
@@ -8,7 +9,20 @@ import {
   sequenceBpmAt,
   type BeatMark,
 } from "../clip";
+import { groupSyncAt, groupSyncSeries, meanSync } from "../sync";
 import { formationLabel } from "../formation";
+
+// Màu điểm đồng bộ: 0 đỏ → 0.5 hổ phách → 1 lục (đọc nhanh chỗ nhóm rời rạc).
+function syncColor(s: number): string {
+  const c = Math.max(0, Math.min(1, s));
+  const mix = (a: number[], b: number[], t: number) =>
+    a.map((v, i) => Math.round(v + (b[i] - v) * t));
+  const rgb =
+    c < 0.5
+      ? mix([248, 81, 73], [210, 153, 34], c / 0.5)
+      : mix([210, 153, 34], [63, 185, 80], (c - 0.5) / 0.5);
+  return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+}
 
 export function Timeline() {
   const { time, duration, playing, bpm, beatsPerBar } = useStore((s) => ({
@@ -28,6 +42,7 @@ export function Timeline() {
   const dancers = useStore((s) => s.dancers);
   const selectedId = useStore((s) => s.selectedId);
   const formations = useStore((s) => s.formations);
+  const layout = useStore((s) => s.clip); // clip dự phòng: lấy số khớp cho chỉ số đồng bộ
 
   const beatPeriod = 60 / bpm; // đồng hồ SÂN KHẤU — chỉ dùng cho mốc đội hình.
 
@@ -84,6 +99,28 @@ export function Timeline() {
           return { name, left, width, alt: i % 2 === 1 };
         })
       : [];
+
+  // ĐỒNG BỘ NHÓM (tầng đánh giá): chỉ có nghĩa khi >=2 vũ công. Dải nhiệt lấy mẫu
+  // đều toàn chuỗi (useMemo — chỉ tính lại khi vũ công/clip/thời lượng đổi); số %
+  // tức thời tại playhead tính mỗi khung (rẻ). meanSync = chỉ báo tổng thể.
+  const syncSeries = useMemo(
+    () =>
+      layout && dancers.length >= 2
+        ? groupSyncSeries(clips, layout, dancers, duration, 80)
+        : [],
+    [clips, layout, dancers, duration]
+  );
+  const syncMean = meanSync(syncSeries);
+  const syncGrad =
+    syncSeries.length > 0 && duration > 0
+      ? `linear-gradient(90deg, ${syncSeries
+          .map((s) => `${syncColor(s.sync)} ${((s.t / duration) * 100).toFixed(1)}%`)
+          .join(", ")})`
+      : "";
+  const curSync =
+    layout && dancers.length >= 2
+      ? groupSyncAt(clips, layout, dancers, time)
+      : null;
 
   return (
     <div className="timeline">
@@ -149,6 +186,16 @@ export function Timeline() {
             );
           })}
         </div>
+        {/* Dải nhiệt ĐỒNG BỘ NHÓM: lục = unison, hổ phách/đỏ = nhóm rời rạc (đoạn
+            cố ý canon/lệch pha cũng đỏ — bình thường; đoạn định unison mà đỏ mới
+            đáng sửa). Chỉ hiện khi >=2 vũ công. */}
+        {syncGrad && (
+          <div
+            className="syncstrip"
+            style={{ background: syncGrad }}
+            title="Đồng bộ nhóm theo thời gian (lục = cùng động tác, đỏ = rời rạc)"
+          />
+        )}
         {/* Vạch playhead theo thời gian hiện tại (rõ hơn nút trượt). */}
         <div className="playhead" style={{ left: `${playPct}%` }} />
         <input
@@ -185,6 +232,21 @@ export function Timeline() {
         <span className="bpm" title="BPM của clip đang phát dưới playhead">
           {curBpm} BPM
         </span>
+        {/* Đồng bộ nhóm tức thời tại playhead + trung bình cả chuỗi (chỉ >=2 vũ công). */}
+        {curSync !== null && (
+          <span
+            className="sync"
+            title={
+              "Đồng bộ nhóm tức thời tại playhead" +
+              (syncMean !== null
+                ? ` · trung bình cả chuỗi ${Math.round(syncMean * 100)}%`
+                : "")
+            }
+          >
+            <i className="syncdot" style={{ background: syncColor(curSync) }} />
+            {Math.round(curSync * 100)}%
+          </span>
+        )}
       </div>
     </div>
   );

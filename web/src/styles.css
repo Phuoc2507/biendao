@@ -228,9 +228,16 @@ button.spd {
 }
 button.spd.active { background: var(--accent); color: #fff; }
 
+/* Dải nhiệt đồng bộ nhóm — mỏng, sát đáy track (lục=unison, đỏ=rời rạc). */
+.syncstrip {
+  position: absolute; left: 0; right: 0; bottom: 1px; height: 4px;
+  border-radius: 2px; opacity: 0.9; pointer-events: none;
+}
 .readout { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-variant-numeric: tabular-nums; }
 .readout .count { font-size: 20px; font-weight: 700; color: var(--accent); }
-.readout .secs, .readout .bpm { font-size: 11px; color: var(--muted); }
+.readout .secs, .readout .bpm, .readout .sync { font-size: 11px; color: var(--muted); }
+.readout .sync { display: inline-flex; align-items: center; }
+.syncdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
 
 /* Nút xuất video + báo đang ghi */
 button.export {
