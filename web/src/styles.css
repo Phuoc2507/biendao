@@ -114,6 +114,14 @@ button.cam.active { background: var(--accent); }
 }
 .error { color: #ff8a8a; }
 
+/* Nút về góc nhìn mặc định — nổi góc trên-phải viewport (chế độ Tự do). */
+.view-reset {
+  position: absolute; top: 12px; right: 12px;
+  background: rgba(26, 31, 40, 0.85); border: 1px solid var(--line);
+  color: var(--text); font-size: 12px; padding: 6px 11px; border-radius: 8px;
+}
+.view-reset:hover { border-color: var(--accent); }
+
 /* ---- Timeline ---- */
 .timeline {
   grid-area: timeline;

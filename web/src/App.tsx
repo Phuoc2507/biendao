@@ -1,6 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+
+// Góc nhìn mặc định của chế độ Tự do — dùng chung cho camera Canvas và nút
+// "Đặt lại góc" để hai nơi không lệch nhau.
+const CAM_HOME: [number, number, number] = [3.5, 2.4, 5];
+const CAM_TARGET: [number, number, number] = [0, 1, 0];
 import { Stage } from "./components/Stage";
 import { Mannequin } from "./components/Mannequin";
 import { PathEditor } from "./components/PathEditor";
@@ -28,6 +34,7 @@ export default function App() {
   const setPanelOpen = useStore((s) => s.setPanelOpen);
   const togglePanel = useStore((s) => s.togglePanel);
   const [error, setError] = useState<string | null>(null);
+  const controlsRef = useRef<OrbitControlsImpl>(null);
 
   useEffect(() => {
     loadLibrary("/clips")
@@ -118,7 +125,7 @@ export default function App() {
         <Canvas
           shadows
           gl={{ preserveDrawingBuffer: true }}
-          camera={{ position: [3.5, 2.4, 5], fov: 45 }}
+          camera={{ position: CAM_HOME, fov: 45 }}
         >
           <color attach="background" args={["#12161c"]} />
           <Stage />
@@ -137,12 +144,43 @@ export default function App() {
               />
             ))}
           <OrbitControls
+            ref={controlsRef}
             enabled={orbit}
-            target={[0, 1, 0]}
+            target={CAM_TARGET}
             enableDamping
             maxPolarAngle={Math.PI / 2 - 0.02}
           />
         </Canvas>
+
+        {/* Về góc nhìn mặc định — chỉ hiện ở chế độ Tự do (dễ bị trôi khi xoay). */}
+        {orbit && (
+          <button
+            className="view-reset"
+            title="Về góc nhìn mặc định"
+            onClick={() => {
+              // Đặt tường minh về HOME (tất định) thay vì reset() — reset khôi
+              // phục trạng thái lúc-mount, có thể lệch khung hình mong muốn.
+              const ctl = controlsRef.current;
+              if (!ctl) return;
+              // enableDamping để lại QUÁN TÍNH (sphericalDelta) sau khi kéo: các
+              // khung sau vẫn xoay tiếp và kéo camera TRÔI khỏi HOME. Trường quán
+              // tính là biến closure private nên không zero trực tiếp được — thay
+              // vào đó tắt damping rồi update() một lần: khi damping tắt, update()
+              // tự đặt quán tính về 0 ở cuối. Sau đó mới ghim HOME và update() lần
+              // nữa (quán tính đã =0 nên camera đứng yên đúng HOME), rồi bật lại
+              // damping để vẫn mượt khi kéo tay.
+              const dampWas = ctl.enableDamping;
+              ctl.enableDamping = false;
+              ctl.update(); // áp & XOÁ quán tính còn lại
+              ctl.object.position.set(...CAM_HOME);
+              ctl.target.set(...CAM_TARGET);
+              ctl.update(); // ghim HOME sạch (không còn quán tính)
+              ctl.enableDamping = dampWas;
+            }}
+          >
+            ⤾ Đặt lại góc
+          </button>
+        )}
 
         {error && <div className="error">Lỗi nạp clip: {error}</div>}
         {!ready && !error && <div className="loading">Đang nạp clip…</div>}
