@@ -113,10 +113,28 @@ export function formationPositions(
 // Giữa hai mốc, mỗi vũ công TRƯỢT từ vị trí đội hình này sang đội hình kia.
 // ============================================================================
 
+// Hướng mặt của cả đội hình. Quy ước sân khấu: yaw=0 nhìn +Z (khán giả).
+//  - audience: ai cũng quay ra khán giả (đội hình "trình diễn" cổ điển).
+//  - center:   quay VÀO tâm (gốc) — vòng tròn nhìn nhau, cảnh "tụ".
+//  - out:      quay RA ngoài (lưng vào tâm) — vòng tròn "nở", cảnh xoè.
+export type FormationFacing = "audience" | "center" | "out";
+
+// Danh mục hiển thị (nhãn tiếng Việt), thứ tự dùng chung cho nút chọn ở Panel.
+export const FACINGS: { facing: FormationFacing; label: string }[] = [
+  { facing: "audience", label: "Ra khán giả" },
+  { facing: "center", label: "Vào tâm" },
+  { facing: "out", label: "Ra ngoài" },
+];
+
+export function facingLabel(facing: FormationFacing): string {
+  return FACINGS.find((f) => f.facing === facing)?.label ?? facing;
+}
+
 export interface FormationCue {
   id: string;
   count: number; // ô nhịp 1-based tại BPM sân khấu (count 1 = giây 0)
   shape: FormationShape;
+  facing: FormationFacing; // hướng mặt cả đội ở mốc này
 }
 
 // Nhãn hiển thị cho một hình (tra từ FORMATIONS).
@@ -127,28 +145,62 @@ export function formationLabel(shape: FormationShape): string {
 // Ease in-out: chuyển đội hình mượt (không giật) thay vì trượt tuyến tính.
 const smoothstep = (t: number): number => t * t * (3 - 2 * t);
 
-// Vị trí [x,z] của vũ công thứ i (trong n người) tại thời điểm tSec, nội suy
-// theo timeline đội hình. GIẢ ĐỊNH `cues` đã sắp tăng dần theo count (store giữ
-// bất biến này). beatSec = 60/bpm để đổi count -> giây. Trả null khi không có
-// mốc nào (khi đó Mannequin quay lại dùng vị trí tĩnh/đường đi cũ).
-export function formationXZ(
+// Yaw (radian, quanh trục Y) để vũ công ở [x,z] nhìn theo kiểu `facing`. Quy ước
+// khớp Mannequin/CameraRig: local +Z ->(sin yaw, cos yaw) trong mặt XZ thế giới,
+// nên muốn nhìn hướng (dx,dz) thì yaw = atan2(dx, dz). Tại gốc (x=z=0) mọi kiểu
+// đều về 0 (nhìn khán giả) vì atan2(0,0)=0 — hợp lý, không có hướng "vào/ra".
+function facingYaw(facing: FormationFacing, x: number, z: number): number {
+  switch (facing) {
+    case "audience":
+      return 0;
+    case "center":
+      return Math.atan2(-x, -z); // hướng về gốc toạ độ
+    case "out":
+      return Math.atan2(x, z); // hướng ra xa gốc
+  }
+}
+
+// Nội suy GÓC theo đường ngắn nhất (bọc ±π) để không quay "vòng dài" khi hai mốc
+// có hướng lệch nhau qua mốc ±π (vd +170° -> -170° chỉ nên nhích 20°).
+function lerpAngle(a: number, b: number, f: number): number {
+  let d = b - a;
+  d = ((d + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+  return a + d * f;
+}
+
+export interface FormationPose {
+  x: number;
+  z: number;
+  yaw: number;
+}
+
+// Tư thế (vị trí [x,z] + hướng mặt yaw) của vũ công thứ i (trong n người) tại
+// thời điểm tSec, nội suy theo timeline đội hình. GIẢ ĐỊNH `cues` đã sắp tăng dần
+// theo count (store giữ bất biến này). beatSec = 60/bpm để đổi count -> giây.
+// Trả null khi không có mốc nào (khi đó Mannequin quay lại dùng vị trí/hướng
+// tĩnh hoặc đường đi như cũ). Vị trí nội suy smoothstep; hướng nội suy theo góc
+// đường-ngắn-nhất, mỗi mốc tự suy hướng từ vị trí của chính nó ở mốc đó.
+export function formationPose(
   cues: FormationCue[],
   i: number,
   n: number,
   tSec: number,
   beatSec: number
-): [number, number] | null {
+): FormationPose | null {
   if (cues.length === 0) return null;
   const at = (c: FormationCue): number => (c.count - 1) * beatSec;
-  const posOf = (c: FormationCue): [number, number] | undefined =>
-    formationPositions(c.shape, n)[i];
+  const poseOf = (c: FormationCue): FormationPose | null => {
+    const p = formationPositions(c.shape, n)[i];
+    if (!p) return null;
+    return { x: p[0], z: p[1], yaw: facingYaw(c.facing, p[0], p[1]) };
+  };
 
   // Trước mốc đầu / sau mốc cuối: giữ nguyên đội hình ở biên (không ngoại suy).
-  if (tSec <= at(cues[0])) return posOf(cues[0]) ?? null;
+  if (tSec <= at(cues[0])) return poseOf(cues[0]);
   const last = cues[cues.length - 1];
-  if (tSec >= at(last)) return posOf(last) ?? null;
+  if (tSec >= at(last)) return poseOf(last);
 
-  // Tìm cặp mốc bao quanh t rồi nội suy smoothstep.
+  // Tìm cặp mốc bao quanh t rồi nội suy smoothstep (vị trí) + góc (hướng).
   for (let k = 0; k < cues.length - 1; k++) {
     const a = cues[k];
     const b = cues[k + 1];
@@ -157,11 +209,15 @@ export function formationXZ(
     if (tSec >= ta && tSec <= tb) {
       const span = tb - ta;
       const f = span > 1e-6 ? smoothstep((tSec - ta) / span) : 0;
-      const pa = posOf(a);
-      const pb = posOf(b);
+      const pa = poseOf(a);
+      const pb = poseOf(b);
       if (!pa || !pb) return null;
-      return [pa[0] + (pb[0] - pa[0]) * f, pa[1] + (pb[1] - pa[1]) * f];
+      return {
+        x: pa.x + (pb.x - pa.x) * f,
+        z: pa.z + (pb.z - pa.z) * f,
+        yaw: lerpAngle(pa.yaw, pb.yaw, f),
+      };
     }
   }
-  return posOf(last) ?? null;
+  return poseOf(last);
 }

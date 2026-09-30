@@ -15,7 +15,7 @@ import type { ClipData } from "../clip";
 import { samplePose, samplePoseSequence } from "../clip";
 import { useStore, type Dancer } from "../store";
 import { makeCurve, sampledPath } from "../path";
-import { formationXZ } from "../formation";
+import { formationPose } from "../formation";
 
 // Bộ đệm tái dùng ở cấp module (mọi vũ công dùng chung, không cấp phát mỗi khung).
 const dummy = new THREE.Object3D();
@@ -109,15 +109,15 @@ export function Mannequin({
     // đi nếu có, cuối cùng mới dùng vị trí tĩnh.
     const g = groupRef.current;
     if (g) {
-      const fxz =
+      const fpose =
         formations.length > 0
-          ? formationXZ(formations, index, count, time, 60 / bpm)
+          ? formationPose(formations, index, count, time, 60 / bpm)
           : null;
-      if (fxz) {
-        // Đội hình quay mặt về khán giả theo hướng đã đặt của vũ công (mặc định
-        // 0 = +Z); giữ hướng riêng để soloist vẫn tự chỉnh được.
-        g.position.set(fxz[0], dancer.position[1], fxz[1]);
-        g.rotation.y = dancer.rotationY;
+      if (fpose) {
+        // Đội hình lái cả vị trí LẪN hướng mặt (nội suy theo mốc): quay khán giả
+        // / vào tâm / ra ngoài tuỳ mốc, ghi đè hướng riêng của vũ công.
+        g.position.set(fpose.x, dancer.position[1], fpose.z);
+        g.rotation.y = fpose.yaw;
       } else if (curve) {
         const s = sampledPath(curve, time - dancer.timeOffset, duration);
         g.position.set(s.x, dancer.position[1], s.z);

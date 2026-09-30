@@ -3,7 +3,7 @@
 
 import { useRef } from "react";
 import { useStore, type CameraMode } from "../store";
-import { FORMATIONS, formationLabel } from "../formation";
+import { FORMATIONS, FACINGS, formationLabel } from "../formation";
 import { clearSaved, exportProjectFile, importProjectFile } from "../persist";
 import { recordCurrentView } from "../record";
 
@@ -27,7 +27,7 @@ export function Panel() {
   const {
     addDancer, cloneSelected, removeDancer, updateDancer, select, toggleBeatGrid,
     addClip, setClipAt, removeClipAt, moveClip,
-    addFormation, removeFormation, clearFormations,
+    addFormation, removeFormation, setFormationFacing, clearFormations,
     setCameraMode, setEditingPath, clearPath,
   } = useStore.getState();
 
@@ -165,6 +165,24 @@ export function Panel() {
               <div className="fmcue" key={c.id}>
                 <span className="fmcount">ô {cueBarLabel(c.count)}</span>
                 <span className="fmshape">{formationLabel(c.shape)}</span>
+                {/* Hướng mặt cả đội ở mốc này (khán giả / vào tâm / ra ngoài) */}
+                <select
+                  className="fmface"
+                  value={c.facing}
+                  title="Hướng mặt cả đội ở mốc này"
+                  onChange={(e) =>
+                    setFormationFacing(
+                      c.id,
+                      e.target.value as (typeof FACINGS)[number]["facing"]
+                    )
+                  }
+                >
+                  {FACINGS.map((f) => (
+                    <option key={f.facing} value={f.facing}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
                 <button
                   className="x"
                   title="Xoá mốc đội hình"
@@ -181,7 +199,7 @@ export function Panel() {
               {formations.length === 1
                 ? "1 mốc → đội hình tĩnh cả bài."
                 : `${formations.length} mốc → nhóm tự trượt giữa các đội hình.`}{" "}
-              Ghi đè vị trí tĩnh & đường đi.
+              Ghi đè vị trí, hướng mặt & đường đi của mỗi vũ công.
             </span>
           </div>
         )}
@@ -361,11 +379,15 @@ export function Panel() {
 
           <label>
             Hướng mặt: {Math.round((sel.rotationY * 180) / Math.PI)}°
-            {hasPath && sel.faceAlongPath && " (theo đường)"}
+            {hasFormation
+              ? " (theo đội hình)"
+              : hasPath && sel.faceAlongPath
+                ? " (theo đường)"
+                : ""}
           </label>
           <input
             type="range" min={-Math.PI} max={Math.PI} step={0.05} value={sel.rotationY}
-            disabled={hasPath && sel.faceAlongPath}
+            disabled={hasFormation || (hasPath && sel.faceAlongPath)}
             onChange={(e) => updateDancer(sel.id, { rotationY: parseFloat(e.target.value) })}
           />
 

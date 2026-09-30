@@ -6,7 +6,7 @@
 import { create } from "zustand";
 import type { ClipData, ClipIndexEntry } from "./clip";
 import { sequenceTotal } from "./clip";
-import type { FormationShape, FormationCue } from "./formation";
+import type { FormationShape, FormationCue, FormationFacing } from "./formation";
 
 export type CameraMode = "orbit" | "follow" | "front";
 
@@ -114,6 +114,7 @@ interface State {
   // xoá một mốc, xoá tất cả. Khi có >=1 mốc, timeline đội hình lái vị trí cả nhóm.
   addFormation: (shape: FormationShape) => void;
   removeFormation: (id: string) => void;
+  setFormationFacing: (id: string, facing: FormationFacing) => void;
   clearFormations: () => void;
   setFormations: (cues: FormationCue[]) => void;
   toggleBeatGrid: () => void;
@@ -283,22 +284,33 @@ export const useStore = create<State>((set, get) => ({
       const existing = s.formations.find((c) => c.count === count);
       let formations: FormationCue[];
       if (existing) {
+        // Đổi HÌNH của mốc sẵn có, GIỮ hướng mặt người dùng đã chọn cho mốc đó.
         formations = s.formations.map((c) =>
           c.count === count ? { ...c, shape } : c
         );
       } else {
-        formations = [...s.formations, { id: `f${fcounter++}`, count, shape }].sort(
-          (a, b) => a.count - b.count
-        );
+        // Mốc mới mặc định quay ra khán giả (hành vi cũ); đổi được ở danh sách.
+        formations = [
+          ...s.formations,
+          { id: `f${fcounter++}`, count, shape, facing: "audience" as const },
+        ].sort((a, b) => a.count - b.count);
       }
       return { formations };
     }),
   removeFormation: (id) =>
     set((s) => ({ formations: s.formations.filter((c) => c.id !== id) })),
+  setFormationFacing: (id, facing) =>
+    set((s) => ({
+      formations: s.formations.map((c) => (c.id === id ? { ...c, facing } : c)),
+    })),
   clearFormations: () => set({ formations: [] }),
   setFormations: (cues) =>
     set(() => {
-      const formations = [...cues].sort((a, b) => a.count - b.count);
+      // Chuẩn hoá: dự án lưu TRƯỚC tính năng hướng mặt thiếu `facing` -> mặc định
+      // "audience" (quay khán giả) để tương thích ngược.
+      const formations = cues
+        .map((c) => ({ ...c, facing: c.facing ?? "audience" }))
+        .sort((a, b) => a.count - b.count);
       // đảm bảo fcounter không đụng id cũ khi nạp dự án
       formations.forEach((c) => {
         const n = parseInt(String(c.id).slice(1), 10);
