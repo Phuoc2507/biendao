@@ -30,7 +30,7 @@ wrapper `.bin` trên Windows), mỗi script chạy **2 lần** để xác nhận
 benchmark (`coarse-to-fine`, `affine-validation`) CÓ CHỦ Ý in thời gian tường (ms/lượt) — dao
 động hợp lệ, nên runner chuẩn hoá bỏ token `ms` VÀ gộp khoảng trắng ngang TRƯỚC khi so tất định
 (số ms thật vẫn hiển thị; gộp space để timing vượt mốc chữ số không gây lệch-đệm padStart giả).
-Lần đo gần nhất: **12/12 tái lập sạch** (ngang runner numpy ~173s).
+Lần đo gần nhất: **12/12 tái lập sạch** (chạy 2 lần mỗi script, tổng ~178s CPU; hai script benchmark `coarse-to-fine` ~80s và `affine-validation` ~82s là hai điểm nặng nhất). Runner tầng tri giác (numpy, 18 script) là một bộ riêng, ~604s — xem `../../experiments/README.md`.
 
 ## Mạch nghiên cứu tầng đánh giá (V33 → V48)
 
