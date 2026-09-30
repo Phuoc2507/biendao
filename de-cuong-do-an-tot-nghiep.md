@@ -118,6 +118,8 @@ Trước khi có video múa thật và GPU lab, nhóm đã hiện thực và ch�
 
 Các con số này **nhất quán với tài liệu** (1-cam ~64mm → 2-cam ~36mm [1][7]) và trực tiếp củng cố khuyến nghị đặt máy ở §5.2. Chi tiết đầy đủ + biểu đồ: `experiments/ket-qua-2view-tong-hop.md`. Thực nghiệm này sẽ được **lặp lại trên dữ liệu AIST++ và múa thật** ở Cổng 0 (§5.3) để thay nhiễu-pixel-giả bằng sai số detector thật.
 
+**Bản đồ đặt góc máy (sản phẩm phụ, `experiments/ban_do_dat_may.py`).** Từ cùng bộ máy đó, nhóm quét lưới 2D **độc lập** phương vị của từng máy (−90°…+90°, có che khuất) và chấm điểm đồng thời độ phủ + MPJPE, cho ra một *hướng dẫn đặt máy định lượng* thay vì một con số đơn lẻ — thứ sản phẩm 1-camera của đối thủ (Choreoto) không có. Kết quả (lưới 7×7): dải ~90° đối xứng quanh chính diện cho độ chính xác tốt nhất (<12mm) với độ phủ ~90–97%; cặp ~180° thoái hoá (~247mm); cặp kề nhau phủ cao nhưng kém chính xác. Khuyến nghị tự động: **hai máy lệch ~90°, đối xứng quanh mặt trước** (vd −30°/+60°: phủ 90.7%, MPJPE 11.2mm). Chi tiết: `experiments/ket-qua-ban-do-dat-may.md`.
+
 ---
 
 ## 6. Kết quả dự kiến và đóng góp
@@ -197,4 +199,4 @@ Các con số này **nhất quán với tài liệu** (1-cam ~64mm → 2-cam ~36
 [19] SMPL-X model license (phi thương mại). https://smpl-x.is.tue.mpg.de/modellicense.html
 [20] Three.js / React Three Fiber. https://threejs.org/ ; https://docs.pmnd.rs/react-three-fiber
 
-*Chi tiết kỹ thuật đầy đủ: `nghien-cuu-choreo-sequencer.md` (khả thi), `dac-ta-mvp-choreo-2cam.md` (đặc tả MVP), `gate0-thiet-ke-thuc-nghiem.md` (thực nghiệm), `experiments/ket-qua-2view-tong-hop.md` (kết quả hình học tổng hợp, §5.4), `teardown-choreoto.md` (phân tích đối thủ).*
+*Chi tiết kỹ thuật đầy đủ: `nghien-cuu-choreo-sequencer.md` (khả thi), `dac-ta-mvp-choreo-2cam.md` (đặc tả MVP), `gate0-thiet-ke-thuc-nghiem.md` (thực nghiệm), `experiments/ket-qua-2view-tong-hop.md` (kết quả hình học tổng hợp, §5.4), `experiments/ket-qua-ban-do-dat-may.md` (bản đồ đặt góc máy, §5.4), `teardown-choreoto.md` (phân tích đối thủ).*
