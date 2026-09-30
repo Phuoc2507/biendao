@@ -54,6 +54,8 @@ EXPERIMENTS = [
      "V50: robust vs held-out — bổ túc, không dư thừa; robust còn HẠI ở bias hệ thống lớn."),
     ("sua_bang_held_out", "ket-qua-sua-bang-held-out.md",
      "V51: SỬA bằng loại-từng-view (LOVO) chẩn đoán held-out — đóng đúng khe bias-vừa robust để hở."),
+    ("tran_dong_thuan",   "ket-qua-tran-dong-thuan.md",
+     "V52: TRẦN chọn-view-đồng-thuận = floor((V-1)/2); LOVO-ngây-thơ phụ-thuộc-hướng, LOVO-bền khử confound."),
 ]
 
 
