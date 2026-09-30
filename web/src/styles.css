@@ -70,26 +70,40 @@ button.ghost { background: var(--panel2); }
 .item .x { background: transparent; color: var(--muted); padding: 2px 6px; }
 .item .x:hover { color: #ff5d5d; }
 
-/* Bảng "AI LỆCH NHỊP" (tầng đánh giá) — độ lệch cm từng vũ công tại playhead. */
+/* Bảng ĐÁNH GIÁ NHẬN BIẾT PHA (V35) — mỗi vũ công 2 dòng: (trên) tên + chip trễ
+   nhịp; (dưới) thanh SAI ĐỘNG TÁC + cm. Tách trục hình dáng khỏi trục thời gian. */
 .syncbox {
-  display: flex; flex-direction: column; gap: 3px;
+  display: flex; flex-direction: column; gap: 6px;
   margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line);
 }
 .syncbox .camlabel { margin-bottom: 1px; }
-.syncrow {
+.camlabel .sub { color: var(--muted); font-size: 11px; font-weight: 400; }
+.syncrow { display: flex; flex-direction: column; gap: 2px; }
+.syncrow .sr-top {
   display: flex; align-items: center; gap: 7px;
   font-size: 12px; color: var(--text);
 }
+.syncrow .sr-bot { display: flex; align-items: center; gap: 7px; }
 .syncrow .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
-.syncrow .nm { width: 64px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.syncrow .nm {
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Chip trễ nhịp: hướng bằng màu — chậm = hổ phách, sớm = lam; đúng nhịp = xám. */
+.syncrow .lag {
+  flex: none; font-size: 11px; padding: 1px 6px; border-radius: 8px;
+  color: var(--muted); background: var(--panel2);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.syncrow .lag.late { color: #e0a72b; background: rgba(224, 167, 43, 0.14); }
+.syncrow .lag.early { color: #4f8cff; background: rgba(79, 140, 255, 0.14); }
 .syncrow .bar {
   flex: 1; height: 6px; border-radius: 3px; background: var(--panel2);
   overflow: hidden;
 }
 .syncrow .bar i { display: block; height: 100%; border-radius: 3px; }
 .syncrow .cm {
-  width: 52px; flex: none; text-align: right; color: var(--muted);
-  font-variant-numeric: tabular-nums;
+  width: 56px; flex: none; text-align: right; color: var(--muted);
+  font-size: 12px; font-variant-numeric: tabular-nums;
 }
 .syncrow.off .cm { color: #f85149; font-weight: 700; }
 .syncrow.off .nm { color: #f85149; }
