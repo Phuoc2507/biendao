@@ -58,6 +58,8 @@ EXPERIMENTS = [
      "V52: TRẦN chọn-view-đồng-thuận = floor((V-1)/2); LOVO-ngây-thơ phụ-thuộc-hướng, LOVO-bền khử confound."),
     ("moc_tuyet_doi",     "ket-qua-moc-tuyet-doi.md",
      "V53: mốc tuyệt-đối phá trần V52 CHỈ cho bias toàn-camera (mù bias 1-khớp) — hai thước bù nhau theo nguồn."),
+    ("bias_tron",         "ket-qua-bias-tron.md",
+     "V54: bias TRỘN — giao thức 2-tầng (anchor→LOVO) compose CÓ ĐIỀU KIỆN (envelope V−k_cam≥4), thứ tự bất-hoán."),
 ]
 
 
