@@ -84,6 +84,46 @@ Vì clip tự quay không có GT, dùng 4 proxy không cần GT:
 
 > **Yêu cầu ≥3 máy Ở CỔNG 0 (khác sản phẩm 2 máy):** LOCO/held-out cần còn ≥2 máy dựng mỗi fold ⇒ **buổi nghiệm thu quay ≥3 máy** để tự chấm GT-free; sản phẩm cuối vẫn nhắm 2 điện thoại, nhưng đánh giá độ tin cần máy thứ 3 làm giám khảo.
 
+### 3.1 Chẩn đoán & SỬA lỗi lệch HỆ THỐNG — vận hành cung V49–V56 trên detector thật
+
+Held-out/LOCO ở trên mới dùng như **điểm số chất lượng**. Cung synthetic V49–V56 (`experiments/`,
+xem `experiments/README.md` Nhóm IV) chứng minh nó còn là **công cụ chẩn đoán & sửa** cho một lớp lỗi
+mà cổng robust + LOCO-std đơn thuần **bỏ sót hoặc hiểu nhầm**: **detector/calib lệch HỆ THỐNG một nguồn**
+(một khớp bị đặt lệch nhất quán, hoặc một máy sai extrinsic). Ở tầng toạ-độ-3D lỗi này **bất khả phân**
+với vũ công múa sai — nên nếu chỉ nhìn 3D sẽ **đổ oan cho vũ công** hoặc **vứt oan clip đi quay lại**.
+
+**Giao thức 3 bước ở Cổng 0 (khi ≥3 máy):**
+1. **Cổng chẩn đoán held-out (V49) — đặt TRƯỚC khi kết luận "mocap xấu".** Đo reprojection held-out
+   **per-khớp/per-camera** (không gộp 17 khớp — trung bình sẽ pha loãng). Khớp có dev3d cao NHƯNG
+   reprojection held-out **thấp** (mọi máy đồng thuận) = vũ công **thật sự** ở vị trí đó (sai động tác
+   hoặc tư thế lạ) → **giữ**, không phải lỗi hệ thống. Khớp/máy có reprojection held-out **vọt cao** =
+   **detector/calib lệch** → sang bước 2, **đừng** tính vào điểm "mocap kém" của nhóm động tác.
+2. **Sửa bằng LOVO (V51) thay vì quay lại.** Khi LOCO-std bật cờ (nghi 1 máy lệch), chạy **loại-từng-view**:
+   với mỗi máy, dựng 3D từ các máy còn lại rồi tái chiếu về nó, **gộp sai số per-CAMERA qua cả clip** →
+   máy bias bị đồng thuận chấm điểm cao nhất → loại, dựng lại. Synthetic: kéo lỗi về gần oracle (vd.
+   bias vừa 2.55→0.65cm) và **nêu đúng thủ phạm ≥90%**. ⇒ nhiều clip "LOCO-std cao" có thể **cứu bằng
+   phần mềm**, không phải quay lại — tiết kiệm buổi quay. **Chỉ bật LOVO khi bước 1 đã báo nghi** (LOVO
+   có giá ~+0.18cm khi rig vốn sạch).
+3. **Phân biệt NGUỒN bằng mốc ChArUco (V53).** Residual tái chiếu của **bảng ChArUco** per-camera thấy
+   **sai calib/extrinsic toàn-camera** (bắt được kể cả khi ≥2 máy lệch, nơi LOVO chịu trần đồng-thuận
+   `floor((V-1)/2)`) nhưng **mù** lỗi detector 1-khớp (bảng không dời khi cổ tay bị đặt lệch). ⇒ **cặp
+   thước bù nhau theo nguồn**: ChArUco-residual cao ⇒ re-calib/kê lại máy; ChArUco sạch mà held-out
+   per-khớp cao ⇒ lỗi detector, dùng LOVO. Bias TRỘN: chạy **ChArUco trước → LOVO trên phần dư** (thứ
+   tự bất-hoán, V54).
+
+**Thực nghiệm kiểm chứng (bán-tổng-hợp, Đường B, tuần 4) — vì clip thật KHÔNG có nhãn bias:** lấy đầu ra
+detector THẬT 3 máy của một clip đã ĐẠT, **tiêm một lượng lệch pixel BIẾT TRƯỚC** vào keypoint của MỘT
+máy (quét vài biên độ, vài khớp), rồi kiểm: (a) cổng held-out bước 1 có **gắn cờ** đúng máy/khớp đó
+không; (b) LOVO bước 2 có **nêu đúng** máy bị tiêm và **kéo** 3D về gần bản gốc-chưa-tiêm không. Đây là
+cách DUY NHẤT xác nhận "cổng bắt ĐÚNG cái" trên detector thật mà không cần Vicon — chuyển phát hiện
+synthetic thành phép thử có nhãn trên nhiễu detector THẬT.
+
+> **Giới hạn trung thực (khớp V51–V54):** LOVO cần **≥3 máy + đa số sạch**; cấu hình **ĐÚNG-2-máy của
+> sản phẩm KHÔNG tự sửa được lỗi detector 1-khớp** — ở đó chỉ còn ràng buộc thời gian/xương và chấm
+> chuyên gia. Vì vậy giao thức này là **lá chắn của buổi nghiệm thu ≥3 máy** (tăng độ tin của số Cổng 0
+> và cứu clip), không phải tính năng chạy khi người dùng cuối quay 2 máy. Trị số ngưỡng (τ held-out,
+> onset bias) đúng theo **cơ chế** nhưng phải **hiệu chỉnh lại trên detector thật** ở buổi tuần 4.
+
 **Thang usability cho biên đạo (mỗi clip):**
 - 5 = dùng ngay, gần như không sửa
 - 4 = dùng được sau cleanup nhẹ
@@ -105,7 +145,7 @@ Vì clip tự quay không có GT, dùng 4 proxy không cần GT:
 |---|---|---|
 | 2 | Quay 24 clip **≥3 máy** (2 = sản phẩm; máy thứ 3 làm giám khảo LOCO) + buổi góc máy; ingest; sync clap **< nửa khung** | B (dữ liệu thật) |
 | 3 | Chạy Đường A trên AIST++: dựng 1-view / 2-view / các cặp góc; tính MPJPE; **chốt hệ số px→mm** | A (số cứng) |
-| 4 | Chạy pipeline trên 24 clip thật; tính **LOCO-mean + LOCO-std** + bone-length-std + jitter + foot-slip; **std cao ⇒ đánh dấu quay lại** | B |
+| 4 | Chạy pipeline trên 24 clip thật; tính **LOCO-mean + LOCO-std** + bone-length-std + jitter + foot-slip; **std cao ⇒ chạy giao thức §3.1** (held-out per-khớp chẩn đoán → LOVO sửa/nêu thủ phạm → ChArUco phân nguồn) **rồi mới quyết quay lại**; kèm phép thử **bias-tiêm bán-tổng-hợp** xác nhận cổng bắt đúng | B |
 | 5 | Buổi chấm chuyên gia (mời 1–2 biên đạo/dancer chấm mù, không biết clip nào 1 hay 2 cam) | Cả hai |
 | 6 | Tổng hợp bảng kết quả theo nhóm; ra quyết định ĐI/DỪNG + phạm vi động tác chốt | Cả hai |
 
@@ -149,5 +189,7 @@ Gate 0 trượt **không giết đồ án** — vì nhánh B (sequencer) độc 
 - **Calib kém bị đổ oan cho mocap** → luôn báo cáo reprojection error của ChArUco trước.
 - **Trôi đồng bộ trên clip dài** → giữ clip ≤ 20s, re-sync theo đoạn.
 - **Held-out cam đặt quá gần 1 trong 2 cam dựng** → không phải phép thử độc lập; đặt nó ở góc khác hẳn.
+- **Gộp reprojection held-out qua cả 17 khớp rồi mới xét** → pha loãng, mất cờ lỗi-1-khớp (V48/V49); phải đo **per-khớp/per-camera** khi chẩn đoán bias hệ thống (§3.1), mới gộp ở điểm-số-chất-lượng.
+- **Đổ oan vũ công / vứt oan clip** → dev3d cao chưa chắc là mocap xấu; chạy cổng held-out §3.1 để tách "detector lệch (sửa được bằng LOVO)" khỏi "múa thật sai" trước khi kết luận.
 - **Chấm không mù** → H1 mất giá trị. Bắt buộc giấu nhãn.
 - **Quá ít clip/nhóm** → không dám kết luận; giữ đủ 2 dancer × 2 lần/nhóm.
