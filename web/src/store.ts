@@ -6,7 +6,7 @@
 import { create } from "zustand";
 import type { ClipData, ClipIndexEntry } from "./clip";
 import { sequenceTotal } from "./clip";
-import type { FormationShape, FormationCue, FormationFacing } from "./formation";
+import type { FormationShape, FormationCue, FormationFacing, WaveOrder } from "./formation";
 
 export type CameraMode = "orbit" | "follow" | "front";
 
@@ -92,6 +92,7 @@ interface State {
   dancers: Dancer[];
   formations: FormationCue[]; // timeline đội hình (cấp NHÓM); luôn sắp tăng theo count
   formationWave: number; // "làn sóng"/canon: độ trải thời gian (COUNT) khi chuyển đội hình; 0 = đồng thời
+  formationWaveOrder: WaveOrder; // thứ tự sóng cuốn qua nhóm (index / trái-phải / tâm-ngoài)
   selectedId: string | null;
   exporting: string | null; // tên vũ công đang xuất video, null = không xuất
   panelOpen: boolean; // trên mobile: bảng điều khiển (drawer) đang mở hay không
@@ -117,6 +118,7 @@ interface State {
   removeFormation: (id: string) => void;
   setFormationFacing: (id: string, facing: FormationFacing) => void;
   setFormationWave: (v: number) => void;
+  setFormationWaveOrder: (o: WaveOrder) => void;
   clearFormations: () => void;
   setFormations: (cues: FormationCue[]) => void;
   toggleBeatGrid: () => void;
@@ -151,6 +153,7 @@ export const useStore = create<State>((set, get) => ({
   dancers: [makeDancer({ position: [0, 0, 0] })],
   formations: [],
   formationWave: 0,
+  formationWaveOrder: "index",
   selectedId: "d0",
   exporting: null,
   panelOpen: false, // mặc định đóng để mobile thấy sân khấu 3D trước; desktop luôn hiện qua CSS
@@ -307,6 +310,7 @@ export const useStore = create<State>((set, get) => ({
       formations: s.formations.map((c) => (c.id === id ? { ...c, facing } : c)),
     })),
   setFormationWave: (v) => set({ formationWave: v }),
+  setFormationWaveOrder: (o) => set({ formationWaveOrder: o }),
   clearFormations: () => set({ formations: [] }),
   setFormations: (cues) =>
     set(() => {

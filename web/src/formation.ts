@@ -222,19 +222,99 @@ export function formationPose(
   return poseOf(last);
 }
 
-// Độ trễ (giây) của vũ công thứ i (trong n người) cho hiệu ứng "làn sóng"/canon
-// khi chuyển đội hình: người đầu (i=0) rời chỗ TRƯỚC, người cuối (i=n-1) rời SAU
-// cùng, tạo sóng lan chạy dọc nhóm — rất đặc trưng đội hình K-pop. `wave` tính
-// bằng COUNT (đơn vị nhịp) = TỔNG độ trải của cả nhóm (không phụ thuộc sĩ số);
-// 0 = mọi người chuyển đồng thời (hành vi cũ). Cách dùng: lấy mẫu đội hình của
-// người i tại thời gian ĐÃ DỊCH `tSec - waveDelay(...)` — họ vào/ra đội hình muộn
-// hơn nhưng trước mốc đầu vẫn kẹp về đội hình đầu nên lúc đứng yên không lệch.
-export function waveDelay(
+// ============================================================================
+// Làn sóng / canon khi chuyển đội hình: người đầu sóng rời chỗ TRƯỚC, người cuối
+// rời SAU, tạo sóng lan dọc nhóm — rất đặc trưng K-pop. THỨ TỰ sóng có thể theo:
+//  - index:  số thứ tự vũ công (hành vi V30, đơn giản nhất).
+//  - ltr/rtl: KHÔNG GIAN theo trục X (trái→phải / phải→trái sân khấu).
+//  - center/edge: KHÔNG GIAN theo bán kính (tâm→ngoài / ngoài→tâm).
+// Biên đạo nghĩ theo hình học ("sóng chạy từ trái qua"), không theo số hiệu vũ
+// công — nên các kiểu không gian là mặc định "dance-native".
+// ============================================================================
+export type WaveOrder = "index" | "ltr" | "rtl" | "center" | "edge";
+
+// Danh mục hiển thị (nhãn tiếng Việt), thứ tự dùng cho nút chọn ở Panel.
+export const WAVE_ORDERS: { order: WaveOrder; label: string }[] = [
+  { order: "index", label: "Theo số vũ công" },
+  { order: "ltr", label: "Trái → phải" },
+  { order: "rtl", label: "Phải → trái" },
+  { order: "center", label: "Từ tâm lan ra" },
+  { order: "edge", label: "Từ ngoài dồn vào" },
+];
+
+export function waveOrderLabel(order: WaveOrder): string {
+  return WAVE_ORDERS.find((o) => o.order === order)?.label ?? order;
+}
+
+// Khoá sắp xếp cho làn sóng: người có khoá NHỎ hơn nằm TRƯỚC (rời chỗ trước).
+// Với "index" khoá = i (đúng bằng hành vi V30); các kiểu khác dùng toạ độ [x,z].
+function waveKey(order: WaveOrder, p: [number, number], i: number): number {
+  switch (order) {
+    case "index": return i;
+    case "ltr": return p[0]; // x nhỏ (trái) đi trước
+    case "rtl": return -p[0]; // x lớn (phải) đi trước
+    case "center": return p[0] * p[0] + p[1] * p[1]; // gần tâm đi trước
+    case "edge": return -(p[0] * p[0] + p[1] * p[1]); // xa tâm đi trước
+  }
+}
+
+// Thứ hạng [0,1] của vũ công i theo thứ tự làn sóng `order`, dựa trên vị trí MỌI
+// người trong đội hình tham chiếu `positions`. Hạng = (số người đứng TRƯỚC trong
+// sóng) / (n-1): người mở sóng = 0, người khép sóng = 1. Dùng ĐẾM "khoá nhỏ hơn"
+// thay vì sort — O(n), ổn định, và hai người HOÀ khoá (vd cặp đối xứng ±x) tự
+// nhận cùng hạng nên rời chỗ cùng lúc (đúng thẩm mỹ đối xứng).
+export function waveRank(
+  order: WaveOrder,
+  positions: [number, number][],
+  i: number
+): number {
+  const n = positions.length;
+  if (n <= 1 || !positions[i]) return 0;
+  const ki = waveKey(order, positions[i], i);
+  let before = 0;
+  for (let j = 0; j < n; j++) {
+    if (j !== i && waveKey(order, positions[j], j) < ki) before++;
+  }
+  return before / (n - 1);
+}
+
+// Đội hình THAM CHIẾU để xếp thứ tự làn sóng tại thời điểm tSec: là đội hình ĐÍCH
+// của cú morph đang diễn ra (cue SAU của đoạn chứa tSec) — để sóng cuốn theo thứ
+// tự người ta TỚI chỗ mới. Trước mốc đầu -> mốc đầu; sau mốc cuối -> mốc cuối.
+function waveRefShape(
+  cues: FormationCue[],
+  tSec: number,
+  beatSec: number
+): FormationShape | null {
+  if (cues.length === 0) return null;
+  const at = (c: FormationCue): number => (c.count - 1) * beatSec;
+  if (tSec <= at(cues[0])) return cues[0].shape;
+  const last = cues[cues.length - 1];
+  if (tSec >= at(last)) return last.shape;
+  for (let k = 0; k < cues.length - 1; k++) {
+    if (tSec >= at(cues[k]) && tSec <= at(cues[k + 1])) return cues[k + 1].shape;
+  }
+  return last.shape;
+}
+
+// Độ trễ (giây) của làn sóng cho vũ công i (trong n người) tại thời điểm tSec,
+// xếp thứ tự theo `order`. `wave` tính bằng COUNT = TỔNG độ trải của cả nhóm
+// (không phụ thuộc sĩ số); 0 = mọi người chuyển đồng thời (hành vi cũ). Cách
+// dùng: lấy mẫu đội hình của người i tại thời gian ĐÃ DỊCH `tSec - delay` — họ
+// vào/ra đội hình muộn hơn nhưng trước mốc đầu vẫn kẹp về đội hình đầu nên lúc
+// đứng yên không lệch. Xếp hạng dựa trên đội hình ĐÍCH của cú morph đang diễn ra.
+export function waveDelayAt(
+  cues: FormationCue[],
   wave: number,
+  order: WaveOrder,
   i: number,
   n: number,
+  tSec: number,
   beatSec: number
 ): number {
-  if (wave === 0 || n <= 1) return 0;
-  return wave * beatSec * (i / (n - 1));
+  if (wave === 0 || n <= 1 || cues.length === 0) return 0;
+  const shape = waveRefShape(cues, tSec, beatSec);
+  if (!shape) return 0;
+  const positions = formationPositions(shape, n);
+  return wave * beatSec * waveRank(order, positions, i);
 }

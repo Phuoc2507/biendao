@@ -48,6 +48,7 @@ export default function App() {
           st.loadProject(saved.dancers);
           st.setFormations(saved.formations ?? []);
           st.setFormationWave(saved.formationWave ?? 0);
+          st.setFormationWaveOrder(saved.formationWaveOrder ?? "index");
           st.setCameraMode(saved.cameraMode);
           if (saved.showBeatGrid !== st.showBeatGrid) st.toggleBeatGrid();
         }
@@ -63,19 +64,22 @@ export default function App() {
     let prevG = useStore.getState().showBeatGrid;
     let prevF = useStore.getState().formations;
     let prevW = useStore.getState().formationWave;
+    let prevWO = useStore.getState().formationWaveOrder;
     return useStore.subscribe((s) => {
       if (
         s.dancers !== prevD ||
         s.cameraMode !== prevC ||
         s.showBeatGrid !== prevG ||
         s.formations !== prevF ||
-        s.formationWave !== prevW
+        s.formationWave !== prevW ||
+        s.formationWaveOrder !== prevWO
       ) {
         prevD = s.dancers;
         prevC = s.cameraMode;
         prevG = s.showBeatGrid;
         prevF = s.formations;
         prevW = s.formationWave;
+        prevWO = s.formationWaveOrder;
         saveProject();
       }
     });

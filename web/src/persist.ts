@@ -2,7 +2,7 @@
 // Chỉ giữ phần do người dùng dựng: vũ công + chế độ camera + mốc sân khấu.
 
 import { useStore, type Dancer, type CameraMode } from "./store";
-import type { FormationCue } from "./formation";
+import type { FormationCue, WaveOrder } from "./formation";
 
 const KEY = "choreo.project.v1";
 
@@ -10,6 +10,7 @@ interface Saved {
   dancers: Dancer[];
   formations?: FormationCue[]; // tuỳ chọn: dự án cũ không có -> nạp thành []
   formationWave?: number; // tuỳ chọn: dự án cũ không có -> nạp thành 0
+  formationWaveOrder?: WaveOrder; // tuỳ chọn: dự án cũ không có -> nạp thành "index"
   cameraMode: CameraMode;
   showBeatGrid: boolean;
 }
@@ -21,6 +22,7 @@ export function saveProject(): void {
       dancers: s.dancers,
       formations: s.formations,
       formationWave: s.formationWave,
+      formationWaveOrder: s.formationWaveOrder,
       cameraMode: s.cameraMode,
       showBeatGrid: s.showBeatGrid,
     };
@@ -68,6 +70,7 @@ export function exportProjectFile(): void {
     dancers: s.dancers,
     formations: s.formations,
     formationWave: s.formationWave,
+    formationWaveOrder: s.formationWaveOrder,
     cameraMode: s.cameraMode,
     showBeatGrid: s.showBeatGrid,
   };
@@ -107,6 +110,9 @@ export async function importProjectFile(file: File): Promise<void> {
   st.loadProject(d.dancers as Dancer[]);
   st.setFormations(Array.isArray(d.formations) ? d.formations : []);
   st.setFormationWave(typeof d.formationWave === "number" ? d.formationWave : 0);
+  st.setFormationWaveOrder(
+    typeof d.formationWaveOrder === "string" ? d.formationWaveOrder : "index"
+  );
   if (d.cameraMode) st.setCameraMode(d.cameraMode);
   if (typeof d.showBeatGrid === "boolean" && d.showBeatGrid !== st.showBeatGrid) {
     st.toggleBeatGrid();

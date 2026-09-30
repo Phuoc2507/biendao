@@ -3,7 +3,7 @@
 
 import { useRef } from "react";
 import { useStore, type CameraMode } from "../store";
-import { FORMATIONS, FACINGS, formationLabel } from "../formation";
+import { FORMATIONS, FACINGS, WAVE_ORDERS, formationLabel } from "../formation";
 import { clearSaved, exportProjectFile, importProjectFile } from "../persist";
 import { recordCurrentView } from "../record";
 
@@ -25,10 +25,12 @@ export function Panel() {
   const exporting = useStore((s) => s.exporting);
   const formations = useStore((s) => s.formations);
   const formationWave = useStore((s) => s.formationWave);
+  const formationWaveOrder = useStore((s) => s.formationWaveOrder);
   const {
     addDancer, cloneSelected, removeDancer, updateDancer, select, toggleBeatGrid,
     addClip, setClipAt, removeClipAt, moveClip,
-    addFormation, removeFormation, setFormationFacing, setFormationWave, clearFormations,
+    addFormation, removeFormation, setFormationFacing, setFormationWave,
+    setFormationWaveOrder, clearFormations,
     setCameraMode, setEditingPath, clearPath,
   } = useStore.getState();
 
@@ -217,6 +219,26 @@ export function Panel() {
                   value={formationWave}
                   onChange={(e) => setFormationWave(parseFloat(e.target.value))}
                 />
+                {/* Thứ tự sóng — chỉ có nghĩa khi sóng đang bật. Biên đạo chọn
+                    sóng cuốn theo KHÔNG GIAN (trái→phải, tâm→ngoài) thay vì số hiệu. */}
+                {formationWave > 0 && (
+                  <select
+                    className="fmwave-order"
+                    value={formationWaveOrder}
+                    onChange={(e) =>
+                      setFormationWaveOrder(
+                        e.target.value as (typeof WAVE_ORDERS)[number]["order"]
+                      )
+                    }
+                    title="Thứ tự sóng cuốn qua nhóm"
+                  >
+                    {WAVE_ORDERS.map((o) => (
+                      <option key={o.order} value={o.order}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </label>
             )}
           </div>
