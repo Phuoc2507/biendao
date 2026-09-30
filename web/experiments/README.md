@@ -30,9 +30,9 @@ wrapper `.bin` trên Windows), mỗi script chạy **2 lần** để xác nhận
 benchmark (`coarse-to-fine`, `affine-validation`) CÓ CHỦ Ý in thời gian tường (ms/lượt) — dao
 động hợp lệ, nên runner chuẩn hoá bỏ token `ms` VÀ gộp khoảng trắng ngang TRƯỚC khi so tất định
 (số ms thật vẫn hiển thị; gộp space để timing vượt mốc chữ số không gây lệch-đệm padStart giả).
-Lần đo gần nhất: **10/10 tái lập sạch** (ngang runner numpy ~173s).
+Lần đo gần nhất: **11/11 tái lập sạch** (ngang runner numpy ~173s).
 
-## Mạch nghiên cứu tầng đánh giá (V33 → V46)
+## Mạch nghiên cứu tầng đánh giá (V33 → V47)
 
 Hai câu hỏi lớn, mỗi câu khép bằng bằng chứng đo được:
 
@@ -59,6 +59,7 @@ Hai câu hỏi lớn, mỗi câu khép bằng bằng chứng đo được:
 | `absolute-reference.ts` | V42 | Chấm TUYỆT ĐỐI theo clip tham chiếu — phá trần | [tham-chieu-tuyet-doi](../../experiments/ket-qua-tham-chieu-tuyet-doi.md) — KHÔNG điểm sụp, bắt đủ k người sai ở mọi k, vẫn bất biến canon |
 | `gate-sensitivity.ts` | V44 | ĐỘ NHẠY 4 hằng số của metric — đường đặc trưng vận hành | [do-nhay-tham-so](../../experiments/ket-qua-do-nhay-tham-so.md) — SCALE↔GATE gộp 1 núm (ngưỡng ~2cm spread); 0.85 là điểm cân bằng; FLOOR là chốt an toàn |
 | `ratio-scapegoat.ts` | V46 | ĐỘ NHẠY hằng số thứ 4 (RATIO) — chống đổ oan khi nhiều người cùng lệch | [do-nhay-ty-le-do-oan](../../experiments/ket-qua-do-nhay-ty-le-do-oan.md) — 3 chế độ theo k; residual bị TRUNG VỊ đảo tại 50% ⇒ đa-số-lệch vu oan thiểu số ĐÚNG = trần V41 hiện hình, phải dùng V42 |
+| `noise-robustness.ts` | V47 | BỀN với nhiễu detector — tiêm Gauss iid `N(0,σ)` mọi khớp/khung, quét σ 0→20cm | [ben-nhieu](../../experiments/ket-qua-ben-nhieu.md) — FP=0 ở MỌI σ; TP=100 tới σ=5cm rồi đi CÂM (hỏng an toàn); worst/mean phẳng 1.02 ⇒ RATIO là lá chắn nhiễu iid |
 
 **Kết cung B — HAI THƯỚC BÙ NHAU (chọn theo việc CÓ hay KHÔNG nhãn tham chiếu):**
 
@@ -87,3 +88,8 @@ vế tuyệt đối để vượt trần 50%; khi không, vế nhóm-tương-đ�
   `OUTLIER_RATIO=1.3` — giữ độ nhạy lỗi-đơn, hỏng an toàn khi đám nhiễu-nền; nhưng khi **đa số** cùng
   lệch, gộp trung vị **đảo** thứ hạng residual (tại 50%) ⇒ vu oan thiểu số ĐÚNG = **trần thông tin V41**,
   không núm nào sửa được → ca đa-số-lệch thuộc thước tuyệt đối V42, không thuộc thẩm quyền RATIO.
+- **V47 ([ben-nhieu](../../experiments/ket-qua-ben-nhieu.md)):** `OUTLIER_RATIO=1.3` còn có **vai trò
+  thứ hai — lá chắn nhiễu iid**. Tiêm Gauss `N(0,σ)` mọi khớp/khung (σ 0→20cm): FP=0 khắp nơi, TP=100
+  tới σ=5cm rồi đi CÂM (hỏng an toàn, KHÔNG đổ oan). Cơ chế: nhiễu iid trung bình hoá qua 17 khớp×13
+  mẫu ⇒ worst/mean **phẳng 1.02 ≪ 1.3**. Ở dải detector thật (1–3cm) metric vừa nhạy vừa an toàn.
+  Giới hạn: iid là chặn TRÊN; nhiễu thật có tương quan thời gian + lệch hệ thống, đo lại ở Gate-0.
