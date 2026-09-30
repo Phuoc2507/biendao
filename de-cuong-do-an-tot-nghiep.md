@@ -96,7 +96,7 @@ Chưa có công trình/sản phẩm nào đáp ứng đồng thời ba điều:
 **Định dạng trao đổi giữa module:** clip glTF/FBX xương Mixamo + JSON `{root_trajectory, beat_grid, contacts, meta}` (chốt ngay tuần 1).
 
 ### 5.2. Bố trí thu dữ liệu
-Hai máy lệch **60–90°**, cùng độ cao ngực, cùng bán kính; quay **60fps**; vỗ tay đầu clip; giơ ChArUco đầu buổi. (Không đặt 180° trước-sau vì làm hỏng bộ phát hiện 2D.)
+Hai máy lệch **60–90°**, cùng độ cao ngực, cùng bán kính; quay **60fps**; vỗ tay đầu clip; giơ ChArUco đầu buổi. (Không đặt 180° trước-sau vì làm hỏng bộ phát hiện 2D **và** thoái hoá tam giác hoá — xem định lượng ở §5.4.)
 
 ### 5.3. Thực nghiệm kiểm chứng — Cổng 0 (điểm nhấn nghiên cứu)
 Vì không có hệ Vicon, đo độ chính xác bằng **hai đường bù nhau**:
@@ -104,6 +104,19 @@ Vì không có hệ Vicon, đo độ chính xác bằng **hai đường bù nhau
 - **Đường B (múa thật):** quay **3 điện thoại**, dựng từ **2**, chiếu khớp 3D ngược về **máy thứ 3 giữ lại** để đo reprojection error (proxy gần-GT); cộng jitter, foot-slip, và **chấm mù** bởi 1–2 biên đạo theo thang usability 1–5.
 
 Kết quả chấm **theo từng nhóm động tác** (chính diện, xoay, quay lưng, động tác sàn, nhảy nhanh, footwork) → xác định **phạm vi động tác khả dụng** của MVP, kèm quy tắc ĐI/DỪNG (ví dụ MPJPE < 60mm = đạt; 2-cam phải giảm ≥ 30% so 1-cam).
+
+### 5.4. Thực nghiệm hình học tổng hợp — đã hoàn thành (tiền-Cổng-0)
+
+Trước khi có video múa thật và GPU lab, nhóm đã hiện thực và chạy một **thực nghiệm hình học tái lập được, thuần CPU** (`experiments/synthetic_2view.py`, numpy) để **cô lập và định lượng phần đóng góp của bố trí camera** — tách khỏi sai số của mạng 2D. Quy trình: sinh đoạn múa 3D biết trước (nhún gối + vung tay + xoay thân ±40°, 17 khớp) → chiếu xuống camera ảo pinhole → cộng nhiễu pixel Gaussian (mô phỏng detector 2D) → tam giác hoá DLT trở lại 3D → đo MPJPE. Đây là **giới hạn trên do hình học**. Kết quả chính (nhiễu 2px trên ảnh 1080p, 30 lần Monte-Carlo):
+
+| Hiện tượng đo được | Kết quả | Ý nghĩa cho §5.2 |
+|---|---|---|
+| MPJPE theo **góc lệch 2 máy** | thấp nhất ~15mm ở **90°**; nổ lên ~47mm ở 15° và ~42mm ở 170° (đường cong chữ U) | Khẳng định vùng đặt máy **60–90°**; tránh baseline nhỏ và 180° |
+| MPJPE theo **số camera** | 2→3→4→5 máy: 15.0→12.5→11.1→10.1mm (bão hoà dần) | 2 máy là điểm cân bằng chi phí/độ chính xác |
+| MPJPE theo **nhiễu 2D** | ~tuyến tính (0.5px→3.8mm, 8px→61.5mm) | Nút thắt là detector 2D → cần cleanup + detector tốt |
+| **Độ phủ khớp** khi có che khuất (thân ~ hình trụ, cần ≥2 máy cùng thấy) | đánh đổi: phủ thích máy gần (96.7% ở 20°) nhưng chính xác kém (27.6mm); ~60–90° dung hoà; **180° tệ kép** (thoái hoá ~240mm); máy thứ 3 mua thêm ĐỘ PHỦ (98.5%/9.7mm) | Cơ chế vật lý thứ hai cho việc lệch góc; vai trò thực của máy thứ 3 là bù che khuất khi xoay |
+
+Các con số này **nhất quán với tài liệu** (1-cam ~64mm → 2-cam ~36mm [1][7]) và trực tiếp củng cố khuyến nghị đặt máy ở §5.2. Chi tiết đầy đủ + biểu đồ: `experiments/ket-qua-2view-tong-hop.md`. Thực nghiệm này sẽ được **lặp lại trên dữ liệu AIST++ và múa thật** ở Cổng 0 (§5.3) để thay nhiễu-pixel-giả bằng sai số detector thật.
 
 ---
 
@@ -113,6 +126,7 @@ Kết quả chấm **theo từng nhóm động tác** (chính diện, xoay, quay
 1. Pipeline mã nguồn bắt chuyển động hai điện thoại → clip 3D chuẩn hoá.
 2. Công cụ sequencer sân khấu 3D trên web, xuất view tập cá nhân.
 3. Bộ dữ liệu múa hai-camera tự thu + báo cáo đánh giá định lượng.
+4. **Bộ thực nghiệm hình học tái lập được (thuần CPU)** định lượng ảnh hưởng góc đặt máy / số máy / nhiễu 2D / che khuất — làm nền phương pháp cho Cổng 0 (§5.4).
 
 **Đóng góp (novelty), đóng khung hệ thống + khả dụng + đánh giá:**
 1. Pipeline **hai điện thoại tối giản** cho người không chuyên (hiệu chỉnh < 2 phút, đồng bộ bằng vỗ tay), không cần đồng bộ phần cứng.
@@ -183,4 +197,4 @@ Kết quả chấm **theo từng nhóm động tác** (chính diện, xoay, quay
 [19] SMPL-X model license (phi thương mại). https://smpl-x.is.tue.mpg.de/modellicense.html
 [20] Three.js / React Three Fiber. https://threejs.org/ ; https://docs.pmnd.rs/react-three-fiber
 
-*Chi tiết kỹ thuật đầy đủ: `nghien-cuu-choreo-sequencer.md` (khả thi), `dac-ta-mvp-choreo-2cam.md` (đặc tả MVP), `gate0-thiet-ke-thuc-nghiem.md` (thực nghiệm).*
+*Chi tiết kỹ thuật đầy đủ: `nghien-cuu-choreo-sequencer.md` (khả thi), `dac-ta-mvp-choreo-2cam.md` (đặc tả MVP), `gate0-thiet-ke-thuc-nghiem.md` (thực nghiệm), `experiments/ket-qua-2view-tong-hop.md` (kết quả hình học tổng hợp, §5.4), `teardown-choreoto.md` (phân tích đối thủ).*

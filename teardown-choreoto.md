@@ -83,4 +83,7 @@ kết luận: đừng cạnh tranh mảng đội hình; giá trị của ta ở 
 ## 8. Việc theo dõi tiếp
 - [ ] Đọc DanceSculpt + DanceCamAnimator, đưa vào "Công trình liên quan".
 - [ ] Tìm số liệu độ chính xác Choreoto có công bố không (để làm mốc đối chứng).
-- [ ] Viết lại tuyên bố novelty trong `de-cuong-do-an-tot-nghiep.md` theo mục 7.
+- [x] Viết lại tuyên bố novelty trong `de-cuong-do-an-tot-nghiep.md` theo mục 7.
+      → Đề cương §2.5 (không tuyên bố "đầu tiên") + §6 (novelty = hệ thống + khả
+      dụng + đánh giá) đã đóng khung đúng; §5.4 bổ sung bằng chứng hình học định
+      lượng cho tầng perception (thực nghiệm 2-view tổng hợp).
