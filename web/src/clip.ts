@@ -79,6 +79,97 @@ export function sequenceTotal(
   return t;
 }
 
+/** Một vạch nhịp trên thanh thời gian: thời điểm (giây) + có phải phách MẠNH. */
+export interface BeatMark {
+  t: number;
+  down: boolean;
+}
+
+/**
+ * Lưới nhịp TRUNG THỰC cho chuỗi clip của một vũ công: nối beatGrid RIÊNG của từng
+ * clip theo mốc bắt đầu đoạn, rồi lặp cả lượt phủ hết `duration`. Nhờ vậy vạch nhịp
+ * khớp ĐÚNG nhịp thật của clip đang phát (vd point 112 / bounce 128 BPM) thay vì áp
+ * cứng một BPM sân khấu duy nhất — đây chính là chỗ trước đây "lưới nhịp nói dối".
+ * Vạch mạnh lấy từ `downbeatTimes` thật của clip. Clip thiếu beatGrid -> suy lưới
+ * đều từ `fallbackBpm`. Trả [] nếu chuỗi rỗng/không có clip hợp lệ (người gọi tự lo
+ * lưới dự phòng).
+ */
+export function sequenceBeatMarks(
+  clips: Record<string, ClipData>,
+  sequence: string[],
+  duration: number,
+  fallbackBpm: number
+): BeatMark[] {
+  const durs = sequenceDurations(clips, sequence);
+  let total = 0;
+  for (const d of durs) total += d;
+  if (total <= 0 || duration <= 0) return [];
+
+  // Một LƯỢT chuỗi: gom vạch nhịp từng đoạn, dời theo mốc bắt đầu đoạn.
+  const lap: BeatMark[] = [];
+  let acc = 0;
+  for (let i = 0; i < sequence.length; i++) {
+    const c = clips[sequence[i]];
+    const d = durs[i];
+    if (!c || d <= 0) continue;
+    const bg = c.beatGrid;
+    if (bg && bg.beatTimes.length > 0) {
+      // downbeatTimes là tập con của beatTimes -> so khớp gần đúng (sai số fps).
+      const isDown = (bt: number) =>
+        bg.downbeatTimes.some((db) => Math.abs(db - bt) < 1e-3);
+      for (const bt of bg.beatTimes) {
+        // Bỏ phách rơi đúng/vượt cuối đoạn để không đè phách 0 của đoạn kế tiếp.
+        if (bt >= d - 1e-6) continue;
+        lap.push({ t: acc + bt, down: isDown(bt) });
+      }
+    } else {
+      // Không có beatGrid -> lưới đều theo fallbackBpm (mọi phách coi như thường).
+      const p = 60 / Math.max(1, fallbackBpm);
+      for (let t = 0; t + 1e-6 < d; t += p) lap.push({ t: acc + t, down: false });
+    }
+    acc += d;
+  }
+  if (lap.length === 0) return [];
+
+  // Lặp cả LƯỢT tới khi phủ hết `duration` (chuỗi vũ công tự lặp khi phát).
+  const marks: BeatMark[] = [];
+  for (let base = 0; base < duration - 1e-6; base += total) {
+    for (const m of lap) {
+      const t = base + m.t;
+      if (t > duration + 1e-6) break;
+      marks.push({ t, down: m.down });
+    }
+  }
+  return marks;
+}
+
+/**
+ * BPM của clip đang nằm tại thời điểm `timeSec` trong chuỗi (lặp theo tổng chuỗi).
+ * Trả `fallbackBpm` nếu không xác định được (chuỗi rỗng / clip thiếu beatGrid).
+ */
+export function sequenceBpmAt(
+  clips: Record<string, ClipData>,
+  sequence: string[],
+  timeSec: number,
+  fallbackBpm: number
+): number {
+  const durs = sequenceDurations(clips, sequence);
+  let total = 0;
+  for (const d of durs) total += d;
+  if (total <= 0) return fallbackBpm;
+  let tt = timeSec % total;
+  if (tt < 0) tt += total;
+  let acc = 0;
+  for (let i = 0; i < sequence.length; i++) {
+    if (durs[i] <= 0) continue;
+    if (tt < acc + durs[i]) {
+      return clips[sequence[i]]?.beatGrid?.bpm ?? fallbackBpm;
+    }
+    acc += durs[i];
+  }
+  return fallbackBpm;
+}
+
 /**
  * Lấy mẫu tư thế của một CHUỖI clip tại thời điểm `timeSec` (đã trừ timeOffset):
  * lặp vòng theo TỔNG thời lượng chuỗi, tìm đoạn chứa thời điểm rồi lấy mẫu clip

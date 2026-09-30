@@ -2,7 +2,12 @@
 // và DẢI CHUỖI động tác của vũ công đang chọn (các clip xếp nối tiếp).
 
 import { useStore } from "../store";
-import { sequenceDurations } from "../clip";
+import {
+  sequenceDurations,
+  sequenceBeatMarks,
+  sequenceBpmAt,
+  type BeatMark,
+} from "../clip";
 import { formationLabel } from "../formation";
 
 export function Timeline() {
@@ -24,22 +29,49 @@ export function Timeline() {
   const selectedId = useStore((s) => s.selectedId);
   const formations = useStore((s) => s.formations);
 
-  const beatPeriod = 60 / bpm;
-  const beatIndex = duration > 0 ? Math.floor(time / beatPeriod) : 0;
-  const bar = Math.floor(beatIndex / beatsPerBar) + 1;
-  const countInBar = (beatIndex % beatsPerBar) + 1;
+  const beatPeriod = 60 / bpm; // đồng hồ SÂN KHẤU — chỉ dùng cho mốc đội hình.
 
-  // Sinh vạch nhịp phủ TOÀN BỘ thời lượng (chuỗi có thể dài hơn một clip nên
-  // không dùng beatGrid của clip chuẩn nữa — dựng thẳng từ bpm).
-  const beatTimes: number[] = [];
-  if (duration > 0 && beatPeriod > 0) {
-    for (let t = 0; t <= duration + 1e-6; t += beatPeriod) beatTimes.push(t);
+  // Vũ công đang chọn + chuỗi của họ (lưới nhịp bám theo đúng chuỗi này).
+  const sel = dancers.find((d) => d.id === selectedId) ?? null;
+  const segDurs = sel ? sequenceDurations(clips, sel.sequence) : [];
+
+  // Lưới nhịp TRUNG THỰC: nối beatGrid riêng của từng clip trong chuỗi. Nếu không
+  // dựng được (chưa chọn vũ công / clip thiếu beatGrid) mới lùi về lưới đều BPM
+  // sân khấu để thanh thời gian không trống.
+  let marks: BeatMark[] = sel
+    ? sequenceBeatMarks(clips, sel.sequence, duration, bpm)
+    : [];
+  if (marks.length === 0 && duration > 0 && beatPeriod > 0) {
+    marks = [];
+    let k = 0;
+    for (let t = 0; t <= duration + 1e-6; t += beatPeriod, k++)
+      marks.push({ t, down: k % beatsPerBar === 0 });
   }
+  // Số ô nhịp tuần tự: đánh số theo từng phách MẠNH thật (mỗi downbeat = 1 ô nhịp).
+  let barCount = 0;
+  const barLabels = marks.map((m) => (m.down ? ++barCount : 0));
+
+  // Vị trí phách hiện tại theo LƯỚI THẬT (nhất quán với vạch đang vẽ): đếm số ô
+  // nhịp đã qua và số phách kể từ phách mạnh gần nhất.
+  let curBar = 0;
+  let curBeat = 1;
+  for (const m of marks) {
+    if (m.t > time + 1e-3) break;
+    if (m.down) {
+      curBar += 1;
+      curBeat = 1;
+    } else {
+      curBeat += 1;
+    }
+  }
+  if (curBar === 0) curBar = 1; // trước phách mạnh đầu tiên
+  // BPM của clip đang nằm dưới playhead — không còn áp cứng 120 sân khấu.
+  const curBpm = sel
+    ? Math.round(sequenceBpmAt(clips, sel.sequence, time, bpm))
+    : bpm;
   const playPct = duration > 0 ? (time / duration) * 100 : 0;
 
   // Dải phân đoạn: một lượt chuỗi (0..tổng) của vũ công đang chọn.
-  const sel = dancers.find((d) => d.id === selectedId) ?? null;
-  const segDurs = sel ? sequenceDurations(clips, sel.sequence) : [];
   const clipLabel = (name: string) =>
     clipIndex.find((c) => c.name === name)?.label ?? name;
   let segAcc = 0;
@@ -99,19 +131,18 @@ export function Timeline() {
             );
           })}
         <div className="beats">
-          {beatTimes.map((bt, i) => {
-            const down = i % beatsPerBar === 0;
-            const left = duration > 0 ? (bt / duration) * 100 : 0;
+          {marks.map((m, i) => {
+            const left = duration > 0 ? (m.t / duration) * 100 : 0;
             return (
               <div key={i}>
                 <div
-                  className={"beat" + (down ? " down" : "")}
+                  className={"beat" + (m.down ? " down" : "")}
                   style={{ left: `${left}%` }}
                 />
-                {/* Số ô nhịp trên mỗi phách mạnh — giúp đọc cấu trúc 8-count. */}
-                {down && (
+                {/* Số ô nhịp trên mỗi phách mạnh THẬT — giúp đọc cấu trúc ô nhịp. */}
+                {m.down && (
                   <span className="barnum" style={{ left: `${left}%` }}>
-                    {i / beatsPerBar + 1}
+                    {barLabels[i]}
                   </span>
                 )}
               </div>
@@ -145,13 +176,15 @@ export function Timeline() {
       </div>
 
       <div className="readout">
-        <span className="count">
-          {bar}·{countInBar}
+        <span className="count" title="Ô nhịp · phách (theo nhịp thật của clip)">
+          {curBar}·{curBeat}
         </span>
         <span className="secs">
           {time.toFixed(2)} / {duration.toFixed(2)}s
         </span>
-        <span className="bpm">{bpm} BPM</span>
+        <span className="bpm" title="BPM của clip đang phát dưới playhead">
+          {curBpm} BPM
+        </span>
       </div>
     </div>
   );
