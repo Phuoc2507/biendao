@@ -28,6 +28,7 @@ const SCRIPTS = [
   ["gate-sensitivity.ts",      "V44 độ nhạy tham số — đường đặc trưng vận hành"],
   ["ratio-scapegoat.ts",       "V46 độ nhạy RATIO — chống đổ oan, trần 50% hiện hình"],
   ["noise-robustness.ts",      "V47 bền với nhiễu detector — cổng RATIO lọc nhiễu iid"],
+  ["structured-noise.ts",      "V48 nhiễu có cấu trúc — điểm mù lỗi hệ thống 1 người + phòng thủ xuyên tầng"],
 ];
 
 const work = mkdtempSync(join(tmpdir(), "choreo-eval-"));

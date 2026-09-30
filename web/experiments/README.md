@@ -30,9 +30,9 @@ wrapper `.bin` trên Windows), mỗi script chạy **2 lần** để xác nhận
 benchmark (`coarse-to-fine`, `affine-validation`) CÓ CHỦ Ý in thời gian tường (ms/lượt) — dao
 động hợp lệ, nên runner chuẩn hoá bỏ token `ms` VÀ gộp khoảng trắng ngang TRƯỚC khi so tất định
 (số ms thật vẫn hiển thị; gộp space để timing vượt mốc chữ số không gây lệch-đệm padStart giả).
-Lần đo gần nhất: **11/11 tái lập sạch** (ngang runner numpy ~173s).
+Lần đo gần nhất: **12/12 tái lập sạch** (ngang runner numpy ~173s).
 
-## Mạch nghiên cứu tầng đánh giá (V33 → V47)
+## Mạch nghiên cứu tầng đánh giá (V33 → V48)
 
 Hai câu hỏi lớn, mỗi câu khép bằng bằng chứng đo được:
 
@@ -60,6 +60,7 @@ Hai câu hỏi lớn, mỗi câu khép bằng bằng chứng đo được:
 | `gate-sensitivity.ts` | V44 | ĐỘ NHẠY 4 hằng số của metric — đường đặc trưng vận hành | [do-nhay-tham-so](../../experiments/ket-qua-do-nhay-tham-so.md) — SCALE↔GATE gộp 1 núm (ngưỡng ~2cm spread); 0.85 là điểm cân bằng; FLOOR là chốt an toàn |
 | `ratio-scapegoat.ts` | V46 | ĐỘ NHẠY hằng số thứ 4 (RATIO) — chống đổ oan khi nhiều người cùng lệch | [do-nhay-ty-le-do-oan](../../experiments/ket-qua-do-nhay-ty-le-do-oan.md) — 3 chế độ theo k; residual bị TRUNG VỊ đảo tại 50% ⇒ đa-số-lệch vu oan thiểu số ĐÚNG = trần V41 hiện hình, phải dùng V42 |
 | `noise-robustness.ts` | V47 | BỀN với nhiễu detector — tiêm Gauss iid `N(0,σ)` mọi khớp/khung, quét σ 0→20cm | [ben-nhieu](../../experiments/ket-qua-ben-nhieu.md) — FP=0 ở MỌI σ; TP=100 tới σ=5cm rồi đi CÂM (hỏng an toàn); worst/mean phẳng 1.02 ⇒ RATIO là lá chắn nhiễu iid |
+| `structured-noise.ts` | V48 | Nhiễu CÓ CẤU TRÚC: tương quan thời gian (AR1) · lệch hệ thống 1 người · mất-bám đợt | [nhieu-cau-truc](../../experiments/ket-qua-nhieu-cau-truc.md) — bền với nhiễu GIỮ độc-lập-giữa-người (FP=0 tới ρ=0.99); điểm mù DUY NHẤT = lỗi hệ thống 1 người (nêu oan 100%) ⇒ cần đa-view V13 + tuyệt đối V42 + gộp nhịp V32 |
 
 **Kết cung B — HAI THƯỚC BÙ NHAU (chọn theo việc CÓ hay KHÔNG nhãn tham chiếu):**
 
@@ -93,3 +94,10 @@ vế tuyệt đối để vượt trần 50%; khi không, vế nhóm-tương-đ�
   tới σ=5cm rồi đi CÂM (hỏng an toàn, KHÔNG đổ oan). Cơ chế: nhiễu iid trung bình hoá qua 17 khớp×13
   mẫu ⇒ worst/mean **phẳng 1.02 ≪ 1.3**. Ở dải detector thật (1–3cm) metric vừa nhạy vừa an toàn.
   Giới hạn: iid là chặn TRÊN; nhiễu thật có tương quan thời gian + lệch hệ thống, đo lại ở Gate-0.
+- **V48 ([nhieu-cau-truc](../../experiments/ket-qua-nhieu-cau-truc.md)):** đo thẳng 3 thành phần cấu
+  trúc V47 để ngỏ. Metric bền với **mọi** nhiễu còn **độc lập giữa người** — tương quan thời gian
+  AR(1) ρ→0.99 (FP=0, worst/mean≤1.08), mất-bám THOÁNG (đợt ≤ cửa sổ bị pha loãng). **Điểm mù DUY
+  NHẤT = lỗi HỆ THỐNG một người** (bias detector dai dẳng ≥26cm thô → nêu oan 100%, bất khả phân với
+  múa-sai ở tầng toạ độ; mất-bám dai dẳng hội tụ về ca này). Cùng phép trung bình 17-khớp×13-mẫu vừa
+  là lá chắn nhiễu vừa là gót chân với lỗi 1-người. Lối khép: **đa-view reproj V13** (bias 1-view lộ
+  khi chiếu chéo) + **tuyệt đối V42** (có nhãn) + **gộp nhịp V32** (chống nhấp nháy). Phòng thủ XUYÊN TẦNG.
