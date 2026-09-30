@@ -6,7 +6,7 @@ import numpy as np
 
 from choreo.eval.metrics import mpjpe
 from choreo.geom import look_at_camera, project_points
-from choreo.geom.triangulate import triangulate_dlt
+from choreo.geom.triangulate import triangulate_dlt, triangulate_robust
 from choreo.mocap.fuse import fuse_multiview
 from choreo.synth import synthetic_dance
 
@@ -78,3 +78,27 @@ def test_fuse_weighted_beats_unweighted_under_confidence_noise():
     assert weighted.meta["weighted"] is True
     assert plain.meta["weighted"] is False
     assert mpjpe(weighted.joints3d, gt, root=None) < mpjpe(plain.joints3d, gt, root=None)
+
+
+def test_robust_and_weighted_compose():
+    # robust (loại lỗi thô) + weighted (nhiễu mềm) chạy chung: cổng vẫn loại view
+    # sai hẳn, trọng số vẫn hạ ảnh hưởng view nhiễu vừa.
+    gt = synthetic_dance(fps=30.0, seconds=1.0, seed=5).joints3d
+    cams = [look_at_camera(a, 4.5) for a in (-45.0, 0.0, 45.0)]
+    P = np.stack([c.P for c in cams], axis=0)
+    f, j = 12, 13
+    pts = _project_clip(cams, gt)[:, f].copy()
+    pts[0, j] += np.array([140.0, -110.0])         # view 0: lỗi THÔ -> phải bị cổng loại
+    J = gt.shape[1]
+    w = np.ones((3, J)); w[2, j] = 0.2             # view 2: tin cậy thấp (mềm)
+
+    got = triangulate_robust(P, pts, reproj_thresh_px=15.0, weights=w)[j]
+    assert np.linalg.norm(got - gt[f, j]) < 0.02   # <20mm: cổng loại được lỗi thô
+
+    # Đường fuse robust + confidences không lỗi và đánh dấu cả hai cờ.
+    kp = _project_clip(cams, gt)
+    clip = fuse_multiview(kp, cams, fps=30.0, smooth=False, robust=True,
+                          confidences=np.ones((3, gt.shape[0], J)))
+    assert clip.meta["robust"] is True
+    assert clip.meta["weighted"] is True
+    assert np.isfinite(clip.joints3d).all()

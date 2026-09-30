@@ -60,8 +60,8 @@ def fuse_multiview(
         lấp bằng nội suy thời gian (cần fill_gaps=True).
     confidences: (V, T, J) độ tin cậy mỗi quan sát (confidence detector 2D). Khi có,
         DLT được **đánh trọng số** — view tin cậy thấp (mờ/bị che) bị giảm ảnh hưởng
-        thay vì bị loại cứng. Bổ trợ cho robust: robust loại lỗi THÔ, weighting xử lý
-        nhiễu MỀM theo độ tin cậy. Bỏ qua khi robust=True (robust đi đường loại-view).
+        thay vì bị loại cứng. Kết hợp được với robust: cổng tái chiếu loại lỗi THÔ,
+        đồng thời trọng số làm dịu nhiễu MỀM cho các view còn lại.
     Trả về MotionClip (T, J, 3) hệ world, đã (tuỳ chọn) lấp khoảng trống + làm mượt,
     kèm contacts đoán từ hình học chân.
     """
@@ -82,7 +82,7 @@ def fuse_multiview(
     P = np.stack([c.P for c in calibs], axis=0)  # (V,3,4)
     joints3d = np.empty((T, J, 3), dtype=np.float64)
     if robust:
-        tri = lambda pts, w: triangulate_robust(P, pts, reproj_thresh_px)
+        tri = lambda pts, w: triangulate_robust(P, pts, reproj_thresh_px, weights=w)
     else:
         tri = lambda pts, w: triangulate_dlt(P, pts, weights=w)
     for f in range(T):

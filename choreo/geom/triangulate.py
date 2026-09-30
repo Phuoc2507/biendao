@@ -71,13 +71,21 @@ def triangulate_dlt(
     return out
 
 
-def _solve_one(P_sub: np.ndarray, uv_sub: np.ndarray) -> np.ndarray | None:
-    """Tam giác hoá MỘT điểm từ một tập view con. P_sub (v,3,4), uv_sub (v,2)."""
+def _solve_one(
+    P_sub: np.ndarray, uv_sub: np.ndarray, w_sub: np.ndarray | None = None
+) -> np.ndarray | None:
+    """Tam giác hoá MỘT điểm từ một tập view con (tuỳ chọn trọng số).
+
+    P_sub (v,3,4), uv_sub (v,2), w_sub (v,) trọng số mỗi view (None = đều).
+    """
     rows = []
     for v in range(P_sub.shape[0]):
         u, w = uv_sub[v]
-        rows.append(u * P_sub[v, 2] - P_sub[v, 0])
-        rows.append(w * P_sub[v, 2] - P_sub[v, 1])
+        wv = 1.0 if w_sub is None else float(w_sub[v])
+        if wv <= 0.0:
+            continue
+        rows.append(wv * (u * P_sub[v, 2] - P_sub[v, 0]))
+        rows.append(wv * (w * P_sub[v, 2] - P_sub[v, 1]))
     if len(rows) < 4:
         return None
     _, _, vt = np.linalg.svd(np.asarray(rows, dtype=np.float64))
@@ -99,6 +107,7 @@ def triangulate_robust(
     proj_mats: np.ndarray,
     points2d: np.ndarray,
     reproj_thresh_px: float = 20.0,
+    weights: np.ndarray | None = None,
 ) -> np.ndarray:
     """Như triangulate_dlt nhưng LOẠI OUTLIER 2D bằng cổng sai số tái chiếu.
 
@@ -107,6 +116,13 @@ def triangulate_robust(
       - Tam giác hoá bằng mọi view hợp lệ, rồi tái chiếu kiểm tra.
       - Nếu view nào lệch > ngưỡng: với >=3 view, LOẠI DẦN view tệ nhất rồi dựng lại;
         với đúng 2 view (không phân biệt được ai sai) -> trả NaN để tầng trên nội suy.
+    weights: (V, N) độ tin cậy — nếu có, kết hợp hai cơ chế theo kiểu **TÁCH BẠCH**:
+        (1) cổng robust chọn tập view inlier bằng HÌNH HỌC THUẦN (giải & tái chiếu KHÔNG
+        trọng số) — quyết định "view nào bị lỗi thô" không được phụ thuộc confidence;
+        (2) chỉ ở phép khớp CUỐI trên tập inlier mới dùng DLT có trọng số để làm dịu nhiễu
+        mềm. Tách vậy tránh hai kiểu đánh nhau: trọng số thấp KHÔNG kéo cổng loại nhầm một
+        view sạch, cũng KHÔNG bảo vệ một view lỗi-thô tình cờ có confidence thấp. Trọng số ≤0
+        vẫn loại hẳn view (coi như không quan sát).
     Trả về (N,3), NaN cho điểm bị loại (sau đó fuse sẽ lấp khoảng trống theo thời gian).
     """
     P = np.asarray(proj_mats, dtype=np.float64)
@@ -117,21 +133,32 @@ def triangulate_robust(
         raise ValueError(f"points2d phải (V,N,2) khớp V, nhận {x.shape}")
 
     V, N = x.shape[0], x.shape[1]
+    if weights is not None:
+        weights = np.asarray(weights, dtype=np.float64)
+        if weights.shape != (V, N):
+            raise ValueError(f"weights phải (V,N)={(V, N)}, nhận {weights.shape}")
     out = np.full((N, 3), np.nan, dtype=np.float64)
 
     for j in range(N):
-        idx = [v for v in range(V) if np.isfinite(x[v, j]).all()]
+        idx = [v for v in range(V)
+               if np.isfinite(x[v, j]).all()
+               and (weights is None or weights[v, j] > 0.0)]
         while len(idx) >= 2:
             P_sub = P[idx]
             uv_sub = x[idx, j]
-            X = _solve_one(P_sub, uv_sub)
-            if X is None:
+            # Cổng dùng nghiệm HÌNH HỌC THUẦN (không trọng số): quyết định inlier/outlier
+            # phải độc lập với confidence, nếu không trọng số thấp sẽ bóp méo việc loại view.
+            X_gate = _solve_one(P_sub, uv_sub, None)
+            if X_gate is None:
                 break
-            errs = _reproj_errs(P_sub, X, uv_sub)
+            errs = _reproj_errs(P_sub, X_gate, uv_sub)
             if errs.max() <= reproj_thresh_px:
-                out[j] = X                      # đạt -> chấp nhận
+                # Tập inlier đã sạch lỗi thô -> phép khớp CUỐI mới áp trọng số (nhiễu mềm).
+                w_sub = None if weights is None else weights[idx, j]
+                X = _solve_one(P_sub, uv_sub, w_sub) if w_sub is not None else X_gate
+                out[j] = X if X is not None else X_gate
                 break
             if len(idx) <= 2:
                 break                            # 2 view mà lệch -> không cứu được
-            idx.pop(int(np.argmax(errs)))        # loại view tệ nhất, thử lại
+            idx.pop(int(np.argmax(errs)))        # loại view lệch nhất (theo hình học thuần)
     return out
