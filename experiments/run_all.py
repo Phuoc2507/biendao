@@ -62,6 +62,8 @@ EXPERIMENTS = [
      "V54: bias TRỘN — giao thức 2-tầng (anchor→LOVO) compose CÓ ĐIỀU KIỆN (envelope V−k_cam≥4), thứ tự bất-hoán."),
     ("kiem_dinh_envelope","ket-qua-kiem-dinh-envelope.md",
      "V55: kiểm định Monte-Carlo envelope V54 (gồm confound) — đếm chỉ đúng bậc-một (81.6%), phần hở rơi đúng vào vùng phụ-thuộc-hình-học."),
+    ("hinh_hoc_frontier", "ket-qua-hinh-hoc-frontier.md",
+     "V56: phần dư FRONTIER có phân-tách bằng hình-học rig? — tính-đoán-được pooled là ảo ảnh confound đếm (Simpson), không scalar đơn nào sống sót điều-kiện-hoá."),
 ]
 
 
