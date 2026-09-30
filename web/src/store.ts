@@ -68,6 +68,7 @@ interface State {
   dancers: Dancer[];
   selectedId: string | null;
   exporting: string | null; // tên vũ công đang xuất video, null = không xuất
+  panelOpen: boolean; // trên mobile: bảng điều khiển (drawer) đang mở hay không
 
   setLibrary: (index: ClipIndexEntry[], clips: Record<string, ClipData>) => void;
   clipFor: (d: Dancer) => ClipData | null;
@@ -84,6 +85,8 @@ interface State {
   setCameraMode: (m: CameraMode) => void;
   setEditingPath: (v: boolean) => void;
   setExporting: (label: string | null) => void;
+  setPanelOpen: (v: boolean) => void;
+  togglePanel: () => void;
   // Đường đi
   addWaypoint: (id: string, xz: [number, number]) => void;
   updateWaypoint: (id: string, i: number, xz: [number, number]) => void;
@@ -109,6 +112,7 @@ export const useStore = create<State>((set, get) => ({
   dancers: [makeDancer({ position: [0, 0, 0] })],
   selectedId: "d0",
   exporting: null,
+  panelOpen: false, // mặc định đóng để mobile thấy sân khấu 3D trước; desktop luôn hiện qua CSS
 
   setLibrary: (index, clips) => {
     const defaultClip = index[0]?.name ?? "";
@@ -176,6 +180,8 @@ export const useStore = create<State>((set, get) => ({
   setCameraMode: (m) => set({ cameraMode: m }),
   setEditingPath: (v) => set({ editingPath: v }),
   setExporting: (label) => set({ exporting: label }),
+  setPanelOpen: (v) => set({ panelOpen: v }),
+  togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
 
   addWaypoint: (id, xz) =>
     set((s) => ({

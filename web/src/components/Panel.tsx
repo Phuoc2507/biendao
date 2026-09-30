@@ -91,8 +91,20 @@ export function Panel() {
 
   return (
     <div className="panel">
-      <h1>Choreo Sequencer</h1>
-      <p className="sub">2-cam · sân khấu ảo · POV/mirror</p>
+      <div className="panel-head">
+        <div>
+          <h1>Choreo Sequencer</h1>
+          <p className="sub">2-cam · sân khấu ảo · POV/mirror</p>
+        </div>
+        {/* Nút đóng drawer — chỉ hiện trên mobile (CSS). */}
+        <button
+          className="panel-close"
+          aria-label="Đóng bảng điều khiển"
+          onClick={() => useStore.getState().setPanelOpen(false)}
+        >
+          ×
+        </button>
+      </div>
 
       <div className="row">
         <button onClick={addDancer}>+ Vũ công</button>

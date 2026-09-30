@@ -22,8 +22,11 @@ export default function App() {
   const cameraMode = useStore((s) => s.cameraMode);
   const editingPath = useStore((s) => s.editingPath);
   const exporting = useStore((s) => s.exporting);
+  const panelOpen = useStore((s) => s.panelOpen);
   const setLibrary = useStore((s) => s.setLibrary);
   const setPlaying = useStore((s) => s.setPlaying);
+  const setPanelOpen = useStore((s) => s.setPanelOpen);
+  const togglePanel = useStore((s) => s.togglePanel);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -62,7 +65,22 @@ export default function App() {
   const orbit = cameraMode === "orbit" && !editingPath;
 
   return (
-    <div className="app">
+    <div className={"app" + (panelOpen ? " panel-open" : "")}>
+      {/* Nút mở bảng điều khiển — chỉ hiện trên mobile (CSS). */}
+      <button
+        className="panel-toggle"
+        aria-label="Mở bảng điều khiển"
+        onClick={togglePanel}
+      >
+        ☰
+      </button>
+      {/* Nền mờ sau drawer trên mobile; chạm để đóng. */}
+      <div
+        className="backdrop"
+        onClick={() => setPanelOpen(false)}
+        aria-hidden="true"
+      />
+
       <Panel />
 
       <div className="viewport">
