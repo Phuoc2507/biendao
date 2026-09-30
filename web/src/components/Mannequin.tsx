@@ -117,6 +117,24 @@ export function Mannequin({
 
   return (
     <group ref={groupRef}>
+      {/* Khối bắt sự kiện trong suốt: bấm để chọn vũ công ngay trong cảnh 3D
+          (không cần dùng danh sách bên trái). Bỏ qua khi đang sửa đường đi để
+          không nuốt cú click thêm mốc trên sàn. Kéo (xoay camera) không kích
+          hoạt onClick nên không xung đột OrbitControls. */}
+      <mesh
+        position={[0, 1, 0]}
+        onClick={(e) => {
+          e.stopPropagation();
+          const st = useStore.getState();
+          if (!st.editingPath) st.select(dancer.id);
+        }}
+        onPointerOver={() => (document.body.style.cursor = "pointer")}
+        onPointerOut={() => (document.body.style.cursor = "")}
+      >
+        <boxGeometry args={[0.8, 2, 0.6]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+
       <instancedMesh ref={jointsRef} args={[undefined, undefined, J]}>
         <sphereGeometry args={[0.038, 12, 12]} />
         <meshStandardMaterial color={dancer.color} roughness={0.5} />
