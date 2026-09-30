@@ -14,7 +14,7 @@ from __future__ import annotations
 import numpy as np
 
 from choreo.cleanup.smooth import detect_foot_contacts, savgol_smooth
-from choreo.geom.triangulate import triangulate_dlt
+from choreo.geom.triangulate import triangulate_dlt, triangulate_robust
 from choreo.schema import CameraCalib, MotionClip, NUM_JOINTS
 
 
@@ -46,12 +46,17 @@ def fuse_multiview(
     smooth: bool = True,
     smooth_window: int = 7,
     fill_gaps: bool = True,
+    robust: bool = False,
+    reproj_thresh_px: float = 20.0,
     meta: dict | None = None,
 ) -> MotionClip:
     """Tam giác hoá keypoint 2D đa-view thành MotionClip 3D.
 
     keypoints2d: (V, T, J, 2) pixel; NaN = khớp không quan sát được ở view đó.
     calibs: danh sách V CameraCalib khớp thứ tự view.
+    robust=True: loại outlier 2D bằng cổng sai số tái chiếu (triangulate_robust) —
+        nên bật khi dùng detector 2D thật (hay có lỗi thô); khớp bị loại sẽ được
+        lấp bằng nội suy thời gian (cần fill_gaps=True).
     Trả về MotionClip (T, J, 3) hệ world, đã (tuỳ chọn) lấp khoảng trống + làm mượt,
     kèm contacts đoán từ hình học chân.
     """
@@ -66,15 +71,17 @@ def fuse_multiview(
 
     P = np.stack([c.P for c in calibs], axis=0)  # (V,3,4)
     joints3d = np.empty((T, J, 3), dtype=np.float64)
+    tri = (lambda pts: triangulate_robust(P, pts, reproj_thresh_px)) if robust else \
+          (lambda pts: triangulate_dlt(P, pts))
     for f in range(T):
-        joints3d[f] = triangulate_dlt(P, kp[:, f, :, :])  # (V,J,2) -> (J,3)
+        joints3d[f] = tri(kp[:, f, :, :])  # (V,J,2) -> (J,3)
 
     if fill_gaps:
         joints3d = _fill_gaps(joints3d)
     if smooth and T >= 3:
         joints3d = savgol_smooth(joints3d, window=smooth_window, polyorder=2)
 
-    m = {"stage": "fuse_multiview", "num_views": V}
+    m = {"stage": "fuse_multiview", "num_views": V, "robust": robust}
     if meta:
         m.update(meta)
     clip = MotionClip(fps=fps, joints3d=joints3d, meta=m)

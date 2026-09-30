@@ -130,6 +130,8 @@ Các con số này **nhất quán với tài liệu** (1-cam ~64mm → 2-cam ~36
 
 Ba ngưỡng này là **đóng góp phương pháp**: chúng biến "đồng bộ + hiệu chỉnh không genlock" (điểm §5.2) thành tiêu chí kiểm được, thứ giải pháp 1-camera không phải đối mặt. Chi tiết: `experiments/ket-qua-do-nhay-sync-calib.md`.
 
+**Bền vững với outlier 2D (`experiments/robust_outliers.py`).** Detector 2D thật thỉnh thoảng cho khớp sai hẳn (đổi trái/phải, bắt nhầm người) — một quan sát sai làm DLT bình phương tối thiểu hỏng cả điểm 3D. Nhóm bổ sung `triangulate_robust` (cổng sai số tái chiếu + loại-dần-view cho ≥3 máy) và bật được qua `fuse_multiview(robust=True)`. Kết quả tiêm outlier: ở 5% quan sát lỗi, robust kéo MPJPE từ ~49mm (DLT thường) về ~21mm (giảm ~56%) cho cả 2 và 3 máy. Một phát hiện **trái trực giác và trung thực**: dưới mô hình outlier độc lập từng quan sát, máy thứ 3 chỉ giúp thêm ít (13.6 vs 15.0mm ở 2%) vì một khớp dễ bị ≥2/3 view sai cùng lúc; máy thứ 3 chỉ kháng outlier mạnh khi lỗi **tương quan theo view** (ngược sáng/che khuất kéo dài). ⇒ `robust=True` là mặc định cho Cổng 0; vai trò máy thứ 3 được định vị lại đúng mức, không thổi phồng. Chi tiết: `experiments/ket-qua-robust-outliers.md`.
+
 ---
 
 ## 6. Kết quả dự kiến và đóng góp
@@ -209,4 +211,4 @@ Ba ngưỡng này là **đóng góp phương pháp**: chúng biến "đồng b�
 [19] SMPL-X model license (phi thương mại). https://smpl-x.is.tue.mpg.de/modellicense.html
 [20] Three.js / React Three Fiber. https://threejs.org/ ; https://docs.pmnd.rs/react-three-fiber
 
-*Chi tiết kỹ thuật đầy đủ: `nghien-cuu-choreo-sequencer.md` (khả thi), `dac-ta-mvp-choreo-2cam.md` (đặc tả MVP), `gate0-thiet-ke-thuc-nghiem.md` (thực nghiệm), `experiments/ket-qua-2view-tong-hop.md` (kết quả hình học tổng hợp, §5.4), `experiments/ket-qua-ban-do-dat-may.md` (bản đồ đặt góc máy, §5.4), `experiments/ket-qua-do-nhay-sync-calib.md` (độ nhạy sync/calib, §5.4), `teardown-choreoto.md` (phân tích đối thủ).*
+*Chi tiết kỹ thuật đầy đủ: `nghien-cuu-choreo-sequencer.md` (khả thi), `dac-ta-mvp-choreo-2cam.md` (đặc tả MVP), `gate0-thiet-ke-thuc-nghiem.md` (thực nghiệm), `experiments/ket-qua-2view-tong-hop.md` (kết quả hình học tổng hợp, §5.4), `experiments/ket-qua-ban-do-dat-may.md` (bản đồ đặt góc máy, §5.4), `experiments/ket-qua-do-nhay-sync-calib.md` (độ nhạy sync/calib, §5.4), `experiments/ket-qua-robust-outliers.md` (bền vững outlier, §5.4), `teardown-choreoto.md` (phân tích đối thủ).*

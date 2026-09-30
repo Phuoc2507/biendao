@@ -55,3 +55,69 @@ def triangulate_dlt(
             continue
         out[j] = Xh[:3] / Xh[3]
     return out
+
+
+def _solve_one(P_sub: np.ndarray, uv_sub: np.ndarray) -> np.ndarray | None:
+    """Tam giác hoá MỘT điểm từ một tập view con. P_sub (v,3,4), uv_sub (v,2)."""
+    rows = []
+    for v in range(P_sub.shape[0]):
+        u, w = uv_sub[v]
+        rows.append(u * P_sub[v, 2] - P_sub[v, 0])
+        rows.append(w * P_sub[v, 2] - P_sub[v, 1])
+    if len(rows) < 4:
+        return None
+    _, _, vt = np.linalg.svd(np.asarray(rows, dtype=np.float64))
+    Xh = vt[-1]
+    if abs(Xh[3]) < 1e-12:
+        return None
+    return Xh[:3] / Xh[3]
+
+
+def _reproj_errs(P_sub: np.ndarray, X: np.ndarray, uv_sub: np.ndarray) -> np.ndarray:
+    """Sai số tái chiếu (px) của điểm 3D X về từng view trong tập con."""
+    Xh = np.append(X, 1.0)
+    proj = P_sub @ Xh                      # (v,3)
+    uv = proj[:, :2] / proj[:, 2:3]
+    return np.linalg.norm(uv - uv_sub, axis=1)
+
+
+def triangulate_robust(
+    proj_mats: np.ndarray,
+    points2d: np.ndarray,
+    reproj_thresh_px: float = 20.0,
+) -> np.ndarray:
+    """Như triangulate_dlt nhưng LOẠI OUTLIER 2D bằng cổng sai số tái chiếu.
+
+    Detector 2D thật thỉnh thoảng cho khớp sai hẳn (lỗi thô). Với DLT thường, một
+    quan sát sai làm hỏng cả điểm 3D. Ở đây:
+      - Tam giác hoá bằng mọi view hợp lệ, rồi tái chiếu kiểm tra.
+      - Nếu view nào lệch > ngưỡng: với >=3 view, LOẠI DẦN view tệ nhất rồi dựng lại;
+        với đúng 2 view (không phân biệt được ai sai) -> trả NaN để tầng trên nội suy.
+    Trả về (N,3), NaN cho điểm bị loại (sau đó fuse sẽ lấp khoảng trống theo thời gian).
+    """
+    P = np.asarray(proj_mats, dtype=np.float64)
+    x = np.asarray(points2d, dtype=np.float64)
+    if P.ndim != 3 or P.shape[1:] != (3, 4):
+        raise ValueError(f"proj_mats phải (V,3,4), nhận {P.shape}")
+    if x.ndim != 3 or x.shape[0] != P.shape[0] or x.shape[2] != 2:
+        raise ValueError(f"points2d phải (V,N,2) khớp V, nhận {x.shape}")
+
+    V, N = x.shape[0], x.shape[1]
+    out = np.full((N, 3), np.nan, dtype=np.float64)
+
+    for j in range(N):
+        idx = [v for v in range(V) if np.isfinite(x[v, j]).all()]
+        while len(idx) >= 2:
+            P_sub = P[idx]
+            uv_sub = x[idx, j]
+            X = _solve_one(P_sub, uv_sub)
+            if X is None:
+                break
+            errs = _reproj_errs(P_sub, X, uv_sub)
+            if errs.max() <= reproj_thresh_px:
+                out[j] = X                      # đạt -> chấp nhận
+                break
+            if len(idx) <= 2:
+                break                            # 2 view mà lệch -> không cứu được
+            idx.pop(int(np.argmax(errs)))        # loại view tệ nhất, thử lại
+    return out
