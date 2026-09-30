@@ -6,6 +6,7 @@ import { useStore, type CameraMode } from "../store";
 import { FORMATIONS, FACINGS, WAVE_ORDERS, formationLabel } from "../formation";
 import { clearSaved, exportProjectFile, importProjectFile } from "../persist";
 import { recordCurrentView } from "../record";
+import { SyncBreakdown } from "./SyncBreakdown";
 
 const CAM_LABELS: Record<CameraMode, string> = {
   orbit: "Tự do",
@@ -331,6 +332,9 @@ export function Panel() {
           </div>
         ))}
       </div>
+
+      {/* Tầng ĐÁNH GIÁ: ai đang lệch nhịp so với tư thế trung bình nhóm (live). */}
+      <SyncBreakdown />
 
       {sel && (
         <div className="editor">

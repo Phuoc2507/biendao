@@ -16,6 +16,7 @@ import { samplePose, samplePoseSequence } from "../clip";
 import { useStore, type Dancer } from "../store";
 import { makeCurve, sampledPath } from "../path";
 import { formationPose, waveDelayAt } from "../formation";
+import { syncHighlight } from "../syncHighlight";
 
 // Bộ đệm tái dùng ở cấp module (mọi vũ công dùng chung, không cấp phát mỗi khung).
 const dummy = new THREE.Object3D();
@@ -52,6 +53,7 @@ export function Mannequin({
   const jointsRef = useRef<THREE.InstancedMesh>(null);
   const bonesRef = useRef<THREE.InstancedMesh>(null);
   const headRef = useRef<THREE.Group>(null);
+  const warnRef = useRef<THREE.Mesh>(null); // vòng cảnh báo "lệch nhịp nhất"
 
   // Chỉ số khớp "head" để đặt đầu/mũi; -1 nếu clip không có (khi đó bỏ qua).
   const headIdx = useMemo(() => clip.jointNames.indexOf("head"), [clip]);
@@ -187,6 +189,16 @@ export function Mannequin({
       const o = headIdx * 3;
       head.position.set(pose[o], pose[o + 1], pose[o + 2]);
     }
+
+    // Vòng cảnh báo "lệch nhịp nhất": bật khi bộ điều phối chỉ đích danh vũ công
+    // này (đọc kênh chia sẻ imperative -> không re-render React). Đập nhẹ theo
+    // thời gian để hút mắt biên đạo về đúng người đang phá nhịp.
+    const warn = warnRef.current;
+    if (warn) {
+      const on = syncHighlight.worstId === dancer.id;
+      warn.visible = on;
+      if (on) warn.scale.setScalar(1 + 0.08 * Math.sin(time * 6));
+    }
   });
 
   return (
@@ -277,6 +289,17 @@ export function Mannequin({
           <meshBasicMaterial color={dancer.color} transparent opacity={0.9} />
         </mesh>
       )}
+      {/* Vòng cảnh báo "lệch nhịp nhất" — đỏ, nằm NGOÀI vòng chọn để không đè.
+          Luôn tồn tại nhưng ẩn; useFrame bật `visible` + đập nhẹ khi được chỉ tên. */}
+      <mesh
+        ref={warnRef}
+        visible={false}
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0.014, 0]}
+      >
+        <ringGeometry args={[0.46, 0.56, 44]} />
+        <meshBasicMaterial color="#f85149" transparent opacity={0.85} />
+      </mesh>
     </group>
   );
 }

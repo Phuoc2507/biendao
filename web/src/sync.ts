@@ -32,42 +32,59 @@ export interface SyncDancer {
 const SCALE = 0.12;
 
 /**
- * Điểm đồng bộ của nhóm tại thời điểm `t` (giây, thời gian treo). Trả 1 = unison
- * hoàn hảo, tiến 0 khi càng rời rạc; `null` nếu <2 vũ công lấy mẫu được (chỉ số vô
- * nghĩa với 0/1 người). `layout` là một clip bất kỳ dùng lấy số khớp J + dự phòng
- * khi chuỗi rỗng.
+ * Kết quả chấm đồng bộ CÓ PHÂN RÃ theo từng vũ công tại một thời điểm.
+ * - `sync`: điểm nhóm 0..1 (như `groupSyncAt`).
+ * - `deviations`: độ lệch RIÊNG của từng vũ công = RMS khoảng cách khớp tới tư thế
+ *   TRUNG BÌNH nhóm (mét), 1:1 theo thứ tự `dancers` truyền vào (luôn đủ phần tử vì
+ *   chuỗi rỗng vẫn lấy mẫu clip dự phòng).
+ * - `worst`: chỉ số vũ công lệch NHẤT trong `dancers` (chưa lọc "có nổi bật không" —
+ *   xem `outlierIndex`).
  */
-export function groupSyncAt(
+export interface GroupDeviation {
+  sync: number;
+  deviations: number[];
+  worst: number;
+}
+
+/**
+ * Chấm đồng bộ nhóm tại `t` VÀ phân rã độ lệch từng vũ công. `null` nếu <2 vũ công.
+ * Đây là lõi dùng chung: `groupSyncAt` chỉ lấy trường `sync` của kết quả này.
+ * `layout` là một clip bất kỳ dùng lấy số khớp J + dự phòng khi chuỗi rỗng.
+ */
+export function groupDeviationAt(
   clips: Record<string, ClipData>,
   layout: ClipData,
   dancers: SyncDancer[],
   t: number
-): number | null {
+): GroupDeviation | null {
   const J = layout.jointNames.length;
   // Lấy mẫu tư thế (không-gian-clip) từng vũ công tại t − timeOffset, đúng công thức
-  // Mannequin. Bỏ qua vũ công không có tư thế hợp lệ.
+  // Mannequin. Chuỗi rỗng/thiếu clip -> lấy mẫu clip dự phòng (vẫn có tư thế) để
+  // `deviations` khớp 1:1 với `dancers`.
   const poses: Float32Array[] = [];
   for (const d of dancers) {
     const p = new Float32Array(J * 3);
-    if (samplePoseSequence(clips, d.sequence, t - d.timeOffset, p)) {
-      poses.push(p);
-    } else {
+    if (!samplePoseSequence(clips, d.sequence, t - d.timeOffset, p)) {
       samplePose(layout, t - d.timeOffset, p);
-      poses.push(p);
     }
+    poses.push(p);
   }
-  if (poses.length < 2) return null;
   const n = poses.length;
+  if (n < 2) return null;
 
   // Tư thế TRUNG BÌNH nhóm (theo từng toạ độ khớp).
   const mean = new Float32Array(J * 3);
   for (const p of poses) for (let k = 0; k < J * 3; k++) mean[k] += p[k];
   for (let k = 0; k < J * 3; k++) mean[k] /= n;
 
-  // Độ TẢN: trung bình trên các vũ công của RMS khoảng cách khớp tới tư thế trung
-  // bình (mét). 0 khi mọi người cùng tư thế.
+  // Độ lệch RIÊNG từng vũ công (RMS khoảng cách khớp tới trung bình, mét). Độ TẢN
+  // của nhóm = trung bình các độ lệch này -> điểm = exp(-spread/SCALE).
+  const deviations: number[] = new Array(n);
   let spreadSum = 0;
-  for (const p of poses) {
+  let worst = 0;
+  let worstDev = -1;
+  for (let di = 0; di < n; di++) {
+    const p = poses[di];
     let sq = 0;
     for (let j = 0; j < J; j++) {
       const o = j * 3;
@@ -76,10 +93,58 @@ export function groupSyncAt(
       const dz = p[o + 2] - mean[o + 2];
       sq += dx * dx + dy * dy + dz * dz;
     }
-    spreadSum += Math.sqrt(sq / J);
+    const dev = Math.sqrt(sq / J);
+    deviations[di] = dev;
+    spreadSum += dev;
+    if (dev > worstDev) {
+      worstDev = dev;
+      worst = di;
+    }
   }
   const spread = spreadSum / n;
-  return Math.exp(-spread / SCALE);
+  return { sync: Math.exp(-spread / SCALE), deviations, worst };
+}
+
+/**
+ * Điểm đồng bộ của nhóm tại thời điểm `t` (giây, thời gian treo). Trả 1 = unison
+ * hoàn hảo, tiến 0 khi càng rời rạc; `null` nếu <2 vũ công (chỉ số vô nghĩa với
+ * 0/1 người). Uỷ thác cho `groupDeviationAt` để dùng CHUNG một phép chấm.
+ */
+export function groupSyncAt(
+  clips: Record<string, ClipData>,
+  layout: ClipData,
+  dancers: SyncDancer[],
+  t: number
+): number | null {
+  const g = groupDeviationAt(clips, layout, dancers, t);
+  return g ? g.sync : null;
+}
+
+// Ngưỡng "gọi tên người lệch": chỉ chỉ đích danh vũ công lệch nhất khi (a) nhóm
+// THẬT SỰ đang lệch (sync dưới ngưỡng) VÀ (b) người đó lệch TRỘI hơn phần còn lại.
+// Nhờ vậy: unison (mọi lệch ~0) không ai bị nêu; canon/lệch-pha có chủ đích (mọi
+// người lệch ĐỀU nhau) cũng không nêu ai — chỉ khi có MỘT người phá nhịp mới nổi.
+const OUTLIER_SYNC_GATE = 0.85; // sync ≥ mức này coi như nhóm còn khớp -> không nêu
+const OUTLIER_FLOOR = 0.05; // 5cm: dưới mức này độ lệch không đáng kể
+const OUTLIER_RATIO = 1.3; // phải lệch ≥1.3× lệch TRUNG BÌNH của người còn lại
+
+/**
+ * Chỉ số vũ công lệch nhịp NỔI BẬT nhất (để tô sáng), hoặc `null` nếu không nên
+ * gọi tên ai (nhóm còn khớp, hoặc mọi người lệch đều nhau như trong canon).
+ */
+export function outlierIndex(g: GroupDeviation): number | null {
+  if (g.sync >= OUTLIER_SYNC_GATE) return null;
+  const n = g.deviations.length;
+  if (n < 2) return null;
+  const worst = g.worst;
+  const worstDev = g.deviations[worst];
+  if (worstDev < OUTLIER_FLOOR) return null;
+  // Lệch trung bình của NHỮNG NGƯỜI CÒN LẠI (không tính người lệch nhất).
+  let sumOthers = 0;
+  for (let i = 0; i < n; i++) if (i !== worst) sumOthers += g.deviations[i];
+  const meanOthers = sumOthers / (n - 1);
+  if (worstDev < meanOthers * OUTLIER_RATIO) return null;
+  return worst;
 }
 
 /** Một mẫu điểm đồng bộ theo thời gian (cho dải nhiệt dưới thanh thời gian). */

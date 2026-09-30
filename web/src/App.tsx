@@ -12,6 +12,7 @@ import { Mannequin } from "./components/Mannequin";
 import { PathEditor } from "./components/PathEditor";
 import { CameraRig } from "./components/CameraRig";
 import { CanvasCapture } from "./components/CanvasCapture";
+import { SyncHighlighter } from "./components/SyncHighlighter";
 import { PlaybackClock } from "./components/PlaybackClock";
 import { Timeline } from "./components/Timeline";
 import { Panel } from "./components/Panel";
@@ -149,6 +150,7 @@ export default function App() {
           <PathEditor />
           <CameraRig />
           <CanvasCapture />
+          <SyncHighlighter />
           {ready &&
             dancers.map((d, i) => (
               <Mannequin
