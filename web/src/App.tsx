@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -11,6 +11,7 @@ const CAM_TARGET: [number, number, number] = [0, 1, 0];
 import { Stage } from "./components/Stage";
 import { Mannequin } from "./components/Mannequin";
 import { SkinnedMannequin } from "./components/SkinnedMannequin";
+import { GltfDancer } from "./components/GltfDancer";
 import { PathEditor } from "./components/PathEditor";
 import { CameraRig } from "./components/CameraRig";
 import { CanvasCapture } from "./components/CanvasCapture";
@@ -161,32 +162,46 @@ export default function App() {
           <CameraRig />
           <CanvasCapture />
           <SyncHighlighter />
-          {ready &&
-            dancers.map((d, i) =>
-              mannequinStyle === "da" ? (
-                <SkinnedMannequin
-                  key={d.id}
-                  clips={clips}
-                  fallback={ready}
-                  dancer={d}
-                  index={i}
-                  count={dancers.length}
-                  selected={d.id === selectedId}
-                  showLabel={dancers.length > 1}
-                />
-              ) : (
-                <Mannequin
-                  key={d.id}
-                  clips={clips}
-                  fallback={ready}
-                  dancer={d}
-                  index={i}
-                  count={dancers.length}
-                  selected={d.id === selectedId}
-                  showLabel={dancers.length > 1}
-                />
-              )
-            )}
+          {ready && (
+            <Suspense fallback={null}>
+              {dancers.map((d, i) =>
+                mannequinStyle === "nguoi" ? (
+                  <GltfDancer
+                    key={d.id}
+                    clips={clips}
+                    fallback={ready}
+                    dancer={d}
+                    index={i}
+                    count={dancers.length}
+                    selected={d.id === selectedId}
+                    showLabel={dancers.length > 1}
+                  />
+                ) : mannequinStyle === "da" ? (
+                  <SkinnedMannequin
+                    key={d.id}
+                    clips={clips}
+                    fallback={ready}
+                    dancer={d}
+                    index={i}
+                    count={dancers.length}
+                    selected={d.id === selectedId}
+                    showLabel={dancers.length > 1}
+                  />
+                ) : (
+                  <Mannequin
+                    key={d.id}
+                    clips={clips}
+                    fallback={ready}
+                    dancer={d}
+                    index={i}
+                    count={dancers.length}
+                    selected={d.id === selectedId}
+                    showLabel={dancers.length > 1}
+                  />
+                )
+              )}
+            </Suspense>
+          )}
           <OrbitControls
             ref={controlsRef}
             enabled={orbit}

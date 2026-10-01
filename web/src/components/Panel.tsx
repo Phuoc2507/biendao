@@ -135,10 +135,18 @@ export function Panel() {
         </button>
         <button
           className="ghost"
-          title="Đổi kiểu người mô phỏng: DA-THỊT (bề mặt liền, khớp uốn mượt) ↔ KHỐI (capsule có khối)"
-          onClick={() => setMannequinStyle(mannequinStyle === "da" ? "khoi" : "da")}
+          title="Đổi kiểu người mô phỏng (xoay vòng): NGƯỜI (mesh người GLTF CC0, retarget từ 17 khớp) → DA-THỊT (bề mặt liền thủ tục) → KHỐI (capsule có khối)"
+          onClick={() =>
+            setMannequinStyle(
+              mannequinStyle === "nguoi" ? "da" : mannequinStyle === "da" ? "khoi" : "nguoi"
+            )
+          }
         >
-          {mannequinStyle === "da" ? "Người: da-thịt" : "Người: khối"}
+          {mannequinStyle === "nguoi"
+            ? "Người: mesh GLTF"
+            : mannequinStyle === "da"
+              ? "Người: da-thịt"
+              : "Người: khối"}
         </button>
         <button
           className="ghost"

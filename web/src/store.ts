@@ -87,7 +87,7 @@ interface State {
   bpm: number;
   beatsPerBar: number;
   showBeatGrid: boolean;
-  mannequinStyle: "khoi" | "da"; // kiểu người mô phỏng: "khoi" = capsule có khối (A+B), "da" = skinned liền (C)
+  mannequinStyle: "khoi" | "da" | "nguoi"; // kiểu người mô phỏng: "khoi" = capsule có khối (A+B), "da" = skinned liền thủ tục (C), "nguoi" = mesh người GLTF (CC0 Quaternius) retarget từ 17 khớp
   cameraMode: CameraMode;
   editingPath: boolean;
   dancers: Dancer[];
@@ -123,7 +123,7 @@ interface State {
   clearFormations: () => void;
   setFormations: (cues: FormationCue[]) => void;
   toggleBeatGrid: () => void;
-  setMannequinStyle: (s: "khoi" | "da") => void;
+  setMannequinStyle: (s: "khoi" | "da" | "nguoi") => void;
   setCameraMode: (m: CameraMode) => void;
   setEditingPath: (v: boolean) => void;
   setExporting: (label: string | null) => void;
@@ -150,7 +150,7 @@ export const useStore = create<State>((set, get) => ({
   bpm: 120,
   beatsPerBar: 8,
   showBeatGrid: true,
-  mannequinStyle: "da",
+  mannequinStyle: "nguoi",
   cameraMode: "orbit",
   editingPath: false,
   dancers: [makeDancer({ position: [0, 0, 0] })],
