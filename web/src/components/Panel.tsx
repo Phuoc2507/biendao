@@ -21,6 +21,7 @@ export function Panel() {
   const bpm = useStore((s) => s.bpm);
   const beatsPerBar = useStore((s) => s.beatsPerBar);
   const showBeatGrid = useStore((s) => s.showBeatGrid);
+  const mannequinStyle = useStore((s) => s.mannequinStyle);
   const cameraMode = useStore((s) => s.cameraMode);
   const editingPath = useStore((s) => s.editingPath);
   const exporting = useStore((s) => s.exporting);
@@ -29,6 +30,7 @@ export function Panel() {
   const formationWaveOrder = useStore((s) => s.formationWaveOrder);
   const {
     addDancer, cloneSelected, removeDancer, updateDancer, select, toggleBeatGrid,
+    setMannequinStyle,
     addClip, setClipAt, removeClipAt, moveClip,
     addFormation, removeFormation, setFormationFacing, setFormationWave,
     setFormationWaveOrder, clearFormations,
@@ -130,6 +132,13 @@ export function Panel() {
         <button onClick={cloneSelected} disabled={!sel}>⧉ Nhân bản</button>
         <button className="ghost" onClick={toggleBeatGrid}>
           {showBeatGrid ? "Ẩn mốc SK" : "Hiện mốc SK"}
+        </button>
+        <button
+          className="ghost"
+          title="Đổi kiểu người mô phỏng: DA-THỊT (bề mặt liền, khớp uốn mượt) ↔ KHỐI (capsule có khối)"
+          onClick={() => setMannequinStyle(mannequinStyle === "da" ? "khoi" : "da")}
+        >
+          {mannequinStyle === "da" ? "Người: da-thịt" : "Người: khối"}
         </button>
         <button
           className="ghost"

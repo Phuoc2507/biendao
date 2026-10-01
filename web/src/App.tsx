@@ -10,6 +10,7 @@ const CAM_HOME: [number, number, number] = [3.5, 2.4, 5];
 const CAM_TARGET: [number, number, number] = [0, 1, 0];
 import { Stage } from "./components/Stage";
 import { Mannequin } from "./components/Mannequin";
+import { SkinnedMannequin } from "./components/SkinnedMannequin";
 import { PathEditor } from "./components/PathEditor";
 import { CameraRig } from "./components/CameraRig";
 import { CanvasCapture } from "./components/CanvasCapture";
@@ -29,6 +30,7 @@ export default function App() {
   const selectedId = useStore((s) => s.selectedId);
   const cameraMode = useStore((s) => s.cameraMode);
   const editingPath = useStore((s) => s.editingPath);
+  const mannequinStyle = useStore((s) => s.mannequinStyle);
   const exporting = useStore((s) => s.exporting);
   const panelOpen = useStore((s) => s.panelOpen);
   const setLibrary = useStore((s) => s.setLibrary);
@@ -160,18 +162,31 @@ export default function App() {
           <CanvasCapture />
           <SyncHighlighter />
           {ready &&
-            dancers.map((d, i) => (
-              <Mannequin
-                key={d.id}
-                clips={clips}
-                fallback={ready}
-                dancer={d}
-                index={i}
-                count={dancers.length}
-                selected={d.id === selectedId}
-                showLabel={dancers.length > 1}
-              />
-            ))}
+            dancers.map((d, i) =>
+              mannequinStyle === "da" ? (
+                <SkinnedMannequin
+                  key={d.id}
+                  clips={clips}
+                  fallback={ready}
+                  dancer={d}
+                  index={i}
+                  count={dancers.length}
+                  selected={d.id === selectedId}
+                  showLabel={dancers.length > 1}
+                />
+              ) : (
+                <Mannequin
+                  key={d.id}
+                  clips={clips}
+                  fallback={ready}
+                  dancer={d}
+                  index={i}
+                  count={dancers.length}
+                  selected={d.id === selectedId}
+                  showLabel={dancers.length > 1}
+                />
+              )
+            )}
           <OrbitControls
             ref={controlsRef}
             enabled={orbit}
