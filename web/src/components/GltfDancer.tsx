@@ -1,4 +1,4 @@
-// Vũ công "NGƯỜI" — mesh người GLTF có rig Mixamo-chuẩn (Quaternius, CC0), được
+// Vũ công "NGƯỜI" — mesh người GLTF (Quaternius "Ultimate Modular", CC0), được
 // RETARGET từ 17 khớp vị trí của ta sang GÓC XOAY xương mỗi khung.
 //
 // Vì sao cần: mocap của ta cho VỊ TRÍ 17 khớp/khung; rig GLTF cử động bằng GÓC
@@ -12,12 +12,23 @@
 // khấu) vào toán xương. Góc xoay LOCAL của xương BẤT BIẾN với G, nên ta tính local
 // trong "hệ vũ công" (bỏ qua G) rồi để group ngoài áp G khi render. Gương làm bằng
 // PHẢN CHIẾU pose (đổi dấu x mọi khớp) — KHÔNG dùng scale.x âm (sẽ phá quaternion
-// của chuỗi xương). Màu áo = màu vũ công (để phân biệt), quần/giày/da cố định.
+// của chuỗi xương).
 //
-// KHÔNG tải asset lúc chạy: file .glb nằm sẵn trong public/models (CC0). Muốn đổi
-// sang đúng nhân vật khác chỉ cần thay đường dẫn GLB — pipeline giữ nguyên.
+// Bộ xương Quaternius KHÁC chuẩn Mixamo: Hips/Abdomen/Torso/Chest/Neck/Head,
+// Shoulder.L/UpperArm.L/LowerArm.L/Wrist.L, UpperLeg.L/LowerLeg.L/Foot.L/PT.L.
+// Điểm BẪY: Foot.* và PT.* (ngón/đế) là con của Root — KHÔNG nằm trong chuỗi
+// UpperLeg→LowerLeg. Nếu để nguyên, bàn chân sẽ không theo cẳng chân khi co gối.
+// Nên lúc nạp ta GẮN LẠI (attach, giữ world) Foot vào LowerLeg và PT vào Foot để
+// bàn chân theo đúng chuỗi động học; attach bảo toàn world nên bind (rest) không đổi.
+//
+// Màu sắc: GIỮ NGUYÊN vật liệu gốc của nhân vật (đúng diện mạo bạn chọn). Phân
+// biệt vũ công bằng nhãn + vòng chọn (không nhuộm lại mesh). Hai nhân vật (nữ =
+// woman.gltf, nam = man.gltf) gán xen kẽ theo chỉ số vũ công.
+//
+// KHÔNG tải asset lúc chạy: file .gltf TỰ CHỨA (buffer nhúng base64) nằm sẵn trong
+// public/models (CC0 Quaternius). Muốn đổi nhân vật chỉ cần thay đường dẫn.
 
-import { useRef, useMemo, useEffect } from "react";
+import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
@@ -29,8 +40,10 @@ import { makeCurve, sampledPath } from "../path";
 import { formationPose, waveDelayAt } from "../formation";
 import { syncHighlight } from "../syncHighlight";
 
-const MODEL_URL = "/models/animated_human.glb";
-useGLTF.preload(MODEL_URL);
+const WOMAN_URL = "/models/woman.gltf";
+const MAN_URL = "/models/man.gltf";
+useGLTF.preload(WOMAN_URL);
+useGLTF.preload(MAN_URL);
 
 // Chiều cao mục tiêu từ hông tới gót (m) để co giãn model cho khớp tầm vóc ta
 // (chậu nghỉ ~0.95, gót ~0.05 → ~0.90).
@@ -39,37 +52,37 @@ const HIP_Y = 0.95; // đặt Hips ở cao độ chậu nghỉ
 
 // Đặc tả xương dẫn động: tên-xương → {xương-con để lấy hướng nghỉ, cặp khớp ta để
 // lấy hướng đích}. Hướng bone→con (bind) ↔ hướng khớp A→B (đích) phải cùng nghĩa
-// giải phẫu. Các xương không liệt kê (bàn tay/ngón/bàn chân/ngón chân, chóp đầu)
-// giữ tư thế nghỉ, đi theo cha.
+// giải phẫu. Các xương không liệt kê (bàn tay/ngón/ngón chân, Body/Root) giữ tư
+// thế nghỉ, đi theo cha. Tên theo chuẩn Quaternius "Ultimate Modular".
+// THREE.GLTFLoader đặt object.name = PropertyBinding.sanitizeNodeName(tên gốc),
+// loại bỏ các ký tự dành riêng cho animation-binding ([ ] . : /) và đổi khoảng
+// trắng → "_". Nên tên trong scene SỐNG khác tên trong file .gltf: "UpperArm.L"
+// → "UpperArmL". Mọi tra cứu theo tên PHẢI đi qua san() để khớp. (Tên gốc còn
+// giữ ở userData.name nhưng SkeletonUtils.clone không đảm bảo mọi phiên bản sao
+// y, nên ta chuẩn-hoá bằng chính quy tắc THREE cho chắc.)
+const san = (n: string) => n.replace(/\s/g, "_").replace(/[[\].:/]/g, "");
+
 type AimSpec = { child: string; a: string; b: string };
 const AIM: Record<string, AimSpec> = {
-  Spine: { child: "Spine1", a: "pelvis", b: "neck" },
-  Spine1: { child: "Spine2", a: "pelvis", b: "neck" },
-  Spine2: { child: "Neck", a: "pelvis", b: "neck" },
+  Abdomen: { child: "Torso", a: "pelvis", b: "neck" },
+  Torso: { child: "Chest", a: "pelvis", b: "neck" },
+  Chest: { child: "Neck", a: "pelvis", b: "neck" },
   Neck: { child: "Head", a: "neck", b: "head" },
-  LeftShoulder: { child: "LeftArm", a: "neck", b: "l_shoulder" },
-  LeftArm: { child: "LeftForeArm", a: "l_shoulder", b: "l_elbow" },
-  LeftForeArm: { child: "LeftHand", a: "l_elbow", b: "l_wrist" },
-  RightShoulder: { child: "RightArm", a: "neck", b: "r_shoulder" },
-  RightArm: { child: "RightForeArm", a: "r_shoulder", b: "r_elbow" },
-  RightForeArm: { child: "RightHand", a: "r_elbow", b: "r_wrist" },
-  LeftUpLeg: { child: "LeftLeg", a: "l_hip", b: "l_knee" },
-  LeftLeg: { child: "LeftFoot", a: "l_knee", b: "l_ankle" },
-  RightUpLeg: { child: "RightLeg", a: "r_hip", b: "r_knee" },
-  RightLeg: { child: "RightFoot", a: "r_knee", b: "r_ankle" },
+  "Shoulder.L": { child: "UpperArm.L", a: "neck", b: "l_shoulder" },
+  "UpperArm.L": { child: "LowerArm.L", a: "l_shoulder", b: "l_elbow" },
+  "LowerArm.L": { child: "Wrist.L", a: "l_elbow", b: "l_wrist" },
+  "Shoulder.R": { child: "UpperArm.R", a: "neck", b: "r_shoulder" },
+  "UpperArm.R": { child: "LowerArm.R", a: "r_shoulder", b: "r_elbow" },
+  "LowerArm.R": { child: "Wrist.R", a: "r_elbow", b: "r_wrist" },
+  "UpperLeg.L": { child: "LowerLeg.L", a: "l_hip", b: "l_knee" },
+  "LowerLeg.L": { child: "Foot.L", a: "l_knee", b: "l_ankle" },
+  "UpperLeg.R": { child: "LowerLeg.R", a: "r_hip", b: "r_knee" },
+  "LowerLeg.R": { child: "Foot.R", a: "r_knee", b: "r_ankle" },
 };
+// Bản AIM keyed theo tên ĐÃ sanitize, để tra theo bone.name (tên scene sống).
+const AIM_SAN: Record<string, AimSpec> = {};
+for (const k in AIM) AIM_SAN[san(k)] = AIM[k];
 
-// Phân vùng cơ thể theo TÊN xương để tô màu "quần áo".
-function region(boneName: string): "skin" | "shoes" | "pants" | "shirt" {
-  const n = boneName;
-  if (n.includes("Foot") || n.includes("Toe")) return "shoes";
-  if (n.includes("Hand") || n.includes("Thumb") || n.includes("Index")) return "skin";
-  if (n.includes("Head")) return "skin";
-  if (n.includes("UpLeg") || n.includes("Leg") || n === "Hips") return "pants";
-  return "shirt"; // Spine*, Neck, Shoulder, Arm, ForeArm
-}
-
-const _v = new THREE.Vector3();
 const _up = new THREE.Vector3();
 const _left = new THREE.Vector3();
 const _fwd = new THREE.Vector3();
@@ -81,7 +94,6 @@ const _delta = new THREE.Quaternion();
 const _rbody = new THREE.Quaternion();
 const _new = new THREE.Quaternion();
 const _pinv = new THREE.Quaternion();
-const UPv = new THREE.Vector3(0, 1, 0);
 
 export function GltfDancer({
   clips,
@@ -107,7 +119,9 @@ export function GltfDancer({
   const pose = useMemo(() => new Float32Array(J * 3), [J]);
   const curve = useMemo(() => makeCurve(dancer.waypoints), [dancer.waypoints]);
 
-  const { scene } = useGLTF(MODEL_URL);
+  // Nữ/nam xen kẽ theo chỉ số vũ công — hai diện mạo khác nhau cho dễ nhìn.
+  const modelUrl = index % 2 === 0 ? WOMAN_URL : MAN_URL;
+  const { scene } = useGLTF(modelUrl);
 
   // Chỉ số khớp ta theo tên (ổn định giữa các clip).
   const jidx = useMemo(() => {
@@ -116,37 +130,50 @@ export function GltfDancer({
     return m;
   }, [clip]);
 
-  // ── Dựng 1 bản sao rig cho vũ công này: clone skeleton, chuẩn-hoá hướng về hệ
-  //    ta (Y-lên, X-trái, Z-trước), co giãn & dời Hips về (0, HIP_Y, 0), nướng màu
-  //    quần áo theo vùng, và CHỤP tư thế nghỉ (bind) để retarget. ────────────────
+  // ── Dựng 1 bản sao rig cho vũ công này: clone skeleton, gắn lại bàn chân vào
+  //    chuỗi chân, chuẩn-hoá hướng về hệ ta (Y-lên, X-trái, Z-trước), co giãn &
+  //    dời Hips về (0, HIP_Y, 0), CHỤP tư thế nghỉ (bind) để retarget. Vật liệu
+  //    gốc giữ nguyên. ───────────────────────────────────────────────────────
   const built = useMemo(() => {
     const root = SkeletonUtils.clone(scene) as THREE.Object3D;
+    root.updateMatrixWorld(true);
 
-    // Tìm SkinnedMesh + skeleton.
-    let skinned: THREE.SkinnedMesh | null = null;
+    // Thu thập xương + mesh (một skeleton dùng chung cho mọi SkinnedMesh).
+    const meshes: THREE.SkinnedMesh[] = [];
     root.traverse((o) => {
-      if ((o as THREE.SkinnedMesh).isSkinnedMesh) skinned = o as THREE.SkinnedMesh;
+      if ((o as THREE.SkinnedMesh).isSkinnedMesh) meshes.push(o as THREE.SkinnedMesh);
     });
-    if (!skinned) return null;
-    const mesh = skinned as THREE.SkinnedMesh;
-    const skeleton = mesh.skeleton;
+    if (meshes.length === 0) return null;
 
-    // Bone theo thứ tự PHẢ HỆ (traverse = tiền-tự: cha trước con).
+    const byName: Record<string, THREE.Bone> = {};
+    root.traverse((o) => {
+      if ((o as THREE.Bone).isBone) byName[(o as THREE.Bone).name] = o as THREE.Bone;
+    });
+
+    // Gắn lại bàn chân/ngón vào chuỗi chân (attach giữ world → bind không đổi).
+    for (const [fn, ln, tn] of [
+      ["Foot.L", "LowerLeg.L", "PT.L"],
+      ["Foot.R", "LowerLeg.R", "PT.R"],
+    ]) {
+      const f = byName[san(fn)], l = byName[san(ln)], t = byName[san(tn)];
+      if (f && l) l.attach(f);
+      if (f && t) f.attach(t);
+    }
+    root.updateMatrixWorld(true);
+
+    // Bone theo thứ tự PHẢ HỆ SAU khi gắn lại (traverse = tiền-tự: cha trước con).
     const ordered: THREE.Bone[] = [];
     root.traverse((o) => {
       if ((o as THREE.Bone).isBone) ordered.push(o as THREE.Bone);
     });
     const idxOf = new Map<THREE.Bone, number>();
     ordered.forEach((b, i) => idxOf.set(b, i));
-    const byName: Record<string, THREE.Bone> = {};
-    for (const b of ordered) byName[b.name] = b;
 
     // Chuẩn-hoá hướng: đo khung thân thô (world) rồi xoay cả scene về canonical.
-    root.updateMatrixWorld(true);
-    const hips = byName["Hips"];
-    const head = byName["Head"] ?? byName["Neck"];
-    const la = byName["LeftArm"] ?? byName["LeftUpLeg"];
-    const ra = byName["RightArm"] ?? byName["RightUpLeg"];
+    const hips = byName[san("Hips")];
+    const head = byName[san("Head")] ?? byName[san("Neck")];
+    const la = byName[san("UpperArm.L")] ?? byName[san("UpperLeg.L")];
+    const ra = byName[san("UpperArm.R")] ?? byName[san("UpperLeg.R")];
     if (!hips || !head || !la || !ra) return null;
     const pHips = hips.getWorldPosition(new THREE.Vector3());
     const pHead = head.getWorldPosition(new THREE.Vector3());
@@ -164,10 +191,10 @@ export function GltfDancer({
     root.updateMatrixWorld(true);
 
     // Co giãn theo chiều hông→gót.
-    const footNames = ["LeftFoot", "RightFoot", "LeftToeBase", "RightToeBase"];
+    const footNames = ["Foot.L", "Foot.R", "PT.L", "PT.R"];
     let footY = Infinity;
     for (const fn of footNames) {
-      const bf = byName[fn];
+      const bf = byName[san(fn)];
       if (bf) footY = Math.min(footY, bf.getWorldPosition(new THREE.Vector3()).y);
     }
     const hipY = hips.getWorldPosition(new THREE.Vector3()).y;
@@ -198,20 +225,21 @@ export function GltfDancer({
         : null;
     });
 
-    // Dẫn động: mỗi xwương → kiểu + dữ liệu.
+    // Dẫn động: mỗi xương → kiểu + dữ liệu.
     type Drive =
       | { kind: "none" }
       | { kind: "hips" }
       | { kind: "aim"; ja: number; jb: number; aimBind: THREE.Vector3 };
     const drive: Drive[] = ordered.map((b) => {
-      if (b.name === "Hips") return { kind: "hips" };
-      const spec = AIM[b.name];
+      if (b.name === san("Hips")) return { kind: "hips" };
+      const spec = AIM_SAN[b.name];
       if (!spec) return { kind: "none" };
-      const childB = byName[spec.child];
+      const childB = byName[san(spec.child)];
       const ja = jidx[spec.a];
       const jb = jidx[spec.b];
       if (!childB || ja === undefined || jb === undefined) return { kind: "none" };
-      const ci = idxOf.get(childB)!;
+      const ci = idxOf.get(childB);
+      if (ci === undefined) return { kind: "none" };
       const aimBind = new THREE.Vector3()
         .subVectors(bindWorldP[ci], bindWorldP[idxOf.get(b)!])
         .normalize();
@@ -221,49 +249,15 @@ export function GltfDancer({
     const neckJ = jidx["neck"], pelvJ = jidx["pelvis"];
     const lHipJ = jidx["l_hip"], rHipJ = jidx["r_hip"];
 
-    // ── Màu quần áo: clone geometry, nướng COLOR_0 theo vùng xương trội mỗi đỉnh.
-    const geom = mesh.geometry.clone();
-    const si = geom.attributes.skinIndex as THREE.BufferAttribute;
-    const sw = geom.attributes.skinWeight as THREE.BufferAttribute;
-    const nv = geom.attributes.position.count;
-    const shirt = new THREE.Color(dancer.color);
-    const skin = new THREE.Color("#e8b696");
-    const pants = new THREE.Color("#2b2f3a");
-    const shoes = new THREE.Color("#1d2026");
-    const colAttr = new Float32Array(nv * 3);
-    for (let i = 0; i < nv; i++) {
-      // xương trội = trọng số lớn nhất trong 4.
-      let bi = si.getX(i),
-        bw = sw.getX(i);
-      const cand: [number, number][] = [
-        [si.getY(i), sw.getY(i)],
-        [si.getZ(i), sw.getZ(i)],
-        [si.getW(i), sw.getW(i)],
-      ];
-      for (const [ii, ww] of cand) if (ww > bw) ((bi = ii), (bw = ww));
-      const bone = skeleton.bones[bi];
-      const r = bone ? region(bone.name) : "shirt";
-      const c = r === "skin" ? skin : r === "pants" ? pants : r === "shoes" ? shoes : shirt;
-      colAttr[i * 3] = c.r;
-      colAttr[i * 3 + 1] = c.g;
-      colAttr[i * 3 + 2] = c.b;
+    // Giữ vật liệu gốc; chỉ bật đổ bóng + tắt frustum-cull (bbox bind nhỏ, tránh
+    // bị cull sai khi pose kéo xa).
+    for (const mesh of meshes) {
+      mesh.castShadow = true;
+      mesh.frustumCulled = false;
     }
-    geom.setAttribute("color", new THREE.Float32BufferAttribute(colAttr, 3));
-    const material = new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      roughness: 0.68,
-      metalness: 0.0,
-    });
-    mesh.geometry = geom;
-    mesh.material = material;
-    mesh.castShadow = true;
-    mesh.frustumCulled = false; // bbox bind nhỏ, tránh bị cull sai khi pose
 
     return {
       root,
-      mesh,
-      geom,
-      material,
       ordered,
       bindWorldQ,
       bindLocalQ,
@@ -278,15 +272,7 @@ export function GltfDancer({
       // bộ đệm world-quat/khung dùng lại
       worldQ: ordered.map(() => new THREE.Quaternion()),
     };
-  }, [scene, dancer.color, jidx]);
-
-  useEffect(() => {
-    if (!built) return;
-    return () => {
-      built.geom.dispose();
-      built.material.dispose();
-    };
-  }, [built]);
+  }, [scene, jidx]);
 
   useFrame(() => {
     if (!built) return;

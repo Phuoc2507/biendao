@@ -9,6 +9,9 @@ outputs/
 *.mov
 *.fbx
 *.glb
+# Archive nguồn thô của asset (bản tải Quaternius .zip) — KHÔNG commit; chỉ giữ
+# file .gltf đã giải nén trong web/public/models.
+*.zip
 # Ngoại lệ: asset mesh người của web demonstrator (CC0 Quaternius) được theo dõi
 # — nhỏ (~0.7MB), cần có để app chạy; vẫn chặn GLB/FBX thô nói chung ở trên.
 !web/public/models/
