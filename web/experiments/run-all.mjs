@@ -15,8 +15,10 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
-// Thứ tự theo vòng nghiên cứu (V35→V42) để đọc như một mạch.
+// Thứ tự theo vòng nghiên cứu (V35→V42) để đọc như một mạch. GUARD bất biến đặt
+// ĐẦU: ném nếu cam kết lõi V33/V35 vỡ → runner đỏ NGAY trước các benchmark dài.
 const SCRIPTS = [
+  ["invariants.ts",            "GUARD bất biến V33/V35 — ném nếu cam kết lõi vỡ"],
   ["phase-sync-validation.ts", "V35 tách pha vs tức thời"],
   ["phase-limits.ts",          "V36 đo giới hạn rigid-τ"],
   ["coarse-to-fine.ts",        "V36 thô→tinh + nới maxLag"],
