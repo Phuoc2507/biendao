@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import * as THREE from "three";
 
 // Góc nhìn mặc định của chế độ Tự do — dùng chung cho camera Canvas và nút
 // "Đặt lại góc" để hai nơi không lệch nhau.
@@ -141,7 +142,14 @@ export default function App() {
       <div className="viewport">
         <Canvas
           shadows
-          gl={{ preserveDrawingBuffer: true }}
+          // ACESFilmic + phơi sáng nhẹ: dải sáng dịu như phim, chất liệu "có da"
+          // thay vì bệt trắng. preserveDrawingBuffer giữ cho xuất video (CanvasCapture)
+          // nên polish này áp CẢ vào video tập xuất ra — đúng ý đồ.
+          gl={{
+            preserveDrawingBuffer: true,
+            toneMapping: THREE.ACESFilmicToneMapping,
+            toneMappingExposure: 1.05,
+          }}
           camera={{ position: CAM_HOME, fov: 45 }}
         >
           <color attach="background" args={["#12161c"]} />
