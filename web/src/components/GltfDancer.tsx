@@ -62,23 +62,35 @@ const HIP_Y = 0.95; // đặt Hips ở cao độ chậu nghỉ
 // y, nên ta chuẩn-hoá bằng chính quy tắc THREE cho chắc.)
 const san = (n: string) => n.replace(/\s/g, "_").replace(/[[\].:/]/g, "");
 
-type AimSpec = { child: string; a: string; b: string };
+// a→b = hướng đích của xương (khớp đầu→khớp cuối). `c` (tuỳ chọn) = khớp CHÁU,
+// để dựng mặt phẳng chi (a,b,c) → khôi phục TWIST (xoay quanh trục xương) mà phép
+// "nhắm tối thiểu" bỏ mất: pháp tuyến n=(b-a)×(c-b) cố định hướng khuỷu/gối, nên
+// cẳng tay/ống chân xoay có lý thay vì tuỳ tiện. Chỉ đặt `c` cho xương GẦN gốc của
+// chi (vai-trên, đùi) nơi khớp cháu tồn tại trong 17 khớp ta.
+type AimSpec = { child: string; a: string; b: string; c?: string };
 const AIM: Record<string, AimSpec> = {
   Abdomen: { child: "Torso", a: "pelvis", b: "neck" },
   Torso: { child: "Chest", a: "pelvis", b: "neck" },
   Chest: { child: "Neck", a: "pelvis", b: "neck" },
   Neck: { child: "Head", a: "neck", b: "head" },
   "Shoulder.L": { child: "UpperArm.L", a: "neck", b: "l_shoulder" },
-  "UpperArm.L": { child: "LowerArm.L", a: "l_shoulder", b: "l_elbow" },
+  "UpperArm.L": { child: "LowerArm.L", a: "l_shoulder", b: "l_elbow", c: "l_wrist" },
   "LowerArm.L": { child: "Wrist.L", a: "l_elbow", b: "l_wrist" },
   "Shoulder.R": { child: "UpperArm.R", a: "neck", b: "r_shoulder" },
-  "UpperArm.R": { child: "LowerArm.R", a: "r_shoulder", b: "r_elbow" },
+  "UpperArm.R": { child: "LowerArm.R", a: "r_shoulder", b: "r_elbow", c: "r_wrist" },
   "LowerArm.R": { child: "Wrist.R", a: "r_elbow", b: "r_wrist" },
-  "UpperLeg.L": { child: "LowerLeg.L", a: "l_hip", b: "l_knee" },
+  "UpperLeg.L": { child: "LowerLeg.L", a: "l_hip", b: "l_knee", c: "l_ankle" },
   "LowerLeg.L": { child: "Foot.L", a: "l_knee", b: "l_ankle" },
-  "UpperLeg.R": { child: "LowerLeg.R", a: "r_hip", b: "r_knee" },
+  "UpperLeg.R": { child: "LowerLeg.R", a: "r_hip", b: "r_knee", c: "r_ankle" },
   "LowerLeg.R": { child: "Foot.R", a: "r_knee", b: "r_ankle" },
 };
+
+// Gập ngón tay lúc nghỉ (rad) cho bàn tay THẢ LỎNG thay vì xoè phẳng như mái chèo.
+// Xương ngón (chuẩn Blender) dài theo local Y, gập quanh local X. Không có dữ liệu
+// ngón trong 17 khớp → đây là tư thế TĨNH tự nhiên, không phải động tác.
+const FINGER_CURL = 0.28; // mỗi đốt ngón thường
+const THUMB_CURL = 0.12; // ngón cái gập nhẹ hơn
+const CURL_AXIS = new THREE.Vector3(1, 0, 0); // local X
 // Bản AIM keyed theo tên ĐÃ sanitize, để tra theo bone.name (tên scene sống).
 const AIM_SAN: Record<string, AimSpec> = {};
 for (const k in AIM) AIM_SAN[san(k)] = AIM[k];
@@ -88,12 +100,44 @@ const _left = new THREE.Vector3();
 const _fwd = new THREE.Vector3();
 const _a = new THREE.Vector3();
 const _b = new THREE.Vector3();
+const _c = new THREE.Vector3();
 const _dir = new THREE.Vector3();
+const _n = new THREE.Vector3();
 const _m = new THREE.Matrix4();
 const _delta = new THREE.Quaternion();
 const _rbody = new THREE.Quaternion();
 const _new = new THREE.Quaternion();
 const _pinv = new THREE.Quaternion();
+const _qR = new THREE.Quaternion();
+const _bUp = new THREE.Vector3();
+const _bLeft = new THREE.Vector3();
+const _bFwd = new THREE.Vector3();
+const _YUP = new THREE.Vector3(0, 1, 0);
+// temps riêng cho helper dựng basis (không lồng nhau nên dùng chung an toàn).
+const _bx = new THREE.Vector3();
+const _by = new THREE.Vector3();
+const _bz = new THREE.Vector3();
+const _mb = new THREE.Matrix4();
+
+// Quaternion của một hệ trực chuẩn từ trục CHÍNH x (giữ nguyên) và pháp tuyến z.
+function basisFromXZ(x: THREE.Vector3, z: THREE.Vector3, out: THREE.Quaternion) {
+  _bx.copy(x).normalize();
+  _bz.copy(z).normalize();
+  _by.crossVectors(_bz, _bx).normalize();
+  _bz.crossVectors(_bx, _by).normalize();
+  _mb.makeBasis(_bx, _by, _bz);
+  out.setFromRotationMatrix(_mb);
+}
+// Quaternion của hệ từ trục TRƯỚC z (chiếu ngang) và trục LÊN y (giữ nguyên = +Y).
+// Dùng cho bàn chân: sole phẳng theo sàn, mũi hướng theo thân.
+function basisFromZY(z: THREE.Vector3, y: THREE.Vector3, out: THREE.Quaternion) {
+  _bz.copy(z).normalize();
+  _by.copy(y).normalize();
+  _bx.crossVectors(_by, _bz).normalize();
+  _bz.crossVectors(_bx, _by).normalize();
+  _mb.makeBasis(_bx, _by, _bz);
+  out.setFromRotationMatrix(_mb);
+}
 
 export function GltfDancer({
   clips,
@@ -213,6 +257,21 @@ export function GltfDancer({
     // CHỤP bind (hệ vũ công, chưa có G vì root đang rời khỏi group sân khấu).
     const bindWorldQ = ordered.map((b) => b.getWorldQuaternion(new THREE.Quaternion()));
     const bindWorldP = ordered.map((b) => b.getWorldPosition(new THREE.Vector3()));
+
+    // Bake GẬP NGÓN (tư thế nghỉ) trước khi chụp bindLocalQ: ngón không có dữ liệu
+    // nên là xương "none" giữ bindLocalQ suốt — gập sẵn ở đây cho bàn tay thả lỏng.
+    for (const b of ordered) {
+      const nm = b.name;
+      let ang = 0;
+      if (/^(Index|Middle|Ring|Pinky)[1-4][LR]$/.test(nm)) ang = FINGER_CURL;
+      else if (/^Thumb[1-3][LR]$/.test(nm)) ang = THUMB_CURL;
+      if (ang) {
+        _qR.setFromAxisAngle(CURL_AXIS, ang);
+        b.quaternion.multiply(_qR);
+      }
+    }
+    root.updateMatrixWorld(true);
+
     const bindLocalQ = ordered.map((b) => b.quaternion.clone());
     const parentIdx = ordered.map((b) => {
       const p = b.parent;
@@ -226,12 +285,35 @@ export function GltfDancer({
     });
 
     // Dẫn động: mỗi xương → kiểu + dữ liệu.
+    //  none  = giữ tư thế nghỉ (ngón, Body/Root).
+    //  hips  = lấy hướng từ khung thân.
+    //  aim   = nhắm tối thiểu bone→con (twist tuỳ tiện quanh trục xương).
+    //  twist = nhắm CÓ twist: dựng mặt phẳng chi (a,b,c) nên khuỷu/gối không xoay
+    //          bừa; dùng cho xương gần gốc chi (vai-trên, đùi) có khớp cháu.
+    //  foot  = giữ đế bàn chân phẳng theo sàn (+Y) và mũi hướng theo thân, thay vì
+    //          duỗi thẳng theo cẳng chân (trước đây là "none" → bàn chân chĩa kỳ cục).
     type Drive =
       | { kind: "none" }
       | { kind: "hips" }
-      | { kind: "aim"; ja: number; jb: number; aimBind: THREE.Vector3 };
+      | { kind: "aim"; ja: number; jb: number; aimBind: THREE.Vector3 }
+      | { kind: "twist"; ja: number; jb: number; jc: number; aimBind: THREE.Vector3; qBindInv: THREE.Quaternion }
+      | { kind: "foot"; qFootBindInv: THREE.Quaternion };
     const drive: Drive[] = ordered.map((b) => {
       if (b.name === san("Hips")) return { kind: "hips" };
+
+      // Bàn chân: dựng qBindInv từ hướng (gót→mũi) nghỉ, lên = +Y.
+      if (b.name === san("Foot.L") || b.name === san("Foot.R")) {
+        const si = idxOf.get(b)!;
+        const ptB = byName[b.name === san("Foot.L") ? san("PT.L") : san("PT.R")];
+        const pi = ptB ? idxOf.get(ptB) : undefined;
+        const fwd = new THREE.Vector3();
+        if (pi !== undefined) fwd.subVectors(bindWorldP[pi], bindWorldP[si]);
+        if (fwd.lengthSq() < 1e-8) fwd.set(0, 0, 1);
+        const qB = new THREE.Quaternion();
+        basisFromZY(fwd, _YUP, qB);
+        return { kind: "foot", qFootBindInv: qB.invert() };
+      }
+
       const spec = AIM_SAN[b.name];
       if (!spec) return { kind: "none" };
       const childB = byName[san(spec.child)];
@@ -240,9 +322,29 @@ export function GltfDancer({
       if (!childB || ja === undefined || jb === undefined) return { kind: "none" };
       const ci = idxOf.get(childB);
       if (ci === undefined) return { kind: "none" };
+      const si = idxOf.get(b)!;
       const aimBind = new THREE.Vector3()
-        .subVectors(bindWorldP[ci], bindWorldP[idxOf.get(b)!])
+        .subVectors(bindWorldP[ci], bindWorldP[si])
         .normalize();
+
+      // Có khớp cháu → thử dựng drive "twist" (mặt phẳng chi). Cần cả xương cháu
+      // trong rig (để biết local→world sau) và khớp cháu `c` trong 17 khớp ta.
+      if (spec.c !== undefined) {
+        const jc = jidx[spec.c];
+        const childSpec = AIM_SAN[childB.name];
+        const grandB = childSpec ? byName[san(childSpec.child)] : undefined;
+        const gi = grandB ? idxOf.get(grandB) : undefined;
+        if (jc !== undefined && gi !== undefined) {
+          const seg = new THREE.Vector3().subVectors(bindWorldP[ci], bindWorldP[si]);
+          const e2 = new THREE.Vector3().subVectors(bindWorldP[gi], bindWorldP[ci]);
+          const nb = new THREE.Vector3().crossVectors(seg, e2);
+          if (seg.lengthSq() > 1e-8 && nb.lengthSq() > 1e-8) {
+            const qB = new THREE.Quaternion();
+            basisFromXZ(seg, nb, qB); // hệ chi NGHỈ (x=dọc xương, z=pháp tuyến)
+            return { kind: "twist", ja, jb, jc, aimBind, qBindInv: qB.invert() };
+          }
+        }
+      }
       return { kind: "aim", ja, jb, aimBind };
     });
     const hipsIdx = idxOf.get(hips)!;
@@ -307,6 +409,13 @@ export function GltfDancer({
 
     const { ordered, drive, bindWorldQ, bindLocalQ, parentIdx, seedQ, worldQ } = built;
 
+    // Khung THÂN (hệ vũ công, đã phản chiếu nếu gương) — tính 1 lần, dùng cho Hips
+    // và cho trục "trước" của bàn chân. up = chậu→cổ, trái = hông T→P, trước = trái×up.
+    _bUp.set(px(built.neckJ) - px(built.pelvJ), py(built.neckJ) - py(built.pelvJ), pz(built.neckJ) - pz(built.pelvJ)).normalize();
+    _bLeft.set(px(built.lHipJ) - px(built.rHipJ), py(built.lHipJ) - py(built.rHipJ), pz(built.lHipJ) - pz(built.rHipJ)).normalize();
+    _bFwd.crossVectors(_bLeft, _bUp).normalize();
+    _bLeft.crossVectors(_bUp, _bFwd).normalize();
+
     for (let i = 0; i < ordered.length; i++) {
       const bone = ordered[i];
       const pi = parentIdx[i];
@@ -319,14 +428,37 @@ export function GltfDancer({
       }
 
       if (d.kind === "hips") {
-        // Khung thân: up = chậu→cổ, trái = hông T→P, trước = trái×up.
-        _up.set(px(built.neckJ) - px(built.pelvJ), py(built.neckJ) - py(built.pelvJ), pz(built.neckJ) - pz(built.pelvJ)).normalize();
-        _left.set(px(built.lHipJ) - px(built.rHipJ), py(built.lHipJ) - py(built.rHipJ), pz(built.lHipJ) - pz(built.rHipJ)).normalize();
-        _fwd.crossVectors(_left, _up).normalize();
-        _left.crossVectors(_up, _fwd).normalize();
-        _m.makeBasis(_left, _up, _fwd);
+        _m.makeBasis(_bLeft, _bUp, _bFwd);
         _rbody.setFromRotationMatrix(_m); // Rbody (bind thân = canonical)
         _new.copy(_rbody).multiply(bindWorldQ[i]); // = Rbody * Qbind
+      } else if (d.kind === "foot") {
+        // Bàn chân: đế phẳng theo sàn (+Y), mũi chiếu theo hướng-trước của thân.
+        _dir.copy(_bFwd);
+        _dir.y = 0;
+        if (_dir.lengthSq() < 1e-8) _dir.set(0, 0, 1);
+        basisFromZY(_dir, _YUP, _qR); // hệ chân LIVE
+        _new.copy(_qR).multiply(d.qFootBindInv).multiply(bindWorldQ[i]); // R*Qbind
+      } else if (d.kind === "twist") {
+        // Nhắm CÓ twist: R = (hệ chi live)·(hệ chi nghỉ)⁻¹ rồi áp lên Qbind. Khi chi
+        // gần thẳng (pháp tuyến suy biến) thì lùi về nhắm tối thiểu như "aim".
+        _a.set(px(d.ja), py(d.ja), pz(d.ja));
+        _b.set(px(d.jb), py(d.jb), pz(d.jb));
+        _c.set(px(d.jc), py(d.jc), pz(d.jc));
+        _dir.subVectors(_b, _a); // đoạn a→b (dọc xương)
+        if (_dir.lengthSq() < 1e-10) {
+          worldQ[i].copy(parentWQ).multiply(bindLocalQ[i]);
+          bone.quaternion.copy(bindLocalQ[i]);
+          continue;
+        }
+        _n.crossVectors(_dir, _c.sub(_b)); // (b-a)×(c-b) = pháp tuyến mặt phẳng chi
+        if (_n.lengthSq() < 1e-8) {
+          _dir.normalize();
+          _delta.setFromUnitVectors(d.aimBind, _dir);
+          _new.copy(_delta).multiply(bindWorldQ[i]);
+        } else {
+          basisFromXZ(_dir, _n, _qR); // hệ chi LIVE (x=dọc xương, z=pháp tuyến)
+          _new.copy(_qR).multiply(d.qBindInv).multiply(bindWorldQ[i]);
+        }
       } else {
         // aim: xoay hướng-nghỉ-world của xương về hướng-đích-world (twist tối thiểu).
         _a.set(px(d.ja), py(d.ja), pz(d.ja));
