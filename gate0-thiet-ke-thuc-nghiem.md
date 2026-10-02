@@ -82,6 +82,8 @@ Vì clip tự quay không có GT, dùng 4 proxy không cần GT:
 
 > **Đã kiểm định trên synthetic (§5.4, `experiments/`):** reprojection **held-out/LOCO bám sát MPJPE thật** (r≈0.99) nên dùng được làm giám khảo GT-free ở Đường B; **phải held-out**, không dùng in-sample (in-sample bị chính outlier bơm sai, không thấy robust đã sửa). **LOCO-std là cờ QA**: trong thí nghiệm 1-máy-hỏng nó tăng **×43** → quy tắc "std cao bất thường ⇒ quay lại" là có căn cứ. Hệ số quy đổi px→mm còn phụ thuộc hình học, **chốt bằng Đường A (AIST++, có 3D GT)**.
 
+> **Đã kiểm định LẠI trên MÚA THẬT (AIST++, offline, không GPU):** [`experiments/aist_proxy_validation.py`](experiments/aist_proxy_validation.py) bơm nhiễu detector nhiều mức (sạch→rất nặng) trên 20 bài × 4 camera = 120 mẫu, đo tương quan hạng Spearman giữa proxy GT-free và MPJPE thật (vs 3D 9-view): **reproj-LOCO ρ=0.94**, **bone-length-std ρ=0.90**, **jitter ρ=0.84**, LOCO-std ρ=0.74. Xếp hạng chất lượng bằng proxy ĐỒNG THUẬN với xếp hạng bằng GT trên dữ liệu thật ⇒ **hợp thức hoá chấm GT-free của Đường B** (không chỉ synthetic). Đây là **góc kiểm chứng chéo thứ tư** (proxy⟂MPJPE), trực giao với sweep nhiễu (giá detector) và sweep góc (hình học).
+
 > **Yêu cầu ≥3 máy Ở CỔNG 0 (khác sản phẩm 2 máy):** LOCO/held-out cần còn ≥2 máy dựng mỗi fold ⇒ **buổi nghiệm thu quay ≥3 máy** để tự chấm GT-free; sản phẩm cuối vẫn nhắm 2 điện thoại, nhưng đánh giá độ tin cần máy thứ 3 làm giám khảo.
 
 ### 3.1 Chẩn đoán & SỬA lỗi lệch HỆ THỐNG — vận hành cung V49–V56 trên detector thật
@@ -180,6 +182,7 @@ Gate 0 trượt **không giết đồ án** — vì nhánh B (sequencer) độc 
 - Biểu đồ **MPJPE theo góc đặt máy** (30°/75°/150°) → chứng minh H3. **Đã tiên lượng offline trên AIST thật** ([`experiments/aist_angle_sweep.py`](experiments/aist_angle_sweep.py) → [`.svg`](experiments/ket-qua-aist-angle-sweep.svg)): đường chữ U, đáy **~36mm ở 60–120°**, vống ở 0–30° (55mm) & 120–150° (52mm), **nổ ở 150–180°** (tb 2489 / vị 277mm) — khớp quy luật synthetic *60–120° tốt, 150–180° suy biến* trên MÚA THẬT.
 - Biểu đồ **MPJPE theo mức nhiễu detector** (σ_px) kèm điểm "RTMPose ước" → tiên lượng giá detector thật & ngưỡng suy biến của lõi ([`experiments/ket-qua-aist-noise-sweep.md`](experiments/ket-qua-aist-noise-sweep.md)).
 - Bảng reprojection held-out + jitter + foot-slip trên clip thật (Đường B).
+- Biểu đồ **proxy GT-free vs MPJPE thật** (scatter 3 bảng, Spearman ρ) → chứng minh proxy bám sai số thật trên MÚA THẬT ([`experiments/aist_proxy_validation.py`](experiments/aist_proxy_validation.py) → [`.svg`](experiments/ket-qua-aist-proxy-validation.svg)): LOCO ρ=0.94, bone-std ρ=0.90, jitter ρ=0.84 — nền tảng định lượng cho chấm GT-free của Đường B.
 - Kết quả chấm chuyên gia (trung vị usability theo nhóm).
 - **1 trang quyết định:** ĐI / CÓ ĐIỀU KIỆN / DỪNG + phạm vi động tác chốt cho MVP.
 - Clip video before/after cleanup cho slide bảo vệ.
