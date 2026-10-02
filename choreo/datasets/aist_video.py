@@ -11,9 +11,16 @@ VIDEO lưu RIÊNG từng camera:
     gBR_sBM_c01_d04_mBR0_ch01    (video camera 1)  ... c09
 => tên video = thay `cAll` -> `c0{view+1}`.
 
-LƯU Ý LICENSE/URL: base URL dưới là định dạng AIST Dance DB công bố; PHẢI đối
-chiếu lại trang chính thức + ĐỒNG Ý điều khoản trước khi tải. Hàm tải KHÔNG tự
-chạy trong phiên này (tải file cần người dùng cho phép + chấp nhận license).
+LƯU Ý LICENSE: PHẢI đọc + ĐỒNG Ý Terms of Use của AIST Dance Video Database
+trước khi tải: https://aistdancedb.ongaaccel.jp/terms_of_use/
+Hàm tải KHÔNG tự chạy trong phiên này (tải file cần người dùng cho phép + license).
+
+URL đã ĐỐI CHIẾU downloader.py chính thức (google/aistplusplus_api, 2026-10-02):
+    SOURCE_URL = 'https://aistdancedb.ongaaccel.jp/v1.0.0/video/10M/'
+    video_url  = SOURCE_URL + seq_name + '.mp4'
+=> video_url() dưới dựng ĐÚNG lược đồ đó. Bản chính thức tải theo video_list.txt
+(storage.googleapis.com/aist_plusplus_public/20121228/video_list.txt) toàn bộ
+per-camera; ta chỉ cần vài cặp nên dựng tên trực tiếp từ stem (video_name).
 """
 
 from __future__ import annotations
@@ -23,10 +30,11 @@ import re
 import urllib.request
 from pathlib import Path
 
-# Định dạng AIST Dance DB (CẦN XÁC MINH trên trang chính thức + đồng ý license).
+# Đã xác minh khớp downloader.py chính thức (xem docstring).
 # 10M = bản nén ~10Mbps, GIỮ NGUYÊN độ phân giải 1920x1080 như tham số calib.
 VIDEO_BASE = "https://aistdancedb.ongaaccel.jp/v1.0.0/video"
 VIDEO_QUALITY = "10M"
+TERMS_OF_USE = "https://aistdancedb.ongaaccel.jp/terms_of_use/"
 
 _CALL_RE = re.compile(r"_cAll_")
 
