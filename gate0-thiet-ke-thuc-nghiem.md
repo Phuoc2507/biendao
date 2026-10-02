@@ -177,7 +177,7 @@ Gate 0 trượt **không giết đồ án** — vì nhánh B (sequencer) độc 
 ## 6. Sản phẩm Gate 0 (để đưa vào luận văn)
 
 - Bảng MPJPE/PA-MPJPE **1-cam vs 2-cam** theo nhóm động tác (Đường A).
-- Biểu đồ **MPJPE theo góc đặt máy** (30°/75°/150°) → chứng minh H3.
+- Biểu đồ **MPJPE theo góc đặt máy** (30°/75°/150°) → chứng minh H3. **Đã tiên lượng offline trên AIST thật** ([`experiments/aist_angle_sweep.py`](experiments/aist_angle_sweep.py) → [`.svg`](experiments/ket-qua-aist-angle-sweep.svg)): đường chữ U, đáy **~36mm ở 60–120°**, vống ở 0–30° (55mm) & 120–150° (52mm), **nổ ở 150–180°** (tb 2489 / vị 277mm) — khớp quy luật synthetic *60–120° tốt, 150–180° suy biến* trên MÚA THẬT.
 - Biểu đồ **MPJPE theo mức nhiễu detector** (σ_px) kèm điểm "RTMPose ước" → tiên lượng giá detector thật & ngưỡng suy biến của lõi ([`experiments/ket-qua-aist-noise-sweep.md`](experiments/ket-qua-aist-noise-sweep.md)).
 - Bảng reprojection held-out + jitter + foot-slip trên clip thật (Đường B).
 - Kết quả chấm chuyên gia (trung vị usability theo nhóm).
