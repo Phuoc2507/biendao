@@ -155,6 +155,8 @@ synthetic thành phép thử có nhãn trên nhiễu detector THẬT.
 
 **Ngưỡng đồng bộ (đo được, `do_nhay_sync_calib`):** nền 11.3mm khi đồng bộ hoàn hảo; lệch **nửa khung @30fps** (~16.7ms) đẩy lên 12.7mm, **trọn 1 khung** (~33ms) lên 15.9mm ⇒ **yêu cầu đồng bộ < nửa khung** (clap-board + tinh chỉnh theo keypoint). Múa thật (footwork/vung tay nhanh) nhạy hơn synthetic nên đây là **cận dưới**.
 
+**Tuần 3 — đã dựng sẵn & test, chỉ chờ GPU:** runbook thao tác chi tiết ở [`experiments/gate0-runbook-aist-detector.md`](experiments/gate0-runbook-aist-detector.md) (cài mmpose → tải 40 video → `aist_detector_2view.py detect|compare`). URL/license video AIST đã xác minh với downloader chính thức → không dò lại trong giờ máy thuê. **Tiên lượng offline (KHÔNG cần GPU)** từ [`experiments/aist_noise_sweep.py`](experiments/aist_noise_sweep.py): bơm nhiễu detector mô phỏng vào keypoint curated → baseline sạch **37.3mm**, nhiễu kiểu RTMPose (~4px + lẫn/sót nhẹ) **~42mm**, tức **ΔMPJPE giá-detector-thật kỳ vọng ~ +5mm**; jitter chi phối (8px → +14mm, gần tuyến tính), robust + nội suy hấp thụ gần hết lẫn T/P & sót khớp. Đây là **góc kiểm chứng chéo thứ ba**: synthetic (camera ảo) ↔ AIST curated ↔ AIST + nhiễu detector mô phỏng.
+
 **Lưu ý phương pháp để số liệu tin được:**
 - **Chấm mù:** biên đạo không được biết clip nào 1-cam/2-cam → tránh thiên vị (quan trọng cho H1).
 - Cùng một khung 2D detector cho cả 1-cam và 2-cam → chênh lệch chỉ do số view.
@@ -176,6 +178,7 @@ Gate 0 trượt **không giết đồ án** — vì nhánh B (sequencer) độc 
 
 - Bảng MPJPE/PA-MPJPE **1-cam vs 2-cam** theo nhóm động tác (Đường A).
 - Biểu đồ **MPJPE theo góc đặt máy** (30°/75°/150°) → chứng minh H3.
+- Biểu đồ **MPJPE theo mức nhiễu detector** (σ_px) kèm điểm "RTMPose ước" → tiên lượng giá detector thật & ngưỡng suy biến của lõi ([`experiments/ket-qua-aist-noise-sweep.md`](experiments/ket-qua-aist-noise-sweep.md)).
 - Bảng reprojection held-out + jitter + foot-slip trên clip thật (Đường B).
 - Kết quả chấm chuyên gia (trung vị usability theo nhóm).
 - **1 trang quyết định:** ĐI / CÓ ĐIỀU KIỆN / DỪNG + phạm vi động tác chốt cho MVP.
