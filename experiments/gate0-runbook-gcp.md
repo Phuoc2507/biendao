@@ -66,6 +66,14 @@ python -c "from mmpose.apis import MMPoseInferencer; MMPoseInferencer('human', d
 ```
 > Nếu `mim install mmcv` kêu lệch phiên bản `torch` của image: ghim torch cho khớp bảng mmcv, hoặc đổi sang `--image-family=common-cu121` rồi tự `pip install torch`. Thường `pytorch-latest-gpu` + `mmcv>=2.1` là khớp.
 
+> **Bộ pin ĐÃ chạy thật trên L4 (6/10/2026)** — nếu `mim` auto-resolve ra bản lệch, ghim thẳng bộ này cho chắc:
+> ```bash
+> pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu121
+> pip install numpy==1.26.4 opencv-python-headless==4.10.0.84
+> mim install "mmcv==2.1.0" "mmdet==3.2.0" "mmpose==1.3.2" mmengine
+> ```
+> `numpy` phải < 2 (mmcv/mmdet build theo numpy 1.x). `opencv-*-headless` tránh lỗi thiếu `libGL` trên VM không màn hình.
+
 ## 4. Tải 40 video — THẲNG trên VM (băng thông Google↔AIST nhanh)
 
 Trên VM (`cd ~/bien`), dùng đúng snippet Cách B của runbook gốc nhưng bằng `python` hệ thống:
@@ -83,6 +91,8 @@ for stem, pair, _ in plan_pairs(a, select_sequences(a, PER_GENRE)):
 PY
 ```
 (Annotation `.npz` của AIST++ loader tự kéo qua HTTP-Range, không cần license, không cần tải trước.)
+
+> **BẪY (mất ~1 buổi để tìm):** `DEFAULT_CACHE` trong [`choreo/datasets/aist.py`](../choreo/datasets/aist.py) đang hard-code đường **Windows** `D:\bien\data\aist_sample`. Trên VM Linux, chuỗi `D:\...` bị coi là **một tên file literal** (dấu `\` không phải phân cách thư mục) → video tải sai chỗ, loader đọc ra **0 frame** mà không báo lỗi. Cách chữa trên VM: đừng dùng `DEFAULT_CACHE`, truyền tay một thư mục POSIX, ví dụ `cache = Path.home()/"aistcache"` rồi dùng `cache` ở cả `download_video(...)` lẫn khi chạy detect (`--cache` nếu có, hoặc sửa biến). Về máy nhà chạy `compare` thì `DEFAULT_CACHE` Windows lại đúng — chỉ lệch ở phía Linux.
 
 ## 5. Chạy detect trên GPU (CÓ CHECKPOINT)
 
@@ -103,7 +113,18 @@ gcloud compute scp --recurse --zone=us-central1-a \
 
 PYTHONIOENCODING=utf-8 .venv/Scripts/python experiments/aist_detector_2view.py compare
 ```
+
+> **Nếu `scp`/`ssh` TREO (SSH bị firewall mạng nhà chặn — gặp thật 6/10):** `gcloud compute scp` và `gcloud cloud-shell scp` đều mở cổng SSH trực tiếp, treo vô hạn nếu cổng bị chặn. Đường vòng chỉ-HTTPS, chạy ngon:
+> 1. Nén trên nguồn (VM hoặc Cloud Shell): `tar -czf ~/detect2d.tar.gz -C ~/bien/data/aist_sample detect2d`
+> 2. Tạo thùng ở máy nhà: `gcloud storage buckets create gs://<tên-độc-nhất> --location=us-central1`
+> 3. Đẩy lên (chạy **trong Cloud Shell web terminal** — websocket/HTTPS, không dính cổng SSH): `gcloud storage cp ~/detect2d.tar.gz gs://<tên-độc-nhất>/`
+> 4. Kéo về máy nhà: `gcloud storage cp gs://<tên-độc-nhất>/detect2d.tar.gz .` rồi `tar -xzf detect2d.tar.gz -C D:/bien/data/aist_sample/`
+> 5. Xoá thùng: `gcloud storage rm --recursive gs://<tên-độc-nhất>/`
+> Nhớ kiểm `md5sum` hai đầu cho khớp.
+
 → sinh `experiments/ket-qua-aist-detector-2view.md`: MPJPE detector-ta vs 3D 9-view, ΔMPJPE = **giá detector thật**, 2D RMSE px. Đối chiếu kỳ vọng ở §5 runbook gốc (sạch 37.3 mm → kỳ vọng ~42 mm; cờ báo động nếu ≫55–60 mm hoặc RMSE ≫10 px).
+
+> **KẾT QUẢ THẬT (6/10/2026), 20 bài:** MPJPE detector-ta **35.5 mm** (trung vị 33.1), baseline curated 37.3 mm, **ΔMPJPE ≈ −1.9 mm** → detector thật gần như KHÔNG phạt, còn tốt hơn tiên lượng offline +5mm (mô hình nhiễu Gaussian i.i.d. bi quan quá). 2D RMSE 13.1 px nhưng không lan sang 3D. Bài `gLH` (c02-c08) cao 64–79 mm ở **cả** hai cột (Δ nhỏ) ⇒ lỗi do cặp cam/tham chiếu, không phải detector.
 
 ## 7. XOÁ MÁY (bắt buộc — nếu không, đĩa vẫn tính tiền)
 
