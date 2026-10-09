@@ -1,0 +1,157 @@
+# Hướng dẫn: Sân khấu thẻ video
+
+Ứng dụng xếp đội hình cho tiết mục văn nghệ. Mỗi người được quay riêng một video,
+xoá phông, rồi thành một "thẻ" đứng trên sân khấu ảo. Bạn kéo thẻ vào chỗ đứng cho
+từng đội hình; khi phát nhạc, các thẻ tự trượt giữa các đội hình đúng theo nhạc,
+và video trong thẻ múa khớp với nhạc.
+
+Có hai phần:
+
+1. **Công cụ tạo thẻ** (Python, chạy một lần trên máy tính): video gốc thành thẻ đã xoá phông, đã khớp nhạc.
+2. **App sân khấu** (chạy trong Chrome): nạp thẻ và nhạc, xếp đội hình, trình chiếu để tập.
+
+Không có thẻ vẫn dùng được app: thả thẳng video gốc vào (thẻ hiện cả nền), hoặc
+thêm người giữ chỗ chưa có video để xếp đội hình trước.
+
+---
+
+## 1. Quay video
+
+* **Mỗi video một người.** Tên tệp nên là tên người đó (`lan.mp4`, `mai.mp4`): tên này thành tên vũ công trong app.
+* **Điện thoại đứng yên** (kê hoặc dùng chân máy), quay dọc, thấy **trọn người từ đầu tới chân**, chừa khoảng trống trên đầu và dưới chân.
+* **Nền đơn giản**, khác màu áo; đủ sáng, tránh ngược sáng. Không để người khác đi ngang khung hình.
+* **Bật nhạc thành tiếng khi quay** (loa ngoài). Công cụ nghe tiếng nhạc trong video để tự khớp với tệp nhạc gốc. Nếu không tiện bật nhạc, vỗ tay một cái thật rõ ngay đầu bài để dễ căn tay.
+* Quay từ đầu bài (hoặc từ đoạn người đó xuất hiện) và quay dư một chút ở hai đầu.
+* Định dạng nào điện thoại ra cũng được (MP4, MOV); công cụ mã hoá lại cho Chrome.
+
+## 2. Tạo thẻ video (một lần)
+
+### Cài đặt
+
+Cần Python 3.10 trở lên. Trong thư mục `D:\bien`:
+
+```bash
+pip install numpy onnxruntime imageio-ffmpeg
+```
+
+* `imageio-ffmpeg` mang sẵn ffmpeg, không cần cài riêng (hoặc đặt biến môi trường `CHOREO_FFMPEG` trỏ tới `ffmpeg.exe` có sẵn).
+* `onnxruntime` chỉ cần khi xoá phông.
+
+Tải mô hình xoá phông RobustVideoMatting (khoảng 15 MB):
+
+<https://github.com/PeterL1n/RobustVideoMatting/releases/download/v1.0.0/rvm_mobilenetv3_fp32.onnx>
+
+rồi đặt vào `D:\bien\models\rvm_mobilenetv3_fp32.onnx` (hoặc chỉ đường dẫn khác bằng `--model`).
+
+### Chạy
+
+```bash
+python -m choreo.videocard --music nhac.mp3 --out the lan.mp4 mai.mp4 hoa.mp4
+```
+
+| Tuỳ chọn | Ý nghĩa |
+|---|---|
+| `--music tệp` | Nhạc gốc của tiết mục, để tự khớp thời gian từng video. Bỏ đi thì độ lệch bằng 0, căn tay trong app. |
+| `--out thư_mục` | Thư mục ra (mặc định `the/`). |
+| `--model tệp` | Đường dẫn mô hình `.onnx` (mặc định `models/rvm_mobilenetv3_fp32.onnx`). |
+| `--height px` | Chiều cao mỗi nửa thẻ (mặc định 540). Máy yếu hạ xuống 360 cho nhẹ. |
+| `--no-matting` | Không xoá phông, chỉ khớp nhạc và mã hoá lại. Không cần onnxruntime và mô hình. |
+
+Mỗi video ra hai tệp trong thư mục `--out`:
+
+* `ten.card.mp4`: video đã xoá phông, cắt sát người (nửa trên là hình, nửa dưới là mặt nạ).
+* `ten.card.json`: tên, thời lượng, **độ lệch so với nhạc**.
+
+Khi chạy, công cụ in độ tin cậy khớp nhạc. Dòng nào ghi **THẤP** thì nên kiểm lại độ lệch trong app (mục 4). Xoá phông chạy bằng CPU, tốn khoảng vài phút cho mỗi phút video tuỳ máy; một video lỗi không làm dừng các video khác.
+
+## 3. Mở app
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Mở Chrome tới <http://localhost:5173/>. (App nhân vật 3D cũ vẫn ở <http://localhost:5173/3d.html>.)
+
+Lần đầu mở, app có sẵn một bài mẫu sáu người để thử. Tạo bài của mình bằng **Tệp ▸ Bài mới**.
+
+## 4. Dùng app
+
+### Bố cục
+
+* **Thanh trên:** tên bài, menu Tệp, hoàn tác và làm lại, nút phát, đồng hồ và đếm phách (phách / lượt 8), nút bám lưới, chọn chế độ xem, Trình chiếu, Trợ giúp.
+* **Cột trái:** thẻ *Vũ công* (nhạc, nhịp, danh sách người) và thẻ *Đội hình*.
+* **Giữa:** sân khấu. *Sơ đồ* là nhìn từ trên xuống; *Khán giả* là nhìn từ hàng ghế khán giả; *Cả hai* là hai khung cạnh nhau. Khán giả luôn ở phía dưới sơ đồ.
+* **Dưới:** dòng thời gian với sóng nhạc, vạch phách và các khối đội hình.
+
+### Nạp nhạc và thẻ
+
+Kéo thả **cả thư mục `the/` và tệp nhạc** vào cửa sổ app (thả thư mục hay chọn nhiều tệp đều được) (hoặc **Tệp ▸ Nạp video và nhạc…**). App tự đọc `.card.json` để lấy tên, độ lệch và biết thẻ đã xoá phông. Video gốc chưa qua công cụ cũng thả vào được.
+
+### Nhịp
+
+Ở thẻ *Vũ công*, mục Nhạc:
+
+* Gõ số **BPM**, hoặc bấm **Gõ nhịp** theo nhạc 4 đến 8 lần.
+* Phát tới đúng phách 1 của lượt đếm 8 đầu tiên rồi bấm **Đặt phách 1**.
+
+Từ đó thanh trên đếm 1 tới 8, dòng thời gian có vạch phách, và mọi thao tác kéo thả bám theo phách khi bật bám lưới (N).
+
+### Khớp video với nhạc
+
+Chọn một vũ công trong danh sách:
+
+* **Tự khớp**: app nghe tiếng trong video và tìm chỗ khớp với nhạc.
+* Nút **−0.1, −0.01, +0.01, +0.1** chỉnh độ lệch bằng tay. Mẹo: bật Trình chiếu, nhìn bước chân rơi đúng phách.
+* Ô **Video đã xoá phông** phải được tích cho thẻ ra từ công cụ (app tự tích khi có `.card.json`).
+* **Cao thẻ** chỉnh chiều cao người trên sân khấu; chấm màu đổi màu nhận diện.
+
+### Đội hình
+
+Mỗi đội hình là một **khối** trên dòng thời gian: trong khối mọi người đứng yên ở vị trí đã xếp; khoảng trống giữa hai khối là lúc **di chuyển**, app tự cho thẻ trượt mượt.
+
+1. Kéo vạch phát tới lúc đội hình mới bắt đầu, bấm **+ Đội hình** (hoặc Enter). Đội hình mới chép vị trí đội hình trước để bạn sửa tiếp. Nếu sau đó còn đội hình khác, khối mới được nhét vào khoảng trống; chỉ khi quá chật app mới dời các khối sau và báo kèm nút Hoàn tác.
+2. Kéo người trên sơ đồ tới chỗ mới. Kéo vùng trống để chọn nhiều người; Shift bấm để thêm bớt.
+3. Kéo **mép khối** để đổi lúc bắt đầu, kết thúc; kéo **giữa khối** để dời cả khối. Khoảng giữa hai khối càng dài thì đi càng chậm.
+4. Trong thẻ *Đội hình*: đổi tên, ghi chú, **Lật** trái phải, **Dàn đều**, đưa người vào **Cánh trái** hoặc **Cánh phải** (hai dải mờ hai bên sân khấu là cánh gà, người ở đó coi như chưa ra sân).
+
+### Trình chiếu để tập
+
+Bấm **Trình chiếu** (F): toàn màn hình góc khán giả, có tên đội hình và đếm phách cỡ lớn. Chiếu lên tivi hoặc máy chiếu cho cả đội nhìn theo. Space phát, dừng; mũi tên hoặc PageUp, PageDown nhảy đội hình; Esc thoát.
+
+### Lưu
+
+* App **tự lưu** trong trình duyệt (góc trên ghi "Đã lưu").
+* **Ctrl S** hoặc **Tệp ▸ Lưu ra tệp** xuất `ten-bai.choreo.json` để chép sang máy khác. Tệp này chỉ chứa đội hình và thông tin, **không chứa video**: sang máy mới thì **Tệp ▸ Mở tệp dự án** rồi thả lại thư mục thẻ và nhạc, app tự gắn theo tên tệp.
+
+## 5. Phím tắt
+
+| Phím | Việc |
+|---|---|
+| Space | Phát / dừng |
+| Home | Về đầu bài |
+| ← → | Không chọn ai: lùi, tới một phách (Shift: một lượt 8). Đang chọn: dịch người 0,25 m (Shift: 1 m) |
+| ↑ ↓ | Dịch người đang chọn lên, xuống |
+| Enter hoặc + | Thêm đội hình sau vạch phát |
+| Delete | Xoá khối đội hình đang chọn |
+| [ ] | Nhảy tới đội hình trước, sau |
+| Esc | Bỏ chọn |
+| Ctrl A | Chọn tất cả |
+| M | Lật trái phải người đang chọn |
+| N | Bật, tắt bám lưới và phách |
+| L | Lặp đoạn chuyển vào đội hình đang chọn (tập đi tập lại một chỗ di chuyển) |
+| V | Đổi chế độ xem |
+| Shift Z | Vừa khung sơ đồ |
+| F | Trình chiếu |
+| Ctrl Z, Ctrl Y | Hoàn tác, làm lại |
+| Ctrl S | Lưu ra tệp |
+| ? | Bảng phím tắt |
+
+## 6. Gỡ rối
+
+* **Thẻ đen hoặc trống:** bấm phát một lần (Chrome cần thao tác của người dùng trước khi phát video), hoặc tải lại trang.
+* **Thẻ hiện cả nền:** video chưa qua xoá phông, hoặc chưa tích ô "Video đã xoá phông".
+* **Thẻ có viền xám nửa dưới:** ngược lại, đang tích ô đó cho một video thường; bỏ tích.
+* **Video lệch nhạc:** bấm Tự khớp; nếu vẫn lệch thì chỉnh tay bằng nút ±0.1 / ±0.01.
+* **Công cụ báo thiếu ffmpeg, onnxruntime hoặc mô hình:** làm đúng câu lệnh nó in ra (mục 2).

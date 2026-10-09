@@ -37,7 +37,28 @@ export function Busy() {
   );
 }
 
-/** Kéo tệp vào bất kỳ đâu trong cửa sổ. */
+/** Đọc đệ quy các mục thả vào (tệp lẫn thư mục) thành danh sách tệp. */
+async function collectFiles(entries: FileSystemEntry[]): Promise<File[]> {
+  const out: File[] = [];
+  const walk = async (en: FileSystemEntry): Promise<void> => {
+    if (en.isFile) {
+      if (/^\.|^(desktop\.ini|thumbs\.db)$/i.test(en.name)) return; // tệp ẩn của hệ điều hành
+      out.push(await new Promise<File>((ok, bad) => (en as FileSystemFileEntry).file(ok, bad)));
+    } else if (en.isDirectory) {
+      const rd = (en as FileSystemDirectoryEntry).createReader();
+      // readEntries trả từng đợt, đọc tới khi rỗng
+      for (;;) {
+        const batch = await new Promise<FileSystemEntry[]>((ok, bad) => rd.readEntries(ok, bad));
+        if (!batch.length) break;
+        for (const b of batch) await walk(b);
+      }
+    }
+  };
+  for (const en of entries) await walk(en).catch(() => {});
+  return out;
+}
+
+/** Kéo tệp (hoặc cả thư mục thẻ) vào bất kỳ đâu trong cửa sổ. */
 export function DropZone() {
   const [over, setOver] = useState(false);
   useEffect(() => {
@@ -64,8 +85,13 @@ export function DropZone() {
       e.preventDefault();
       depth = 0;
       setOver(false);
-      const files = Array.from(e.dataTransfer?.files ?? []);
-      if (files.length) importFiles(files);
+      const entries = Array.from(e.dataTransfer?.items ?? [])
+        .map((it) => it.webkitGetAsEntry?.())
+        .filter((x): x is FileSystemEntry => !!x);
+      const plain = Array.from(e.dataTransfer?.files ?? []);
+      // thư mục (vd. the/) phải đọc lúc này, sau sự kiện drop items hết hiệu lực
+      if (entries.some((x) => x.isDirectory)) collectFiles(entries).then((fs) => void importFiles(fs));
+      else if (plain.length) importFiles(plain);
     };
     window.addEventListener("dragenter", enter);
     window.addEventListener("dragover", over_);
@@ -83,7 +109,7 @@ export function DropZone() {
     <div className="dropzone">
       <div>
         Thả để nạp
-        <small>nhạc, video từng người (.card.mp4 kèm .card.json), hoặc tệp dự án .choreo.json</small>
+        <small>nhạc, thư mục thẻ hoặc video từng người (.card.mp4 kèm .card.json), hoặc tệp dự án .choreo.json</small>
       </div>
     </div>
   );
