@@ -31,3 +31,8 @@ web/vite.config.d.ts
 
 # Bản phác giao diện của phiên brainstorm (visual companion) — không commit
 .superpowers/
+
+# Mô hình xoá phông RVM (GPL, người dùng tự tải) và thẻ video sinh ra
+models/*.onnx
+*.onnx
+the/
