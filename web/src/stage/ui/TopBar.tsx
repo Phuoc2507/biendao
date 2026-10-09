@@ -128,11 +128,11 @@ export function TopBar() {
       <div className="grow" />
       <div className="transport">
         <button className="btn icon ghost" onClick={() => clock.seek(0)} title="Về đầu (Home)"><Icon name="home" /></button>
-        <button className="btn icon ghost" onClick={() => stepBeat(-1)} title="Lùi một phách (←)"><Icon name="stepBack" /></button>
+        <button className="btn icon ghost step-btn" onClick={() => stepBeat(-1)} title="Lùi một phách (←)"><Icon name="stepBack" /></button>
         <button className="play" onClick={clock.toggle} title="Phát / dừng (Space)">
           <Icon name={playing ? "pause" : "play"} />
         </button>
-        <button className="btn icon ghost" onClick={() => stepBeat(1)} title="Tới một phách (→)"><Icon name="stepFwd" /></button>
+        <button className="btn icon ghost step-btn" onClick={() => stepBeat(1)} title="Tới một phách (→)"><Icon name="stepFwd" /></button>
       </div>
       <Clock />
       <div className="grow" />

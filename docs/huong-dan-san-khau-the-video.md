@@ -74,7 +74,13 @@ npm run dev
 
 Mở Chrome tới <http://localhost:5173/>. (App nhân vật 3D cũ vẫn ở <http://localhost:5173/3d.html>.)
 
-Lần đầu mở, app có sẵn một bài mẫu sáu người để thử. Tạo bài của mình bằng **Tệp ▸ Bài mới**.
+Lần đầu mở, màn chào có ba lối vào:
+
+* **Có video rồi:** chọn hoặc thả nhạc và các thẻ.
+* **Chưa có video:** nhập số người múa, bấm Bắt đầu để xếp đội hình với người giữ chỗ, gắn video sau.
+* **Xem bài mẫu:** sáu người múa quạt, sáu đội hình, dựng ngay trong trình duyệt để thử app.
+
+Sau này muốn làm bài khác thì **Tệp ▸ Bài mới**.
 
 ## 4. Dùng app
 

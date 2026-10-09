@@ -121,6 +121,13 @@ kbd {
   .title-input { width: 110px; }
   .top { gap: 6px; }
 }
+/* cửa sổ chia đôi màn hình: bỏ nút lùi tới phách (còn phím ← →), tên bài ngắn lại */
+@media (max-width: 760px) {
+  .top .step-btn, .top .grow { display: none; }
+  .title-input { width: 72px; }
+  .top { gap: 4px; padding: 0 6px; }
+  .count { min-width: 0; }
+}
 .field.bpm-field input[type="number"] { width: 52px; }
 .bpm { display: flex; align-items: center; gap: 4px; }
 .bpm input { width: 52px; height: 28px; padding: 0 6px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
@@ -222,6 +229,14 @@ kbd {
 .pane-label {
   position: absolute; top: 8px; left: 10px; z-index: 3; font-size: 11px; color: var(--dim);
   text-transform: uppercase; letter-spacing: .08em; font-weight: 700; pointer-events: none;
+}
+.pane { container-type: inline-size; }
+/* khung hẹp (chia đôi màn hình): bỏ nhãn khung và lời nhắc để không đè lên nút */
+@container (max-width: 560px) {
+  .pane-label { display: none; }
+  .state-chip .dim:not(:only-child) { display: none; }
+  .pane-tools { left: 6px; right: 6px; justify-content: flex-end; flex-wrap: wrap; }
+  .pane-tools .seg button { padding: 0 6px; font-size: 11px; }
 }
 .pane-tools { position: absolute; top: 6px; right: 8px; z-index: 3; display: flex; gap: 4px; }
 .plan-svg { width: 100%; height: 100%; display: block; touch-action: none; }
