@@ -304,7 +304,7 @@ export async function makeDemoProject(
   ids.forEach((id, i) => {
     const left = i < half;
     const k = left ? i : i - half;
-    wings[id] = [(left ? -1 : 1) * (p.stage.width / 2 + WING / 2), 2 - k * 0.8];
+    wings[id] = [(left ? -1 : 1) * (p.stage.width / 2 + WING / 2), 2 - k * 1.1];
   });
   const line = lineup(ids, p.stage);
   const v = arrangeShape(line, ids, "v", p.stage);

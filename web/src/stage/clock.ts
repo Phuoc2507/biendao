@@ -32,7 +32,11 @@ export function configureClock(o: { dancers: () => SyncDancer[]; end: () => numb
   getEnd = o.end;
 }
 
-export const now = () => t;
+/** Đang phát theo nhạc thì đọc thẳng <audio> (đúng cả khi tab bị ẩn, rAF ngừng). */
+export const now = () => {
+  const m = music.el;
+  return playing && m && !m.paused && !(loop && m.currentTime >= loop.b) ? Math.min(m.currentTime, getEnd()) : t;
+};
 export const isPlaying = () => playing;
 export const getSpeed = () => speed;
 export const getLoop = () => loop;
@@ -141,7 +145,9 @@ export function subscribeClock(f: () => void): () => void {
   return () => listeners.delete(f);
 }
 
-export const useTime = () => useSyncExternalStore(subscribeClock, now);
+// React cần ảnh chụp ổn định giữa hai lần emit, nên dùng t của khung gần nhất
+const snapTime = () => t;
+export const useTime = () => useSyncExternalStore(subscribeClock, snapTime);
 export const usePlaying = () => useSyncExternalStore(subscribeClock, isPlaying);
 export const useSpeed = () => useSyncExternalStore(subscribeClock, getSpeed);
 export const useLoop = () => useSyncExternalStore(subscribeClock, getLoop);

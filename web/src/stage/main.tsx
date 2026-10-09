@@ -10,3 +10,10 @@ createRoot(document.getElementById("root")!).render(
   </StrictMode>,
 );
 boot();
+
+if (import.meta.env.DEV) {
+  // tay cầm để soát lỗi từ console khi chạy dev
+  void Promise.all([import("./store"), import("./clock"), import("./media")]).then(([store, clock, media]) => {
+    (window as unknown as Record<string, unknown>).__stage = { st: store.st, clock, media };
+  });
+}

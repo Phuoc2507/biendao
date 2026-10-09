@@ -316,13 +316,16 @@ export function renameFormation(fs: Formation[], id: string, name: string): Form
   return fs.map((f) => (f.id === id ? { ...f, name } : f));
 }
 
-/** Chỗ trống trong cánh gà trái (từ trước ra sau) cho người mới thêm. */
-export function wingSpot(taken: Vec2[], stage: StageSize): Vec2 {
-  const x = -stage.width / 2 - WING / 2;
+/** Chỗ trống trong cánh gà (trái −1, phải +1; từ trước ra sau) cho người mới
+ *  thêm. Cách nhau 1 m để tên trên sơ đồ không đè lên nhau. */
+export function wingSpot(taken: Vec2[], stage: StageSize, side: -1 | 1 = -1): Vec2 {
+  const x = side * (stage.width / 2 + WING / 2);
   const hz = stage.depth / 2;
-  for (let z = hz - 0.5; z >= -hz + 0.25; z -= 0.75) {
-    const p: Vec2 = [x, Math.round(z * 100) / 100];
-    if (taken.every((q) => dist(p, q) > 0.6)) return p;
+  for (const step of [1, 0.5]) {
+    for (let z = hz - 0.5; z >= -hz + 0.25; z -= step) {
+      const p: Vec2 = [x, Math.round(z * 100) / 100];
+      if (taken.every((q) => dist(p, q) > step * 0.8)) return p;
+    }
   }
   return [x, 0];
 }

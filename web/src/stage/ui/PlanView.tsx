@@ -38,7 +38,8 @@ export function PlanView({ readOnly = false, compact = false }: { readOnly?: boo
   const { width: W, depth: D } = p.stage;
   const hx = W / 2 + WING;
   const pad = compact ? 0.3 : 0.7;
-  const vb = { x: -hx - pad, y: -D / 2 - pad, w: 2 * (hx + pad), h: D + pad + (compact ? 0.9 : 1.6) };
+  const padTop = compact ? 0.3 : 1.2; // chừa chỗ cho chip trạng thái phía trên
+  const vb = { x: -hx - pad, y: -D / 2 - padTop, w: 2 * (hx + pad), h: D + padTop + (compact ? 0.9 : 1.6) };
 
   const ids = useMemo(() => p.dancers.map((d) => d.id), [p.dancers]);
   const poses = posesAt(p.formations, ids, t, p.stage);

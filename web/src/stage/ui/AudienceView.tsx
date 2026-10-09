@@ -110,7 +110,13 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
   const v = getVideo(d.mediaId);
   const { tex, mode } = useMemo(() => {
     if (v) {
-      const t = new THREE.VideoTexture(v.el);
+      // Chép khung video qua một canvas 2D rồi mới đẩy lên GPU (xem useFrame).
+      // Đẩy thẳng <video> lên WebGL có lúc ra khung rỗng (video tách khỏi trang,
+      // cửa sổ bị che), còn drawImage thì luôn có hình.
+      const cv = document.createElement("canvas");
+      cv.width = v.el.videoWidth || 2;
+      cv.height = v.el.videoHeight || 2;
+      const t = new THREE.Texture(cv);
       t.colorSpace = THREE.NoColorSpace;
       t.minFilter = THREE.LinearFilter;
       t.magFilter = THREE.LinearFilter;
@@ -139,9 +145,25 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
   const h = d.cardHeight;
   const w = h * (d.aspect || 0.45);
 
+  const uploaded = useRef(-1);
+  useEffect(() => {
+    uploaded.current = -1;
+  }, [tex]);
+
   useFrame(({ camera }) => {
     const g = group.current;
     if (!g) return;
+    if (v && v.el.readyState >= 2 && v.el.currentTime !== uploaded.current) {
+      uploaded.current = v.el.currentTime;
+      const cv = tex.image as HTMLCanvasElement;
+      if (cv.width !== v.el.videoWidth || cv.height !== v.el.videoHeight) {
+        cv.width = v.el.videoWidth;
+        cv.height = v.el.videoHeight;
+        tex.dispose(); // đổi cỡ thì phải cấp lại bộ nhớ texture
+      }
+      cv.getContext("2d")?.drawImage(v.el, 0, 0);
+      tex.needsUpdate = true;
+    }
     const p = st().project;
     const t = clock.now();
     const q = poseAt(p.formations, d.id, t) ?? lineup(p.dancers.map((x) => x.id), p.stage)[d.id] ?? [0, 0];
@@ -150,10 +172,11 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
     const selected = st().ui.selected.includes(d.id);
     if (ring.current) ring.current.visible = selected;
     // ngoài khoảng video: làm mờ thẻ để biết người này chưa có hình
-    let op = 1;
+    // đứng trong cánh gà: khán giả không thấy, vẽ mờ
+    let op = Math.abs(q[0]) > p.stage.width / 2 + 0.05 ? 0.3 : 1;
     if (v) {
       const vt = t - d.offsetSec;
-      if (vt < 0 || vt > (d.durationSec || v.duration)) op = 0.35;
+      if (vt < 0 || vt > (d.durationSec || v.duration)) op = Math.min(op, 0.35);
     }
     mat.uniforms.opacity.value = op;
     mat.uniforms.lift.value = selected ? 0.06 : 0;
@@ -299,18 +322,65 @@ type Preset = "front" | "top" | "side";
 const presetPos = (pr: Preset, W: number, D: number): [number, number, number] =>
   pr === "front" ? [0, 2.6, D / 2 + Math.max(7, W * 0.85)] : pr === "top" ? [0, Math.max(10, W * 1.2), D / 2 + 0.5] : [W * 0.75, 3.2, D / 2 + 5];
 
+/** Góc khán giả vừa khít: lùi máy cho đủ bề ngang sân khấu theo tỉ lệ khung,
+ *  rồi nâng điểm nhìn sao cho mép trước sân nằm gần đáy khung (đỡ trống phía trên). */
+function fitFront(cam: THREE.PerspectiveCamera, W: number, D: number): { pos: THREE.Vector3; target: THREE.Vector3 } {
+  const half = W / 2 + 0.35;
+  const vf = THREE.MathUtils.degToRad(cam.fov) / 2;
+  const hf = Math.atan(Math.tan(vf) * cam.aspect);
+  const dist = Math.max(half / Math.tan(hf), 5);
+  const pos = new THREE.Vector3(0, 1.9 + dist * 0.08, D / 2 + dist);
+  const front = new THREE.Vector3(0, 0, D / 2);
+  const target = new THREE.Vector3();
+  let lo = 0, hi = 3;
+  for (let i = 0; i < 24; i++) {
+    const ty = (lo + hi) / 2;
+    target.set(0, ty, 0);
+    cam.position.copy(pos);
+    cam.lookAt(target);
+    cam.updateMatrixWorld();
+    const ny = front.clone().project(cam).y; // -1 là đáy khung
+    if (ny > -0.82) lo = ty;
+    else hi = ty;
+  }
+  target.set(0, (lo + hi) / 2, 0);
+  return { pos, target };
+}
+
 function CameraRig({ preset, stamp }: { preset: Preset; stamp: number }) {
-  const { camera, controls } = useThree() as unknown as { camera: THREE.PerspectiveCamera; controls: { target: THREE.Vector3; update(): void } | null };
+  const { camera, controls, size } = useThree() as unknown as {
+    camera: THREE.PerspectiveCamera;
+    controls: { target: THREE.Vector3; update(): void } | null;
+    size: { width: number; height: number };
+  };
   const p = useProject();
+  const W = p.stage.width, D = p.stage.depth;
+  // khung đổi cỡ (đổi chế độ xem) thì canh lại góc khán giả
+  const sizeKey = preset === "front" ? `${Math.round(size.width / 40)}x${Math.round(size.height / 40)}` : "";
   useEffect(() => {
-    const [x, y, z] = presetPos(preset, p.stage.width, p.stage.depth);
-    camera.position.set(x, y, z);
+    let pos: THREE.Vector3, target: THREE.Vector3;
+    if (preset === "front") {
+      camera.aspect = size.width / Math.max(1, size.height);
+      ({ pos, target } = fitFront(camera, W, D));
+    } else {
+      pos = new THREE.Vector3(...presetPos(preset, W, D));
+      target = new THREE.Vector3(0, preset === "top" ? 0 : 0.9, 0);
+    }
+    camera.position.copy(pos);
     if (controls) {
-      controls.target.set(0, preset === "top" ? 0 : 0.9, 0);
+      controls.target.copy(target);
       controls.update();
-    } else camera.lookAt(0, 0.9, 0);
+    } else camera.lookAt(target);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preset, stamp, controls]);
+  }, [preset, stamp, controls, sizeKey, W, D]);
+  return null;
+}
+
+function DevHandle() {
+  const s = useThree();
+  useEffect(() => {
+    if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__three = s;
+  }, [s]);
   return null;
 }
 
@@ -342,6 +412,7 @@ export function AudienceView({ interactive = true, showTools = true }: { interac
         ))}
         <OrbitControls makeDefault enablePan target={[0, 0.9, 0]} maxPolarAngle={Math.PI / 2 - 0.02} minDistance={2} maxDistance={40} />
         <CameraRig preset={preset} stamp={stamp + camReset} />
+        <DevHandle />
       </Canvas>
       {showTools && (
         <div className="pane-tools">

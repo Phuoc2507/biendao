@@ -190,8 +190,7 @@ export function sendToWings(side: -1 | 1) {
   const moves: Record<string, Vec2> = {};
   const taken: Vec2[] = Object.entries(cur).filter(([id]) => !sel.includes(id)).map(([, v]) => v);
   for (const id of sel) {
-    const w = wingSpot(taken, p.stage);
-    const spot: Vec2 = [side * Math.abs(w[0]), w[1]];
+    const spot = wingSpot(taken, p.stage, side);
     moves[id] = spot;
     taken.push(spot);
   }
