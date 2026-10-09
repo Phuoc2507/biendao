@@ -28,3 +28,6 @@ web/vite.config.d.ts
 
 # Lock/tạm của công cụ phiên (scheduled tasks, v.v.)
 .claude/scheduled_tasks.lock
+
+# Bản phác giao diện của phiên brainstorm (visual companion) — không commit
+.superpowers/
