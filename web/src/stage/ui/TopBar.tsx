@@ -65,7 +65,7 @@ function FileMenu() {
   return (
     <div className="menu" ref={ref}>
       <button className={`btn${open ? " on" : ""}`} onClick={() => setOpen(!open)}>
-        <Icon name="folder" /> Tệp <Icon name="chevron" size={12} />
+        <Icon name="folder" /> <span className="lbl">Tệp</span> <Icon name="chevron" size={12} />
       </button>
       {open && (
         <div className="pop">
@@ -143,13 +143,13 @@ export function TopBar() {
         {views.map(([v, ic, label]) => (
           <button key={v} className={ui.view === v ? "on" : ""} onClick={() => st().setUI({ view: v })} title={`${label} (V để đổi)`}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-              <Icon name={ic} size={14} /> {label}
+              <Icon name={ic} size={14} /> <span className="lbl">{label}</span>
             </span>
           </button>
         ))}
       </div>
       <button className="btn primary" onClick={() => st().setUI({ presenting: true })} disabled={!p.dancers.length} title="Trình chiếu toàn màn hình để tập (F)">
-        <Icon name="present" /> Trình chiếu
+        <Icon name="present" /> <span className="lbl">Trình chiếu</span>
       </button>
       <button className="btn icon ghost" onClick={() => st().setUI({ help: true })} title="Phím tắt và hướng dẫn (?)"><Icon name="help" /></button>
     </header>

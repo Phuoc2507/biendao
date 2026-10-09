@@ -102,19 +102,32 @@ test("setPositions kẹp vào sân và không đột biến", () => {
   assert.equal(out[1], fs[1]);
 });
 
-test("addFormationAfter chép khối và dời khối sau khi chật", () => {
-  const fs = two();
+test("addFormationAfter nhét vừa khoảng trống, không dời khối đã gắn nhạc", () => {
+  const fs = two(); // A 0–2, B 4–6: trống 2 s
   const r = addFormationAfter(fs, 1, ["a", "b"], stage, "N", 2, 1);
+  const n = r.formations.find((f) => f.id === "N")!;
+  assert.equal(n.start, 2.5);
+  assert.equal(n.end, 3.5);
+  assert.deepEqual(n.pos, fs[0].pos);
+  assert.equal(r.formations.find((f) => f.id === "B")!.start, 4);
+  assert.equal(r.shifted, 0);
+  assert.equal(r.jumpTo, 2.5);
+  assert.deepEqual(r.formations.map((f) => f.id), ["A", "N", "B"]);
+});
+
+test("addFormationAfter chỉ dời khối sau khi quá chật, và báo số giây dời", () => {
+  const fs: Formation[] = [
+    { id: "A", name: "A", start: 0, end: 2, pos: { a: [0, 0] } },
+    { id: "B", name: "B", start: 2.5, end: 4, pos: { a: [1, 0] } },
+  ];
+  const r = addFormationAfter(fs, 1, ["a"], stage, "N", 2, 1);
   const n = r.formations.find((f) => f.id === "N")!;
   assert.equal(n.start, 3);
   assert.equal(n.end, 5);
-  assert.deepEqual(n.pos, fs[0].pos);
-  const b = r.formations.find((f) => f.id === "B")!;
-  assert.equal(b.start, 6); // dời 2 s để còn khoảng 1 s
-  assert.equal(r.jumpTo, 3);
-  assert.deepEqual(r.formations.map((f) => f.id), ["A", "N", "B"]);
+  assert.equal(r.shifted, 3.5);
+  assert.equal(r.formations.find((f) => f.id === "B")!.start, 6);
   // không đột biến đầu vào
-  assert.equal(fs[1].start, 4);
+  assert.equal(fs[1].start, 2.5);
 });
 
 test("setBlockTimes và moveBlock kẹp bởi hàng xóm", () => {

@@ -65,7 +65,7 @@ input[type="text"], input[type="number"] { user-select: text; }
 .btn svg { width: 16px; height: 16px; flex: none; }
 .btn.sm svg { width: 14px; height: 14px; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-.seg button { height: 28px; padding: 0 10px; background: var(--panel2); border: 0; border-right: 1px solid var(--line); cursor: pointer; }
+.seg button { height: 28px; padding: 0 10px; background: var(--panel2); border: 0; border-right: 1px solid var(--line); cursor: pointer; white-space: nowrap; }
 .seg button:last-child { border-right: 0; }
 .seg button:hover { background: #242b36; }
 .seg button.on { background: var(--accentBg); color: var(--accent2); }
@@ -111,6 +111,17 @@ kbd {
 }
 .count b { font-size: 18px; color: var(--accent2); }
 .count span { color: var(--dim); font-size: 11px; }
+/* màn hẹp: bỏ chữ, giữ biểu tượng (chữ vẫn có trong title khi rê chuột) */
+@media (max-width: 1240px) {
+  .top .seg .lbl, .top .save { display: none; }
+  .title-input { width: 140px; }
+}
+@media (max-width: 960px) {
+  .top .lbl, .count span { display: none; }
+  .title-input { width: 110px; }
+  .top { gap: 6px; }
+}
+.field.bpm-field input[type="number"] { width: 52px; }
 .bpm { display: flex; align-items: center; gap: 4px; }
 .bpm input { width: 52px; height: 28px; padding: 0 6px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
 .menu { position: relative; }

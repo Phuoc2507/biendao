@@ -76,8 +76,8 @@ function MusicSection() {
           <Icon name="upload" /> Chọn bài nhạc
         </button>
       )}
-      <div className="row" style={{ marginTop: 8 }}>
-        <label className="field" title="Số phách mỗi phút">
+      <div className="row" style={{ marginTop: 8, flexWrap: "wrap" }}>
+        <label className="field bpm-field" title="Số phách mỗi phút">
           Nhịp
           <input
             type="number" min={40} max={240} step={1} value={p.bpm ?? ""} placeholder="BPM"
@@ -104,7 +104,7 @@ function MusicSection() {
             st().notify("Đã đặt phách 1 tại vạch phát");
           }}
         >
-          Phách 1 ở đây
+          Đặt phách 1
         </button>
       </div>
     </div>

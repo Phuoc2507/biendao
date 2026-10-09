@@ -252,25 +252,39 @@ export function setPositions(
 }
 
 /**
- * Nút "+ Đội hình": chép đội hình đang đứng thành khối mới ngay sau nó
- * (cách gapLen, dài holdLen), dời các khối sau nếu không đủ chỗ. Ở chỗ trống
- * thì tạo khối tại t như ensureFormationAt. Trả thời điểm nên đưa vạch tới.
+ * Nút "+ Đội hình": chép đội hình đang đứng thành khối mới ngay sau nó.
+ * Các khối đã gắn với nhạc nên ưu tiên nhét vừa khoảng trống phía sau (co
+ * khoảng chuyển và độ dài khối lại); chỉ khi quá chật mới dời các khối sau,
+ * và trả về số giây đã dời để báo người dùng. Ở chỗ trống thì tạo khối tại t
+ * như ensureFormationAt. Trả thời điểm nên đưa vạch tới.
  */
 export function addFormationAfter(
   fs: Formation[], t: number, ids: string[], stage: StageSize,
   newId: string, holdLen: number, gapLen: number,
-): { formations: Formation[]; id: string; jumpTo: number } {
+): { formations: Formation[]; id: string; jumpTo: number; shifted: number } {
   const k = holdIndexAt(fs, t);
   if (k < 0) {
     const r = ensureFormationAt(fs, t, ids, stage, newId, holdLen);
     const f = r.formations.find((x) => x.id === r.id)!;
-    return { formations: r.formations, id: r.id, jumpTo: f.start };
+    return { formations: r.formations, id: r.id, jumpTo: f.start, shifted: 0 };
   }
   const cur = fs[k];
-  const start = cur.end + gapLen;
-  const end = start + holdLen;
   const next = fs[k + 1];
-  const shift = next ? Math.max(0, end + gapLen - next.start) : 0;
+  let start = cur.end + gapLen;
+  let end = start + holdLen;
+  let shift = 0;
+  if (next) {
+    const room = next.start - cur.end;
+    const minGap = Math.min(gapLen, 0.5);
+    const minHold = Math.max(MIN_BLOCK, Math.min(holdLen, 1));
+    if (room >= 2 * minGap + minHold) {
+      const g = Math.min(gapLen, (room - minHold) / 2);
+      start = cur.end + g;
+      end = Math.min(start + holdLen, next.start - g);
+    } else {
+      shift = end + gapLen - next.start;
+    }
+  }
   const pos: Record<string, Vec2> = {};
   for (const id of ids) {
     const p = cur.pos[id];
@@ -280,7 +294,7 @@ export function addFormationAfter(
     i > k && shift > 0 ? { ...f, start: f.start + shift, end: f.end + shift } : f,
   );
   out.push({ id: newId, name: nextName(fs), start, end, pos });
-  return { formations: sortFs(out), id: newId, jumpTo: start };
+  return { formations: sortFs(out), id: newId, jumpTo: start, shifted: shift };
 }
 
 /** Đổi start/end của một khối, kẹp không vượt khối bên cạnh, dài ≥ MIN_BLOCK. */

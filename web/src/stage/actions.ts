@@ -207,7 +207,9 @@ export function addFormation() {
   clock.seek(r.jumpTo + 0.001);
   st().setUI({ selectedBlock: r.id });
   const f = r.formations.find((x) => x.id === r.id)!;
-  st().notify(`Đã thêm ${f.name}: kéo người sang vị trí mới`);
+  if (r.shifted > 0.01)
+    st().notify(`Đã thêm ${f.name}, các đội hình sau lùi ${r.shifted.toFixed(1)} s cho đủ chỗ`, { undo: true });
+  else st().notify(`Đã thêm ${f.name}: kéo người sang vị trí mới`);
 }
 
 export function removeFormation(id: string) {
