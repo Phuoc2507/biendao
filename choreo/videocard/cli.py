@@ -98,13 +98,15 @@ def _plain(ff: str, video: str, out_mp4: str, height: int) -> tuple[float, int, 
 
 
 def _matted(ff: str, video: str, out_mp4: str, model: str, half: int,
-            work_h: int) -> tuple[float, int, int]:
+            work_h: int, all_people: bool = False) -> tuple[float, int, int]:
     import numpy as np
 
     from . import ffio
     from .matting import RVMSession
+    from .person import MainPersonFilter
 
     sess = RVMSession(model)
+    main_person = None if all_people else MainPersonFilter()
     acc = BBoxAccumulator()
     w, h = ffio.frame_size(ff, video, work_h)
     with tempfile.TemporaryDirectory() as tmp:
@@ -113,6 +115,8 @@ def _matted(ff: str, video: str, out_mp4: str, model: str, half: int,
         n, t0 = 0, time.time()
         for frame in ffio.frames(ff, video, work_h):
             fgr, pha = sess(frame)
+            if main_person is not None:
+                pha = main_person(pha, frame)
             acc.add(pha)
             # hình màu: tiền cảnh RVM (đã khử màu nền ở mép tóc, tà áo)
             wr_rgb.write(fgr)
@@ -148,6 +152,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="chiều cao mỗi nửa thẻ, px (mặc định 540)")
     ap.add_argument("--no-matting", action="store_true",
                     help="không xoá phông, chỉ khớp nhạc và mã hoá lại")
+    ap.add_argument("--all-people", action="store_true",
+                    help="giữ mọi người trong khung (mặc định chỉ giữ người múa chính)")
     args = ap.parse_args(argv)
 
     ff, code = _check_deps(args.no_matting, args.model)
@@ -172,7 +178,8 @@ def main(argv: list[str] | None = None) -> int:
                 dur, w, h = _plain(ff, video, out_mp4, 720)
             else:
                 dur, w, h = _matted(ff, video, out_mp4, args.model, args.height,
-                                    work_h=max(2 * args.height, 960))
+                                    work_h=max(2 * args.height, 960),
+                                    all_people=args.all_people)
             meta = card_meta(name, stacked=not args.no_matting, duration=dur,
                              width=w, height=h, offset=off, confident=ok)
             with open(os.path.join(args.out, f"{name}.card.json"), "w",

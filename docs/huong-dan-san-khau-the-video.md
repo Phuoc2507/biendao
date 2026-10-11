@@ -56,11 +56,14 @@ python -m choreo.videocard --music nhac.mp3 --out the lan.mp4 mai.mp4 hoa.mp4
 | `--model tệp` | Đường dẫn mô hình `.onnx` (mặc định `models/rvm_mobilenetv3_fp32.onnx`). |
 | `--height px` | Chiều cao mỗi nửa thẻ (mặc định 540). Máy yếu hạ xuống 360 cho nhẹ. |
 | `--no-matting` | Không xoá phông, chỉ khớp nhạc và mã hoá lại. Không cần onnxruntime và mô hình. |
+| `--all-people` | Giữ mọi người trong khung. Mặc định công cụ chỉ giữ **người múa chính** (người lớn nhất ở đầu video, bám theo vị trí và màu trang phục) và xoá bạn bè đứng xem, người đi ngang. |
 
 Mỗi video ra hai tệp trong thư mục `--out`:
 
 * `ten.card.mp4`: video đã xoá phông, cắt sát người (nửa trên là hình, nửa dưới là mặt nạ).
 * `ten.card.json`: tên, thời lượng, **độ lệch so với nhạc**.
+
+**Mẹo quay** cho thẻ sạch: người múa đứng gần máy hơn mọi người khác ngay từ giây đầu; người xem đứng xa, đừng đi ngang qua giữa máy và người múa. Lúc người múa đi chồng lên người khác trong khung, mặt nạ dính nhau nên thẻ hiện cả hai trong chốc lát. Quay cố định máy (kê lên bàn) thì vị trí người trong thẻ khớp với chuyển động thật hơn là cầm tay lia theo.
 
 Khi chạy, công cụ in độ tin cậy khớp nhạc. Dòng nào ghi **THẤP** thì nên kiểm lại độ lệch trong app (mục 4). Xoá phông chạy bằng CPU, tốn khoảng vài phút cho mỗi phút video tuỳ máy; một video lỗi không làm dừng các video khác.
 
