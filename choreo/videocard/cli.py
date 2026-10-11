@@ -134,7 +134,11 @@ def _matted(ff: str, video: str, out_mp4: str, model: str, half: int,
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="python -m choreo.videocard",
+    # console Windows mặc định cp1252 → in tiếng Việt sẽ nổ UnicodeEncodeError
+    for s in (sys.stdout, sys.stderr):
+        if hasattr(s, "reconfigure"):
+            s.reconfigure(encoding="utf-8", errors="replace")
+    ap =argparse.ArgumentParser(prog="python -m choreo.videocard",
                                  description="Tạo thẻ video cho sân khấu ảo")
     ap.add_argument("videos", nargs="+", help="video gốc quay từng vũ công")
     ap.add_argument("--music", help="tệp nhạc gốc để tự khớp thời gian")
