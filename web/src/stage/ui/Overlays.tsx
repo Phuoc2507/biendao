@@ -1,23 +1,39 @@
 // Lớp phủ: thông báo (có Hoàn tác), đang xử lý, khung thả tệp, bảng phím tắt.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { st, useStore, useUI } from "../store";
 import { importFiles } from "../actions";
 import { Icon } from "./icons";
 
+const subFull = (f: () => void) => {
+  document.addEventListener("fullscreenchange", f);
+  return () => document.removeEventListener("fullscreenchange", f);
+};
+const fullEl = () => document.fullscreenElement;
+
+/** Tối đa 3 thông báo xếp chồng; vẫn hiện khi đang toàn màn hình. */
 export function ToastView() {
-  const t = useStore((s) => s.toast);
-  if (!t) return null;
-  return (
-    <div className={`toast ${t.kind ?? ""}`} key={t.id} role="status">
-      <span>{t.msg}</span>
-      {t.undo && (
-        <button className="btn sm" onClick={() => { st().undo(); st().clearToast(t.id); }}>
-          <Icon name="undo" /> Hoàn tác
-        </button>
-      )}
-      <button className="btn sm icon ghost" onClick={() => st().clearToast(t.id)} aria-label="Đóng"><Icon name="close" /></button>
-    </div>
+  const list = useStore((s) => s.toasts);
+  const project = useStore((s) => s.project);
+  const fs = useSyncExternalStore(subFull, fullEl);
+  if (!list.length) return null;
+  return createPortal(
+    <div className="toasts">
+      {list.map((t) => (
+        <div className={`toast ${t.kind ?? ""}`} key={t.id} role={t.kind === "error" ? "alert" : "status"}>
+          <span>{t.msg}</span>
+          {/* chỉ hoàn tác được khi chưa có sửa nào khác sau thông báo này */}
+          {t.undo && t.at === project && (
+            <button className="btn sm" onClick={() => { st().undo(); st().clearToast(t.id); }}>
+              <Icon name="undo" /> Hoàn tác
+            </button>
+          )}
+          <button className="btn sm icon ghost" onClick={() => st().clearToast(t.id)} aria-label="Đóng thông báo"><Icon name="close" /></button>
+        </div>
+      ))}
+    </div>,
+    fs ?? document.body,
   );
 }
 
@@ -118,7 +134,7 @@ export function DropZone() {
 const KEYS: [string, [string, string][]][] = [
   ["Phát", [
     ["Phát / dừng", "Space"],
-    ["Về đầu", "Home"],
+    ["Về đầu / về cuối", "Home / End"],
     ["Lùi / tới một phách", "← →"],
     ["Lùi / tới một lượt 8", "Shift ← →"],
     ["Đội hình trước / sau", "[  ]"],
@@ -136,7 +152,7 @@ const KEYS: [string, [string, string][]][] = [
   ]],
   ["Đội hình", [
     ["Thêm đội hình sau vạch phát", "Enter"],
-    ["Xoá đội hình đang chọn", "Delete"],
+    ["Xoá đội hình vừa bấm chọn", "Delete"],
     ["Đổi tên", "bấm đúp vào khối"],
     ["Đổi độ dài", "kéo mép khối"],
   ]],
@@ -149,16 +165,47 @@ const KEYS: [string, [string, string][]][] = [
     ["Vừa khung dòng thời gian", "Shift Z"],
     ["Bảng này", "?"],
   ]],
+  ["Khi trình chiếu", [
+    ["Phát / dừng", "Space"],
+    ["Đội hình trước / sau", "← →  hoặc  PageUp PageDown"],
+    ["Về đầu / về cuối", "Home / End"],
+    ["Thoát trình chiếu", "Esc / F"],
+  ]],
 ];
 
 export function Help() {
   const open = useUI().help;
   if (!open) return null;
+  return <HelpDialog />;
+}
+
+function HelpDialog() {
+  const box = useRef<HTMLDivElement>(null);
+  const closeBtn = useRef<HTMLButtonElement>(null);
   const close = () => st().setUI({ help: false });
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    closeBtn.current?.focus();
+    return () => prev?.focus?.();
+  }, []);
+  // Tab chỉ đi vòng trong hộp
+  const trap = (e: React.KeyboardEvent) => {
+    if (e.key !== "Tab" || !box.current) return;
+    const els = box.current.querySelectorAll<HTMLElement>("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])");
+    if (!els.length) return;
+    const first = els[0], last = els[els.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
   return (
     <div className="modal-bg" onPointerDown={(e) => e.target === e.currentTarget && close()}>
-      <div className="modal" role="dialog" aria-label="Hướng dẫn">
-        <h2>Cách dùng <span className="grow" /><button className="btn icon ghost" onClick={close}><Icon name="close" /></button></h2>
+      <div className="modal" role="dialog" aria-modal="true" aria-label="Hướng dẫn" ref={box} onKeyDown={trap}>
+        <h2>Cách dùng <span className="grow" /><button ref={closeBtn} className="btn icon ghost" onClick={close} aria-label="Đóng hướng dẫn"><Icon name="close" /></button></h2>
         <ol style={{ margin: "0 0 12px", paddingLeft: 20, color: "var(--muted)", lineHeight: 1.7 }}>
           <li>Thả bài nhạc và video từng người vào cửa sổ. App tự khớp mỗi video với nhạc bằng tiếng.</li>
           <li>Tua tới lúc cần đổi đội hình, kéo các chấm trên <b>sơ đồ</b> (hoặc kéo thẳng thẻ trong khung khán giả).</li>
@@ -176,6 +223,9 @@ export function Help() {
             </div>
           ))}
         </div>
+        <p className="dim" style={{ margin: "12px 0 0", lineHeight: 1.6 }}>
+          Khi đang gõ trong ô, phím tắt tạm nghỉ (trừ Ctrl S). Ô số: gõ xong bấm Enter hoặc bấm ra ngoài để chốt, Esc để huỷ; số lẻ gõ "1,5" hay "1.5" đều được.
+        </p>
       </div>
     </div>
   );

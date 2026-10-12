@@ -1,10 +1,11 @@
 // Hook dùng chung cho giao diện.
 
-import { useMemo, useSyncExternalStore } from "react";
-import { findWarnings, segmentAt } from "../model";
+import { type KeyboardEvent, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { type Formation, findWarnings, holdIndexAt, segmentAt } from "../model";
 import { useProject } from "../store";
 import { mediaVersion, subscribeMedia } from "../media";
-import { useTime } from "../clock";
+import { now, subscribeClock, useTime } from "../clock";
+import { targetKind } from "./keys";
 
 export function useWarnings() {
   const p = useProject();
@@ -20,12 +21,45 @@ export function useSegment() {
   return segmentAt(p.formations, t);
 }
 
-export const isTyping = (e: Event) => {
-  const el = e.target as HTMLElement | null;
-  if (!el) return false;
-  const tag = el.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable;
-};
+/** Chỉ số đội hình đang đứng tại vạch phát (-1 nếu đang chuyển). Chỉ vẽ lại khi đổi khối, không theo từng khung. */
+export function useHoldIndex(fs: Formation[]) {
+  const [k, setK] = useState(() => holdIndexAt(fs, now()));
+  useEffect(() => {
+    const f = () => setK(holdIndexAt(fs, now()));
+    f();
+    const off = subscribeClock(f);
+    return () => {
+      off();
+    };
+  }, [fs]);
+  return k;
+}
+
+/** Đang gõ chữ (ô nhập chữ, ô số, vùng soạn thảo): phím tắt nhường chỗ. Checkbox, thanh kéo, nút thì không tính. */
+export const isTyping = (e: Event) => targetKind(e.target) === "text";
+
+// Ô vừa được bấm chuột (khác với đi tới bằng Tab): phím tắt được giành phím của ô.
+let pointerFocus = false;
+if (typeof window !== "undefined") {
+  window.addEventListener("pointerdown", () => (pointerFocus = true), true);
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Tab") pointerFocus = false;
+  }, true);
+}
+export const focusByPointer = () => pointerFocus;
+
+/** Dòng bấm được (div): Tab tới được, Enter để chọn. */
+export function rowKeys(act: () => void) {
+  return {
+    tabIndex: 0,
+    onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
+      if (e.key !== "Enter" || e.ctrlKey || e.altKey || e.metaKey) return;
+      if (e.target !== e.currentTarget || pointerFocus) return;
+      e.preventDefault();
+      act();
+    },
+  };
+}
 
 /** Mô tả vị trí cho người không quen toạ độ: "phải 2 m · cách mép 1.5 m". */
 export function describePos(x: number, z: number, width: number, depth: number): string {

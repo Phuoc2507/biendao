@@ -2,16 +2,13 @@
 
 import { create } from "zustand";
 import { type Project, emptyProject } from "./model";
+import { canMerge, pruneSelection } from "./history";
+import { type Toast, pushToast, toastMs } from "./toasts";
+
+export type { Toast };
 
 export type View = "plan" | "split" | "audience";
 export type Tab = "dancers" | "formations" | "warnings";
-
-export interface Toast {
-  id: number;
-  msg: string;
-  undo?: boolean;
-  kind?: "info" | "warn" | "error";
-}
 
 export interface UI {
   view: View;
@@ -37,10 +34,14 @@ interface State {
   past: Project[];
   future: Project[];
   gestureBase: Project | null;
+  /** Các thông báo đang hiện, cũ trước mới sau (tối đa 3). */
+  toasts: Toast[];
+  /** Thông báo mới nhất. */
   toast: Toast | null;
 
   load(p: Project): void;
-  commit(fn: (p: Project) => Project): void;
+  /** merge: các lần sửa liền nhau cùng khoá (kéo thanh, gõ nhịp) gộp thành một bước hoàn tác. */
+  commit(fn: (p: Project) => Project, merge?: string): void;
   beginGesture(): void;
   live(fn: (p: Project) => Project): void;
   endGesture(): void;
@@ -53,6 +54,9 @@ interface State {
 
 const HISTORY = 100;
 let toastId = 0;
+let lastMerge: string | null = null;
+let lastAt = 0;
+const stamp = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
 
 export const useStore = create<State>((set, get) => ({
   project: emptyProject(),
@@ -76,18 +80,26 @@ export const useStore = create<State>((set, get) => ({
   past: [],
   future: [],
   gestureBase: null,
+  toasts: [],
   toast: null,
 
   load(p) {
-    set({ project: p, past: [], future: [], gestureBase: null });
+    lastMerge = null;
+    set({ project: p, past: [], future: [], gestureBase: null, ui: pruneSelection(get().ui, p) });
   },
-  commit(fn) {
-    const cur = get().project;
+  commit(fn, merge) {
+    const s = get();
+    const cur = s.project;
     const next = fn(cur);
     if (next === cur) return;
-    set({ project: next, past: [...get().past, cur].slice(-HISTORY), future: [] });
+    const at = stamp();
+    if (!s.gestureBase && s.past.length && canMerge(lastMerge, lastAt, merge, at)) set({ project: next, future: [] });
+    else set({ project: next, past: [...s.past, cur].slice(-HISTORY), future: [] });
+    lastMerge = merge ?? null;
+    lastAt = at;
   },
   beginGesture() {
+    lastMerge = null;
     if (!get().gestureBase) set({ gestureBase: get().project });
   },
   live(fn) {
@@ -96,6 +108,7 @@ export const useStore = create<State>((set, get) => ({
     if (next !== cur) set({ project: next });
   },
   endGesture() {
+    lastMerge = null;
     const base = get().gestureBase;
     if (!base) return;
     if (base !== get().project)
@@ -103,25 +116,40 @@ export const useStore = create<State>((set, get) => ({
     else set({ gestureBase: null });
   },
   undo() {
-    const { past, project, future } = get();
-    if (!past.length) return;
-    set({ project: past[past.length - 1], past: past.slice(0, -1), future: [project, ...future] });
+    // đang kéo dở: chốt bước kéo trước, hoàn tác xong thì kéo tiếp từ chỗ mới
+    const dragging = !!get().gestureBase;
+    if (dragging) get().endGesture();
+    lastMerge = null;
+    const { past, project, future, ui } = get();
+    if (past.length) {
+      const prev = past[past.length - 1];
+      set({ project: prev, past: past.slice(0, -1), future: [project, ...future], ui: pruneSelection(ui, prev) });
+    }
+    if (dragging) set({ gestureBase: get().project });
   },
   redo() {
-    const { past, project, future } = get();
-    if (!future.length) return;
-    set({ project: future[0], future: future.slice(1), past: [...past, project] });
+    const dragging = !!get().gestureBase;
+    if (dragging) get().endGesture();
+    lastMerge = null;
+    const { past, project, future, ui } = get();
+    if (future.length) {
+      const next = future[0];
+      set({ project: next, future: future.slice(1), past: [...past, project], ui: pruneSelection(ui, next) });
+    }
+    if (dragging) set({ gestureBase: get().project });
   },
   setUI(u) {
     set({ ui: { ...get().ui, ...u } });
   },
   notify(msg, o = {}) {
-    const id = ++toastId;
-    set({ toast: { id, msg, ...o } });
-    setTimeout(() => get().clearToast(id), o.undo ? 6000 : 3500);
+    const t: Toast = { id: ++toastId, msg, ...o, at: o.undo ? get().project : undefined };
+    const toasts = pushToast(get().toasts, t);
+    set({ toasts, toast: toasts[toasts.length - 1] ?? null });
+    setTimeout(() => get().clearToast(t.id), toastMs(t));
   },
   clearToast(id) {
-    if (get().toast?.id === id) set({ toast: null });
+    const toasts = get().toasts.filter((x) => x.id !== id);
+    if (toasts.length !== get().toasts.length) set({ toasts, toast: toasts[toasts.length - 1] ?? null });
   },
 }));
 

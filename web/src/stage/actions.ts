@@ -198,9 +198,11 @@ export function nudgeSelected(dx: number, dz: number) {
   const cur = currentPoses();
   const moves: Record<string, Vec2> = {};
   for (const id of sel) {
+    if (!cur[id]) continue; // người đã bị xoá mà còn trong lựa chọn
     const p: Vec2 = [cur[id][0] + dx, cur[id][1] + dz];
     moves[id] = st().ui.snap ? snapPos(p, 0.25) : p;
   }
+  if (!Object.keys(moves).length) return;
   setPositionsNow(moves, false);
 }
 
@@ -301,8 +303,8 @@ export function stepBeat(n: number) {
   clock.seek(p.bpm ? snapTime(t, p.bpm, p.downbeat) : t);
 }
 
-export function setBpm(bpm: number | null, downbeat?: number) {
-  st().commit((q) => ({ ...q, bpm, downbeat: downbeat ?? q.downbeat }));
+export function setBpm(bpm: number | null, downbeat?: number, merge?: string) {
+  st().commit((q) => ({ ...q, bpm, downbeat: downbeat ?? q.downbeat }), merge);
 }
 
 // ---------- nhập tệp ----------
