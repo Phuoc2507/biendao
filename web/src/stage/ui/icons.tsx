@@ -49,6 +49,7 @@ const P: Record<string, string> = {
   ghost: "M5 21V10a7 7 0 0 1 14 0v11l-3-2-2 2-2-2-2 2-2-2zM9 10v1M15 10v1",
   tag: "M3 3h8l10 10-8 8L3 11zM7.5 7.5v.5",
   print: "M6 9V3h12v6M6 18H3v-8h18v8h-3M6 14h12v7H6z",
+  sidebar: "M3 4h18v16H3zM9 4v16",
 };
 
 const FILLED = new Set(["play", "pause"]);

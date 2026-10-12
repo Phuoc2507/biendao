@@ -83,15 +83,18 @@ Lần đầu mở, màn chào có ba lối vào:
 * **Chưa có video:** nhập số người múa, bấm Bắt đầu để xếp đội hình với người giữ chỗ, gắn video sau.
 * **Xem bài mẫu:** sáu người múa quạt, sáu đội hình, dựng ngay trong trình duyệt để thử app.
 
+Nạp nhạc trước thì màn chào ghi tên bài nhạc, độ dài và nhịp, rồi nhắc bước tiếp theo là thả video từng người. Bài và video lưu ngay trong trình duyệt, không tải lên mạng; app xin trình duyệt giữ dữ liệu lâu dài để khỏi bị tự xoá khi máy đầy.
+
 Sau này muốn làm bài khác thì **Tệp ▸ Bài mới**.
 
 ## 4. Dùng app
 
 ### Bố cục
 
-* **Thanh trên:** tên bài, menu Tệp, hoàn tác và làm lại, nút phát, đồng hồ và đếm phách (phách / lượt 8), nút bám lưới, chọn chế độ xem, Trình chiếu, Trợ giúp.
-* **Cột trái:** thẻ *Vũ công* (nhạc, nhịp, danh sách người) và thẻ *Đội hình*.
-* **Giữa:** sân khấu. *Sơ đồ* là nhìn từ trên xuống; *Khán giả* là nhìn từ hàng ghế khán giả; *Cả hai* là hai khung cạnh nhau. Khán giả luôn ở phía dưới sơ đồ.
+* **Thanh trên:** nút ẩn hiện cột trái, tên bài, ô lưu, menu Tệp, hoàn tác và làm lại, nút phát, đồng hồ và đếm phách (phách / lượt 8), nút bám lưới, chọn chế độ xem, Trình chiếu, Trợ giúp. Cửa sổ hẹp thì chữ trên nút tự ẩn, chỉ còn biểu tượng (rê chuột để xem tên); xoá trắng tên bài thì app trả lại tên cũ.
+* **Cột trái:** thẻ *Vũ công* (nhạc, nhịp, danh sách người) và thẻ *Đội hình*. Bấm nút ở góc trái thanh trên để ẩn hoặc hiện; app nhớ lựa chọn cho lần mở sau.
+* **Giữa:** sân khấu. *Sơ đồ* là nhìn từ trên xuống; *Khán giả* là nhìn từ hàng ghế khán giả; *Cả hai* là hai khung cạnh nhau, vùng giữa cao mà hẹp (ví dụ cửa sổ chia đôi màn hình) thì tự xếp trên dưới. Khán giả luôn ở phía dưới sơ đồ.
+* **Điện thoại:** thanh trên tách hai hàng (tên bài và tệp ở trên, phát và chế độ xem ở dưới); cột trái thành ngăn kéo, bấm nút góc trái để mở, chạm ra ngoài để đóng. Menu hiện từ đáy màn hình cho dễ bấm.
 * **Dưới:** dòng thời gian với sóng nhạc, vạch phách và các khối đội hình.
 
 ### Nạp nhạc và thẻ
@@ -146,7 +149,8 @@ Bấm **Trình chiếu** (F): toàn màn hình góc khán giả, có tên đội
 
 ### Lưu
 
-* App **tự lưu** trong trình duyệt (góc trên ghi "Đã lưu").
+* App **tự lưu** trong trình duyệt (góc trên có dấu ✓ "Đã lưu"; bấm vào để xem bài đang chiếm bao nhiêu chỗ).
+* Lưu hỏng thì góc trên đổi thành ô đỏ **Không lưu được** và giữ nguyên tới khi lưu lại được. Bấm vào để xem lý do, **Lưu ra tệp** ngay hoặc **Thử lưu lại**. Hay gặp nhất là trình duyệt hết chỗ: xoá bớt video không dùng rồi thử lại.
 * **Ctrl S** hoặc **Tệp ▸ Lưu ra tệp** xuất `ten-bai.choreo.json` để chép sang máy khác. Tệp này chỉ chứa đội hình và thông tin, **không chứa video**: sang máy mới thì **Tệp ▸ Mở tệp dự án** rồi thả lại thư mục thẻ và nhạc, app tự gắn theo tên tệp.
 
 ## 5. Phím tắt
@@ -177,5 +181,6 @@ Bấm **Trình chiếu** (F): toàn màn hình góc khán giả, có tên đội
 * **Thẻ đen hoặc trống:** bấm phát một lần (Chrome cần thao tác của người dùng trước khi phát video), hoặc tải lại trang.
 * **Thẻ hiện cả nền:** video chưa qua xoá phông, hoặc chưa tích ô "Video đã xoá phông".
 * **Thẻ có viền xám nửa dưới:** ngược lại, đang tích ô đó cho một video thường; bỏ tích.
+* **Góc trên ghi "Không lưu được":** bài vẫn còn trên màn hình nhưng chưa vào trình duyệt. Bấm Ctrl S để lưu ra tệp trước, rồi xoá bớt video hoặc dọn chỗ trống cho máy.
 * **Video lệch nhạc:** bấm Tự khớp; nếu vẫn lệch thì chỉnh tay bằng nút ±0.1 / ±0.01.
 * **Công cụ báo thiếu ffmpeg, onnxruntime hoặc mô hình:** làm đúng câu lệnh nó in ra (mục 2).
