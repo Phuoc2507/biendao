@@ -17,6 +17,7 @@ import {
 import { estimateOffset, CONFIDENT } from "./align";
 import { saveProject, loadProject, allMediaIds, deleteMedia } from "./db";
 import { autoPlan, energyChangeScore } from "./autoplan";
+import { quickSave, openProjectJson, openBundleFile } from "./export/save";
 
 export const proj = () => st().project;
 const ids = (p: Project = proj()) => p.dancers.map((d) => d.id);
@@ -392,6 +393,8 @@ export async function realign(id: string) {
 
 export async function importFiles(files: File[]) {
   if (!files.length) return;
+  const zip = files.find((f) => /\.zip$/i.test(f.name)); // gói .zip có đủ video: mở riêng
+  if (zip) return void (await openBundleFile(zip));
   const c = await classify(files);
   const msgs: string[] = [];
   try {
@@ -472,38 +475,14 @@ export async function boot() {
   clock.seek(0);
 }
 
-function download(blob: Blob, name: string) {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-}
-
+/** Ctrl S: lưu ngay vào trình duyệt và ghi tệp .choreo.json (xem export/save.ts). */
 export function exportProject() {
-  const p = proj();
-  const safe = (p.title || "bai-mua").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
-  download(new Blob([JSON.stringify(p, null, 2)], { type: "application/json" }), `${safe}.choreo.json`);
-  st().notify("Đã lưu tệp dự án. Video và nhạc giữ riêng, khi mở lại thả chúng vào cùng lúc.");
+  return quickSave();
 }
 
-export async function openProjectFile(f: File) {
-  const j = JSON.parse(await f.text()) as Project;
-  if (!j || j.version !== 1 || !Array.isArray(j.dancers)) throw new Error("Không phải tệp dự án sân khấu");
-  const full: Project = {
-    ...emptyProject(), ...j,
-    dancers: j.dancers.map((d) => ({ ...newDancer(d.id, d.name, d.color), ...d })),
-  };
-  const missing = await loadMediaFor(full.musicId, full.dancers.map((d) => d.mediaId).filter((x): x is string => !!x));
-  const miss = new Set(missing);
-  // media không có trong máy: bỏ liên kết, giữ tên tệp để ghép khi thả vào
-  full.dancers = full.dancers.map((d) => (d.mediaId && miss.has(d.mediaId) ? { ...d, mediaId: null } : d));
-  if (full.musicId && miss.has(full.musicId)) full.musicId = null;
-  st().commit(() => full);
-  st().setUI({ selected: [], selectedBlock: null });
-  clock.seek(0);
+/** Mở tệp .choreo.json (một commit, Hoàn tác được). */
+export function openProjectFile(f: File): Promise<string[]> {
+  return openProjectJson(f);
 }
 
 export function newProject() {

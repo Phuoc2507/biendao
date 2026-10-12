@@ -147,7 +147,11 @@ Bấm **Trình chiếu** (F): toàn màn hình góc khán giả, có tên đội
 ### Lưu
 
 * App **tự lưu** trong trình duyệt (góc trên ghi "Đã lưu").
-* **Ctrl S** hoặc **Tệp ▸ Lưu ra tệp** xuất `ten-bai.choreo.json` để chép sang máy khác. Tệp này chỉ chứa đội hình và thông tin, **không chứa video**: sang máy mới thì **Tệp ▸ Mở tệp dự án** rồi thả lại thư mục thẻ và nhạc, app tự gắn theo tên tệp.
+* **Ctrl S** lưu ngay vào trình duyệt và ghi tệp dự án `ten-bai.choreo.json`. Chrome, Edge hỏi chỗ lưu ở lần đầu, các lần sau ghi đè im lặng vào đúng tệp đó ("Đã lưu vào …"). Trình duyệt khác thì tải xuống một lần; các lần Ctrl S sau chỉ lưu trong trình duyệt. **Tệp ▸ Lưu thành tệp khác…** để chọn tệp mới.
+* Tệp `.choreo.json` chỉ chứa đội hình và thông tin, **không chứa video**. Muốn chép sang máy khác cho đủ cả nhạc và video: **Tệp ▸ Đóng gói cả video (.zip)…** ra một tệp `.zip` duy nhất (tối đa 4 GB).
+* Mở trên máy mới: **Tệp ▸ Mở…** chọn tệp `.zip` (hoặc kéo thả tệp `.zip` vào cửa sổ), **không cần giải nén**. App chép video vào trình duyệt rồi mở bài; bấm Hoàn tác (Ctrl Z) nếu lỡ tay. Mở tệp `.choreo.json` thì thả lại thư mục thẻ và nhạc, app tự gắn theo tên tệp.
+* **Tệp ▸ In tờ đội hình…**: in (hoặc lưu PDF) mỗi trang A4 hai đội hình, sơ đồ nhìn từ trên có tên từng người, mũi tên từ chỗ đứng trước, và bảng vị trí từng người. Phát cho cả đội.
+* **Tệp ▸ Xuất video…**: ghi video `.mp4` (hoặc `.webm` nếu trình duyệt không ghi được MP4) kèm nhạc, góc khán giả 3D hoặc sơ đồ từ trên. Sơ đồ có thể tô đậm một người ("video riêng cho Lan") để gửi riêng. Video ghi theo thời gian thật: bài dài 3 phút thì mất 3 phút, phải **giữ tab mở**, chuyển tab là dừng. Esc hoặc Hủy để dừng.
 
 ## 5. Phím tắt
 
@@ -169,7 +173,7 @@ Bấm **Trình chiếu** (F): toàn màn hình góc khán giả, có tên đội
 | Shift Z | Vừa khung sơ đồ |
 | F | Trình chiếu |
 | Ctrl Z, Ctrl Y | Hoàn tác, làm lại |
-| Ctrl S | Lưu ra tệp |
+| Ctrl S | Lưu ngay (trình duyệt và tệp `.choreo.json`) |
 | ? | Bảng phím tắt |
 
 ## 6. Gỡ rối
