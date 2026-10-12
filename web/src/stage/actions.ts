@@ -5,7 +5,7 @@ import {
   PALETTE, newDancer, cloneDancer, lineup, posesAt, ensureFormationAt, setPositions,
   addFormationAfter, deleteFormation, addDancerToAll, removeDancerFromAll,
   arrangeShape, mirrorPositions, distributeX, holdIndexAt, segmentAt,
-  snapPos, emptyProject, renameFormation, wingSpot,
+  snapPos, emptyProject, renameFormation, wingSpot, placeClones, canonOffsets as canonPatch,
 } from "./model";
 import { defaultLens, snapTime } from "./timing";
 import { st, useStore } from "./store";
@@ -81,21 +81,50 @@ export function addDancer(name?: string): string {
   return d.id;
 }
 
-/** Nhân bản vũ công: bản sao dùng chung video, đứng ở cánh gà mọi đội hình. */
-export function duplicateDancer(id: string): string | null {
+/**
+ * Nhân bản vũ công thành n bản: bản sao dùng chung tệp video (mỗi bản một
+ * <video> riêng, chỉnh lệch nhạc riêng được), đứng CẠNH bản gốc ở mọi đội
+ * hình nếu sân còn chỗ, không thì ở cánh gà. Trả id bản sao đầu tiên.
+ */
+export function duplicateDancer(id: string, n = 1): string | null {
   const p = proj();
   const src = p.dancers.find((d) => d.id === id);
+  n = Math.max(1, Math.min(30, Math.floor(n)));
   if (!src) return null;
-  const d = cloneDancer(src, uid("d"), p.dancers.map((x) => x.name), nextColor(p));
+  const clones: VDancer[] = [];
+  let q0 = p;
+  for (let i = 0; i < n; i++) {
+    const d = cloneDancer(src, uid("d"), q0.dancers.map((x) => x.name), nextColor(q0));
+    clones.push(d);
+    q0 = { ...q0, dancers: [...q0.dancers, d] };
+  }
   st().commit((q) => {
     // xếp sau bản cuối cùng của cùng video: "Lan, Lan 2, Lan 3" đúng thứ tự
     let k = q.dancers.findIndex((x) => x.id === id);
     q.dancers.forEach((x, i) => { if (src.mediaId && x.mediaId === src.mediaId) k = Math.max(k, i); });
-    const dancers = [...q.dancers.slice(0, k + 1), d, ...q.dancers.slice(k + 1)];
-    return { ...q, dancers, formations: addDancerToAll(q.formations, d.id, q.stage) };
+    const dancers = [...q.dancers.slice(0, k + 1), ...clones, ...q.dancers.slice(k + 1)];
+    return { ...q, dancers, formations: placeClones(q.formations, id, clones.map((d) => d.id), q.stage) };
   });
   clock.resync();
-  return d.id;
+  if (n > 1) st().notify(`Đã nhân bản ${src.name} thành ${n} người`, { undo: true });
+  return clones[0].id;
+}
+
+/** Múa canon: người thứ k trong lựa chọn (theo thứ tự danh sách) lệch thêm k·step giây. */
+export function canonOffsets(sel: string[], step: number) {
+  const p = proj();
+  const patch = canonPatch(p.dancers, sel, step);
+  const n = Object.keys(patch).length;
+  if (n < 2) {
+    st().notify("Chọn ít nhất 2 người để lệch canon");
+    return;
+  }
+  st().commit((q) => ({
+    ...q,
+    dancers: q.dancers.map((d) => (d.id in patch ? { ...d, offsetSec: patch[d.id] } : d)),
+  }));
+  clock.resync();
+  st().notify(`Lệch canon ${n} người, mỗi người sau ${step.toFixed(2)} s`, { undo: true });
 }
 
 export function updateDancer(id: string, patch: Partial<VDancer>) {

@@ -9,7 +9,7 @@ import { st, useProject, useUI } from "../store";
 import * as clock from "../clock";
 import { useTime } from "../clock";
 import {
-  addDancer, duplicateDancer, updateDancer, removeDancer, moveDancerOrder, realign, replaceVideo,
+  addDancer, duplicateDancer, canonOffsets, updateDancer, removeDancer, moveDancerOrder, realign, replaceVideo,
   importFiles, applyShape, mirrorSelected, distributeSelected, sendToWings,
   addFormation, removeFormation, renameBlock, setStage, setBpm,
 } from "../actions";
@@ -155,7 +155,16 @@ function DancerRow({ d, sel }: { d: VDancer; sel: boolean }) {
         <button className="btn sm icon ghost" title={d.hidden ? "Hiện" : "Ẩn (không tính cảnh báo)"} onClick={() => updateDancer(d.id, { hidden: !d.hidden })}>
           <Icon name={d.hidden ? "eyeOff" : "eye"} />
         </button>
-        <button className="btn sm icon ghost" title="Nhân bản (dùng chung video)" onClick={() => duplicateDancer(d.id)}><Icon name="copy" /></button>
+        <button
+          className="btn sm icon ghost" title="Nhân bản (dùng chung video, đứng cạnh). Shift-bấm: nhân bản nhiều người"
+          onClick={(e) => {
+            if (!e.shiftKey) return void duplicateDancer(d.id);
+            const n = Number(window.prompt(`Nhân bản ${d.name} thêm bao nhiêu người?`, "3"));
+            if (n >= 1) duplicateDancer(d.id, n);
+          }}
+        >
+          <Icon name="copy" />
+        </button>
         <button className="btn sm icon ghost danger" title="Xoá vũ công" onClick={() => removeDancer(d.id)}><Icon name="trash" /></button>
       </div>
     </div>
@@ -163,6 +172,7 @@ function DancerRow({ d, sel }: { d: VDancer; sel: boolean }) {
 }
 
 function DancerInspector({ d }: { d: VDancer }) {
+  const [copies, setCopies] = useState(2);
   const nudge = (v: number) => updateDancer(d.id, { offsetSec: Math.round((d.offsetSec + v) * 1000) / 1000, alignConfident: true });
   return (
     <div className="section">
@@ -206,6 +216,20 @@ function DancerInspector({ d }: { d: VDancer }) {
         </>
       )}
       <div className="row" style={{ marginTop: 8 }}>
+        <button
+          className="btn sm" style={{ flex: 1, justifyContent: "center" }}
+          title="Thêm bản sao dùng chung video, đứng cạnh người này; mỗi bản chỉnh lệch nhạc riêng được"
+          onClick={() => duplicateDancer(d.id, copies)}
+        >
+          <Icon name="copy" /> Nhân bản thêm
+        </button>
+        <input
+          type="number" min={1} max={30} step={1} value={copies} style={{ width: 52 }}
+          onChange={(e) => setCopies(Math.max(1, Math.min(30, Math.floor(Number(e.target.value) || 1))))}
+        />
+        <span className="dim">người</span>
+      </div>
+      <div className="row" style={{ marginTop: 8 }}>
         <span className="dim" style={{ width: 70 }}>Cao thẻ</span>
         <input
           type="range" min={1.2} max={2.2} step={0.05} value={d.cardHeight} style={{ flex: 1 }}
@@ -220,6 +244,39 @@ function DancerInspector({ d }: { d: VDancer }) {
             style={{ width: 18, height: 18, borderRadius: 9, border: c === d.color ? "2px solid #fff" : "1px solid #0006", background: c, cursor: "pointer", padding: 0 }}
           />
         ))}
+      </div>
+    </div>
+  );
+}
+
+/** Chọn nhiều người: lệch video lần lượt (múa canon). */
+function CanonSection({ sel }: { sel: string[] }) {
+  const p = useProject();
+  const beat = p.bpm ? Math.round((60 / p.bpm) * 1000) / 1000 : 0.5;
+  const [step, setStep] = useState<number | null>(null);
+  const v = step ?? beat;
+  const order = p.dancers.filter((d) => sel.includes(d.id));
+  return (
+    <div className="section">
+      <h4>{order.length} người đang chọn</h4>
+      <div className="dim" style={{ marginBottom: 6 }}>
+        Múa canon: theo thứ tự danh sách, mỗi người sau vào trễ hơn người trước một khoảng
+        (giữ lệch của {order[0]?.name ?? "người đầu"}).
+      </div>
+      <div className="row">
+        <label className="field" title={p.bpm ? `1 phách = ${beat} s` : "Chưa đặt nhịp: mặc định 0.5 s"}>
+          Mỗi người
+          <input
+            type="number" step={0.05} value={v} style={{ width: 64 }}
+            onChange={(e) => setStep(Number(e.target.value))}
+          /> s
+        </label>
+        {p.bpm && (
+          <button className="btn sm" title="Đặt bằng 1 phách" onClick={() => setStep(beat)}>1 phách</button>
+        )}
+        <button className="btn sm primary" onClick={() => canonOffsets(sel, v)} title="Đặt lệch nhạc lần lượt cho những người đang chọn">
+          Lệch canon
+        </button>
       </div>
     </div>
   );
@@ -250,6 +307,7 @@ function DancersTab() {
         Thả video từng người và bài nhạc vào bất kỳ đâu,<br />hoặc bấm để chọn tệp
       </div>
       {one && <DancerInspector d={one} />}
+      {ui.selected.length >= 2 && <CanonSection sel={ui.selected} />}
     </>
   );
 }

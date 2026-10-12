@@ -3,10 +3,11 @@
 // performance.now().
 
 import { useSyncExternalStore } from "react";
-import { getVideo, music } from "./media";
+import { getVideo, getDancerVideo, peekDancerVideo, pruneDancerVideos, subscribeMedia, music } from "./media";
 import { videoTarget } from "./timing";
 
 export interface SyncDancer {
+  id: string;
   mediaId: string | null;
   offsetSec: number;
   durationSec: number;
@@ -27,9 +28,15 @@ let getEnd: () => number = () => 30;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((f) => f());
 
+let mediaHooked = false;
 export function configureClock(o: { dancers: () => SyncDancer[]; end: () => number }) {
   getDancers = o.dancers;
   getEnd = o.end;
+  // element video mới của vũ công vừa có khung đầu: tua nó tới đúng chỗ ngay
+  if (!mediaHooked) {
+    mediaHooked = true;
+    subscribeMedia(() => syncVideos(false));
+  }
 }
 
 /** Đang phát theo nhạc thì đọc thẳng <audio> (đúng cả khi tab bị ẩn, rAF ngừng). */
@@ -42,18 +49,23 @@ export const getSpeed = () => speed;
 export const getLoop = () => loop;
 
 function syncVideos(hard: boolean) {
-  // bản nhân bản dùng chung một <video>: chỉ người đầu tiên lái nó, kẻo hai
-  // độ lệch khác nhau giành nhau tua liên tục
-  const done = new Set<HTMLVideoElement>();
-  const ds = [...getDancers()].sort((a, b) => +a.hidden - +b.hidden);
+  // mỗi vũ công có <video> riêng (kể cả bản nhân bản chung tệp), nên ai cũng
+  // tua theo offsetSec của chính mình
+  const ds = getDancers();
+  pruneDancerVideos(ds.map((d) => d.id));
   for (const d of ds) {
+    if (d.hidden) {
+      // người bị ẩn không vẽ thẻ: chỉ dừng element sẵn có, không tạo mới
+      const el = peekDancerVideo(d.id);
+      if (el && !el.paused) el.pause();
+      continue;
+    }
     const v = getVideo(d.mediaId);
-    if (!v || done.has(v.el)) continue;
-    const el = v.el;
-    done.add(el);
+    const el = v && getDancerVideo(d.id, d.mediaId);
+    if (!v || !el) continue;
     const dur = d.durationSec || v.duration;
     const tg = videoTarget(t, d.offsetSec, dur);
-    if (playing && tg.inRange && !d.hidden) {
+    if (playing && tg.inRange) {
       if (el.playbackRate !== speed) el.playbackRate = speed;
       if (Math.abs(el.currentTime - tg.time) > DRIFT || hard) el.currentTime = tg.time;
       if (el.paused) el.play().catch(() => {});

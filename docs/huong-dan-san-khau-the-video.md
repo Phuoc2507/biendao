@@ -116,6 +116,15 @@ Chọn một vũ công trong danh sách:
 * Ô **Video đã xoá phông** phải được tích cho thẻ ra từ công cụ (app tự tích khi có `.card.json`).
 * **Cao thẻ** chỉnh chiều cao người trên sân khấu; chấm màu đổi màu nhận diện.
 
+### Nhân bản và múa canon
+
+Một video có thể dùng cho nhiều người trên sân (ví dụ chỉ quay một bạn rồi nhân lên cả nhóm):
+
+* Nút **nhân bản** (biểu tượng hai tờ giấy) ở dòng vũ công thêm một bản sao; **Shift bấm** để hỏi số người. Trong khung chi tiết vũ công có ô **Nhân bản thêm [n] người**.
+* Bản sao đứng **cạnh** bản gốc (cách ít nhất 0.8 m) ở mọi đội hình còn chỗ trên sân; bản gốc đang ở cánh gà hoặc sân đã kín thì bản sao vào cánh gà.
+* Mỗi bản sao phát video **riêng**, nên chỉnh độ lệch từng người được.
+* **Lệch canon**: chọn nhiều người (Shift bấm trong danh sách), ở khung *N người đang chọn* nhập số giây mỗi người (mặc định 1 phách nếu đã đặt nhịp, không thì 0.5 s), bấm **Lệch canon**. Theo thứ tự danh sách, người sau vào trễ hơn người trước đúng khoảng đó, người đầu giữ nguyên độ lệch. Hoàn tác được (Ctrl+Z).
+
 ### Đội hình
 
 Mỗi đội hình là một **khối** trên dòng thời gian: trong khối mọi người đứng yên ở vị trí đã xếp; khoảng trống giữa hai khối là lúc **di chuyển**, app tự cho thẻ trượt mượt.

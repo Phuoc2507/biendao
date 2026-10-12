@@ -9,7 +9,7 @@ import * as THREE from "three";
 import { type VDancer, type Vec2, WING, poseAt, lineup, snapPos, clampToStage } from "../model";
 import { st, useProject, useUI } from "../store";
 import * as clock from "../clock";
-import { getVideo } from "../media";
+import { getVideo, getDancerVideo } from "../media";
 import { setPositionsNow } from "../actions";
 import { useMediaVersion } from "./hooks";
 import { Icon } from "./icons";
@@ -108,14 +108,16 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
   const dragRef = useRef<{ base: Record<string, Vec2>; hit: THREE.Vector3; moved: boolean } | null>(null);
 
   const v = getVideo(d.mediaId);
+  // <video> riêng của người này (bản nhân bản chung tệp vẫn có element riêng)
+  const el = v ? getDancerVideo(d.id, d.mediaId) : undefined;
   const { tex, mode } = useMemo(() => {
-    if (v) {
+    if (v && el) {
       // Chép khung video qua một canvas 2D rồi mới đẩy lên GPU (xem useFrame).
       // Đẩy thẳng <video> lên WebGL có lúc ra khung rỗng (video tách khỏi trang,
       // cửa sổ bị che), còn drawImage thì luôn có hình.
       const cv = document.createElement("canvas");
-      cv.width = v.el.videoWidth || 2;
-      cv.height = v.el.videoHeight || 2;
+      cv.width = el.videoWidth || 2;
+      cv.height = el.videoHeight || 2;
       const t = new THREE.Texture(cv);
       t.colorSpace = THREE.NoColorSpace;
       t.minFilter = THREE.LinearFilter;
@@ -125,7 +127,7 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
     }
     return { tex: placeholderTexture(d) as THREE.Texture, mode: 0 };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [v, d.stacked, mv, v ? "" : d.name + d.color]);
+  }, [v, el, d.stacked, mv, v ? "" : d.name + d.color]);
   useEffect(() => () => tex.dispose(), [tex]);
 
   const mat = useMemo(
@@ -153,15 +155,15 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
   useFrame(({ camera }) => {
     const g = group.current;
     if (!g) return;
-    if (v && v.el.readyState >= 2 && v.el.currentTime !== uploaded.current) {
-      uploaded.current = v.el.currentTime;
+    if (el && el.readyState >= 2 && el.currentTime !== uploaded.current) {
+      uploaded.current = el.currentTime;
       const cv = tex.image as HTMLCanvasElement;
-      if (cv.width !== v.el.videoWidth || cv.height !== v.el.videoHeight) {
-        cv.width = v.el.videoWidth;
-        cv.height = v.el.videoHeight;
+      if (cv.width !== el.videoWidth || cv.height !== el.videoHeight) {
+        cv.width = el.videoWidth;
+        cv.height = el.videoHeight;
         tex.dispose(); // đổi cỡ thì phải cấp lại bộ nhớ texture
       }
-      cv.getContext("2d")?.drawImage(v.el, 0, 0);
+      cv.getContext("2d")?.drawImage(el, 0, 0);
       tex.needsUpdate = true;
     }
     const p = st().project;

@@ -82,7 +82,8 @@ export function newDancer(id: string, name: string, color: string): VDancer {
   };
 }
 
-/** Bản sao vũ công dùng chung video gốc (cùng mediaId, cùng độ lệch nhạc). */
+/** Bản sao vũ công dùng chung tệp video gốc (cùng mediaId, cùng độ lệch nhạc);
+ *  mỗi bản vẫn có <video> riêng nên sửa offsetSec từng người được. */
 export function cloneDancer(src: VDancer, id: string, names: string[], color: string): VDancer {
   const base = src.name.replace(/ \d+$/, "");
   let k = 2;
@@ -350,6 +351,66 @@ export function wingSpot(taken: Vec2[], stage: StageSize, side: -1 | 1 = -1): Ve
     }
   }
   return [x, 0];
+}
+
+export const MIN_GAP = 0.8; // khoảng cách tối thiểu khi đặt bản sao cạnh nhau
+
+/**
+ * Điểm trống TRÊN SÂN (không phải cánh gà) gần `near` nhất, cách mọi điểm
+ * `taken` ít nhất `gap` mét. Dò theo các vòng lưới quanh `near` (bước gap/2),
+ * ưu tiên điểm gần nhất, hoà thì ưu tiên cùng hàng rồi lệch phải. Hết chỗ: null.
+ */
+export function spotNear(near: Vec2, taken: Vec2[], stage: StageSize, gap = MIN_GAP): Vec2 | null {
+  const hx = stage.width / 2 - 0.25;
+  const hz = stage.depth / 2 - 0.25;
+  const step = gap / 2;
+  const cands: { p: Vec2; d: number }[] = [];
+  const R = Math.ceil(Math.hypot(stage.width, stage.depth) / step);
+  for (let i = -R; i <= R; i++)
+    for (let j = -R; j <= R; j++) {
+      const p: Vec2 = [Math.round((near[0] + i * step) * 100) / 100, Math.round((near[1] + j * step) * 100) / 100];
+      if (Math.abs(p[0]) > hx || Math.abs(p[1]) > hz) continue;
+      // cùng hàng (j = 0) được ưu tiên nhẹ, rồi bên phải trước bên trái
+      cands.push({ p, d: Math.hypot(i, j) + (j !== 0 ? 0.01 : 0) + (i < 0 ? 0.001 : 0) });
+    }
+  cands.sort((a, b) => a.d - b.d);
+  for (const { p } of cands) if (taken.every((q) => dist(p, q) >= gap - 1e-9)) return p;
+  return null;
+}
+
+/**
+ * Đặt các bản sao `newIds` vào mọi đội hình: cạnh vị trí bản gốc `srcId` ở
+ * đội hình đó nếu bản gốc đang trên sân và còn chỗ, không thì vào cánh gà.
+ */
+export function placeClones(
+  fs: Formation[], srcId: string, newIds: string[], stage: StageSize, gap = MIN_GAP,
+): Formation[] {
+  return fs.map((f) => {
+    const pos = { ...f.pos };
+    const src = pos[srcId];
+    for (const id of newIds) {
+      if (pos[id]) continue;
+      const taken = Object.values(pos);
+      const p = src && !inWings(src, stage) ? spotNear(src, taken, stage, gap) : null;
+      pos[id] = p ?? wingSpot(taken, stage);
+    }
+    return { ...f, pos };
+  });
+}
+
+/**
+ * Múa canon (lần lượt): người thứ k trong `ids` (đã theo thứ tự danh sách)
+ * lệch offset người đầu + k·step. Trả patch offsetSec theo id (làm tròn ms).
+ */
+export function canonOffsets(dancers: VDancer[], ids: string[], step: number): Record<string, number> {
+  const order = dancers.filter((d) => ids.includes(d.id));
+  const out: Record<string, number> = {};
+  if (!order.length) return out;
+  const base = order[0].offsetSec;
+  order.forEach((d, k) => {
+    out[d.id] = Math.round((base + k * step) * 1000) / 1000;
+  });
+  return out;
 }
 
 export function addDancerToAll(fs: Formation[], id: string, stage: StageSize): Formation[] {

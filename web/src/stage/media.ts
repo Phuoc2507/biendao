@@ -1,5 +1,10 @@
-// Kho media đang mở: thẻ video (HTMLVideoElement) và bản nhạc (HTMLAudioElement
-// + AudioBuffer đã giải mã để vẽ sóng âm và khớp nhạc).
+// Kho media đang mở: thẻ video và bản nhạc (HTMLAudioElement + AudioBuffer đã
+// giải mã để vẽ sóng âm và khớp nhạc).
+//
+// Video tách hai tầng: VideoEntry giữ blob URL + kích thước theo mediaId (một
+// tệp), còn <video> phát thì tạo RIÊNG cho từng vũ công (getDancerVideo). Nhờ
+// vậy các bản nhân bản dùng chung một tệp nhưng mỗi người tua theo offsetSec
+// của mình (múa canon) mà không giành nhau một element.
 
 import { type MediaRec, getMedia, putMedia } from "./db";
 
@@ -7,13 +12,14 @@ export interface VideoEntry {
   id: string;
   name: string;
   url: string;
-  el: HTMLVideoElement;
   width: number;
   height: number;
   duration: number;
 }
 
 const videos = new Map<string, VideoEntry>();
+// <video> theo vũ công: dancerId -> element đang phát mediaId nào
+const players = new Map<string, { mediaId: string; el: HTMLVideoElement }>();
 const listeners = new Set<() => void>();
 let version = 0;
 
@@ -60,32 +66,88 @@ async function fixDuration(el: HTMLMediaElement): Promise<void> {
   el.currentTime = 0;
 }
 
-export async function registerVideo(rec: MediaRec): Promise<VideoEntry> {
-  const old = videos.get(rec.id);
-  if (old) return old;
-  const url = URL.createObjectURL(rec.blob);
+function makeVideoEl(url: string): HTMLVideoElement {
   const el = document.createElement("video");
   el.muted = true;
   el.playsInline = true;
   el.preload = "auto";
   el.src = url;
-  await waitMeta(el);
-  await fixDuration(el);
+  return el;
+}
+
+function dropEl(el: HTMLVideoElement) {
+  el.pause();
+  el.removeAttribute("src");
+  el.load();
+}
+
+export async function registerVideo(rec: MediaRec): Promise<VideoEntry> {
+  const old = videos.get(rec.id);
+  if (old) return old;
+  const url = URL.createObjectURL(rec.blob);
+  // element dò: chỉ để đọc kích thước, thời lượng rồi bỏ
+  const el = makeVideoEl(url);
+  try {
+    await waitMeta(el);
+    await fixDuration(el);
+  } catch (e) {
+    dropEl(el);
+    URL.revokeObjectURL(url);
+    throw e;
+  }
   const e: VideoEntry = {
-    id: rec.id, name: rec.name, url, el,
+    id: rec.id, name: rec.name, url,
     width: el.videoWidth, height: el.videoHeight, duration: el.duration || 0,
   };
+  dropEl(el);
   videos.set(rec.id, e);
   emit();
   return e;
 }
 
+/**
+ * <video> riêng của một vũ công (tạo lần đầu gọi, cùng blob URL với các bản
+ * sao). Đổi video thì element cũ bị bỏ, tạo cái mới. Không có video: undefined.
+ */
+export function getDancerVideo(dancerId: string, mediaId: string | null | undefined): HTMLVideoElement | undefined {
+  const v = getVideo(mediaId);
+  const cur = players.get(dancerId);
+  if (cur && (!v || cur.mediaId !== v.id)) {
+    dropEl(cur.el);
+    players.delete(dancerId);
+  } else if (cur) return cur.el;
+  if (!v) return undefined;
+  const el = makeVideoEl(v.url);
+  // có khung đầu thì báo để đồng hồ tua đúng chỗ và thẻ vẽ lại (không emit
+  // ngay vì hàm này có thể được gọi giữa lúc React render)
+  el.addEventListener("loadeddata", () => emit(), { once: true });
+  players.set(dancerId, { mediaId: v.id, el });
+  return el;
+}
+
+/** Element đã có của vũ công (không tạo mới), để dừng người bị ẩn. */
+export const peekDancerVideo = (dancerId: string): HTMLVideoElement | undefined => players.get(dancerId)?.el;
+
+/** Bỏ element của các vũ công không còn trong danh sách (bị xoá). */
+export function pruneDancerVideos(keep: Iterable<string>): void {
+  const k = new Set(keep);
+  for (const [id, p] of players) {
+    if (k.has(id)) continue;
+    dropEl(p.el);
+    players.delete(id);
+  }
+}
+
+export const dancerVideoCount = () => players.size;
+
 export function forgetVideo(id: string): void {
   const v = videos.get(id);
   if (!v) return;
-  v.el.pause();
-  v.el.removeAttribute("src");
-  v.el.load();
+  for (const [did, p] of players) {
+    if (p.mediaId !== id) continue;
+    dropEl(p.el);
+    players.delete(did);
+  }
   URL.revokeObjectURL(v.url);
   videos.delete(id);
   emit();
