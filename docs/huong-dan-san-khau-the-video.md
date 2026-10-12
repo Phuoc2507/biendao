@@ -144,6 +144,24 @@ Mỗi đội hình là một **khối** trên dòng thời gian: trong khối m�
 
 Bấm **Trình chiếu** (F): toàn màn hình góc khán giả, có tên đội hình và đếm phách cỡ lớn. Chiếu lên tivi hoặc máy chiếu cho cả đội nhìn theo. Space phát, dừng; mũi tên hoặc PageUp, PageDown nhảy đội hình; Esc thoát.
 
+* **Chiếu lên tivi, máy chiếu:** cắm máy, chọn *Mở rộng* (Win P ▸ Extend). Kéo cửa sổ Chrome sang màn hình tivi (hoặc bấm **Win Shift →**) **rồi mới bấm F**, vì toàn màn hình mở trên màn hình đang chứa cửa sổ.
+* **Đếm vào 5 · 6 · 7 · 8:** nút **5-6-7-8** (bật sẵn). Bấm phát thì app đếm bốn số theo nhịp bài (chưa đặt nhịp thì 0,6 s một số) rồi mới chạy nhạc. Space hoặc Esc để huỷ.
+* **Khoá sửa:** lúc trình chiếu không kéo được người, góc dưới trái ghi *Khoá sửa*. Góc nhìn cũng khoá; nút ổ khoá mở cho xoay bằng chuột. Nút máy ảnh hoặc phím **C** đặt lại góc nhìn vừa khít sân.
+* **Gương:** lật trái phải cả hình và sơ đồ nhỏ, để đội đứng quay mặt vào màn hình như soi gương.
+* **Sáng:** sân sáng hơn, dễ nhìn trên máy chiếu yếu.
+* **Tôi là ai:** chọn tên mình; người khác mờ đi, có vòng trắng dưới chân mình và dòng nhắc "bạn đứng ở đâu, còn bao lâu thì đi tới đâu".
+* Dòng **Tiếp** đếm theo lượt 8 và phách (ví dụ *còn 1×8 + 4*); chưa đặt nhịp thì theo giây.
+
+### Xem và tập trên sơ đồ
+
+Góc trên phải sơ đồ có ba nút:
+
+* **Tôi là ai…:** làm nổi một người, vẽ cả đường đi qua bài, mỗi chỗ đứng ghi số đội hình.
+* **Bóng đội hình kế:** hiện mờ chỗ đứng ở đội hình sau, có mũi tên.
+* **Cảnh báo:** danh sách ai va nhau (dưới 0,5 m), chồng lên nhau, hay phải chạy quá 1,5 m/s. Bấm một dòng để tua tới đó. Chỗ va nhau hiện dấu × đỏ, đoạn chạy quá nhanh tô đỏ trên sơ đồ.
+
+Trong khung khán giả: nút **Đặt lại** đưa góc nhìn về vừa khít sân; kéo thẻ giữ **Alt** để đặt tự do không bám lưới.
+
 ### Lưu
 
 * App **tự lưu** trong trình duyệt (góc trên ghi "Đã lưu").

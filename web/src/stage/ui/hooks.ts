@@ -1,14 +1,15 @@
 // Hook dùng chung cho giao diện.
 
 import { useMemo, useSyncExternalStore } from "react";
-import { findWarnings, segmentAt } from "../model";
+import { segmentAt } from "../model";
+import { findIssues } from "../checks";
 import { useProject } from "../store";
 import { mediaVersion, subscribeMedia } from "../media";
 import { useTime } from "../clock";
 
 export function useWarnings() {
   const p = useProject();
-  return useMemo(() => findWarnings(p.formations, p.dancers), [p.formations, p.dancers]);
+  return useMemo(() => findIssues(p.formations, p.dancers, p.stage, p.bpm), [p.formations, p.dancers, p.stage, p.bpm]);
 }
 
 export const useMediaVersion = () => useSyncExternalStore(subscribeMedia, mediaVersion);

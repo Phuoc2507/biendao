@@ -23,6 +23,8 @@ export interface UI {
   showGhosts: boolean;
   showNames: boolean;
   presenting: boolean;
+  // trình chiếu & tập (không lưu vào dự án)
+  me: string | null; countIn: boolean; orbitFree: boolean; mirror: boolean; bright: boolean; showNext: boolean;
   pxPerSec: number;
   saveState: "saved" | "saving" | "error";
   help: boolean;
@@ -66,6 +68,7 @@ export const useStore = create<State>((set, get) => ({
     showGhosts: true,
     showNames: true,
     presenting: false,
+    me: null, countIn: true, orbitFree: false, mirror: false, bright: false, showNext: false,
     pxPerSec: 40,
     saveState: "saved",
     help: false,
