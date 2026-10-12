@@ -339,18 +339,40 @@ export function renameFormation(fs: Formation[], id: string, name: string): Form
   return fs.map((f) => (f.id === id ? { ...f, name } : f));
 }
 
+/** Các cột đứng trong cánh gà, từ giữa cánh gà ra hai bên (mét, trị tuyệt đối). */
+const wingCols = (stage: StageSize) => {
+  const c = stage.width / 2 + WING / 2;
+  return [c, c - WING / 3, c + WING / 3];
+};
+
 /** Chỗ trống trong cánh gà (trái −1, phải +1; từ trước ra sau) cho người mới
- *  thêm. Cách nhau 1 m để tên trên sơ đồ không đè lên nhau. */
-export function wingSpot(taken: Vec2[], stage: StageSize, side: -1 | 1 = -1): Vec2 {
-  const x = side * (stage.width / 2 + WING / 2);
+ *  thêm. Cột giữa trước, cách nhau 1 m để tên trên sơ đồ không đè lên nhau,
+ *  rồi chen 0.5 m, rồi sang hai cột bên. Kín hết thì null. */
+export function freeWingSpot(taken: Vec2[], stage: StageSize, side: -1 | 1): Vec2 | null {
   const hz = stage.depth / 2;
-  for (const step of [1, 0.5]) {
-    for (let z = hz - 0.5; z >= -hz + 0.25; z -= step) {
-      const p: Vec2 = [x, Math.round(z * 100) / 100];
-      if (taken.every((q) => dist(p, q) > step * 0.8)) return p;
+  for (const cx of wingCols(stage))
+    for (const step of [1, 0.5])
+      for (let z = hz - 0.5; z >= -hz + 0.25; z -= step) {
+        const p: Vec2 = [side * cx, Math.round(z * 100) / 100];
+        if (taken.every((q) => dist(p, q) > step * 0.8)) return p;
+      }
+  return null;
+}
+
+/** Chỗ trong cánh gà bên side: chỗ trống đầu tiên, kín hết thì chỗ thưa người nhất. */
+export function wingSpot(taken: Vec2[], stage: StageSize, side: -1 | 1 = -1): Vec2 {
+  const free = freeWingSpot(taken, stage, side);
+  if (free) return free;
+  const hz = stage.depth / 2;
+  let best: Vec2 = [side * wingCols(stage)[0], 0];
+  let room = -1;
+  for (const cx of wingCols(stage))
+    for (let z = hz - 0.25; z >= -hz + 0.25 - 1e-9; z -= 0.25) {
+      const p: Vec2 = [side * cx, Math.round(z * 100) / 100];
+      const r = Math.min(...taken.map((q) => dist(p, q)));
+      if (r > room + 1e-9) { room = r; best = p; }
     }
-  }
-  return [x, 0];
+  return best;
 }
 
 export const MIN_GAP = 0.8; // khoảng cách tối thiểu khi đặt bản sao cạnh nhau
@@ -388,28 +410,35 @@ export function placeClones(
   return fs.map((f) => {
     const pos = { ...f.pos };
     const src = pos[srcId];
+    // cánh gà gần bản gốc trước, kín thì sang bên kia
+    const side: -1 | 1 = src && src[0] > 0 ? 1 : -1;
     for (const id of newIds) {
       if (pos[id]) continue;
       const taken = Object.values(pos);
       const p = src && !inWings(src, stage) ? spotNear(src, taken, stage, gap) : null;
-      pos[id] = p ?? wingSpot(taken, stage);
+      pos[id] = p ?? freeWingSpot(taken, stage, side) ?? freeWingSpot(taken, stage, side === 1 ? -1 : 1)
+        ?? wingSpot(taken, stage, side);
     }
     return { ...f, pos };
   });
 }
 
 /**
- * Múa canon (lần lượt): người thứ k trong `ids` (đã theo thứ tự danh sách)
- * lệch offset người đầu + k·step. Trả patch offsetSec theo id (làm tròn ms).
+ * Lệch canon: trong những người đang chọn, chỉ những ai dùng CHUNG video với
+ * người dẫn (người đầu tiên theo thứ tự danh sách có video) mới được đặt lại
+ * offset = offset người dẫn + k·step. Người dùng video khác đã khớp nhạc riêng,
+ * ghi đè sẽ làm lệch họ khỏi nhạc nên giữ nguyên. Không ai có video thì lấy
+ * người đầu tiên làm dẫn.
  */
 export function canonOffsets(dancers: VDancer[], ids: string[], step: number): Record<string, number> {
   const order = dancers.filter((d) => ids.includes(d.id));
   const out: Record<string, number> = {};
   if (!order.length) return out;
-  const base = order[0].offsetSec;
-  order.forEach((d, k) => {
-    out[d.id] = Math.round((base + k * step) * 1000) / 1000;
-  });
+  const lead = order.find((d) => d.mediaId) ?? order[0];
+  const base = lead.offsetSec;
+  order
+    .filter((d) => (d.mediaId ?? null) === (lead.mediaId ?? null))
+    .forEach((d, k) => { out[d.id] = Math.round((base + k * step) * 1000) / 1000; });
   return out;
 }
 

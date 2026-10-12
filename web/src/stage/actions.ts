@@ -5,7 +5,7 @@ import {
   PALETTE, newDancer, cloneDancer, lineup, posesAt, ensureFormationAt, setPositions,
   addFormationAfter, deleteFormation, addDancerToAll, removeDancerFromAll,
   arrangeShape, mirrorPositions, distributeX, holdIndexAt, segmentAt,
-  snapPos, emptyProject, renameFormation, wingSpot, placeClones, canonOffsets as canonPatch,
+  snapPos, emptyProject, renameFormation, wingSpot, placeClones, canonOffsets as canonPatch, SHAPE_LABEL,
 } from "./model";
 import { defaultLens, snapTime } from "./timing";
 import { st, useStore } from "./store";
@@ -16,7 +16,7 @@ import {
 } from "./media";
 import { estimateOffset, CONFIDENT } from "./align";
 import { saveProject, loadProject, allMediaIds, deleteMedia } from "./db";
-import { autoPlan, energyChangeScore } from "./autoplan";
+import { planDance, energyChangeScore } from "./autoplan";
 
 export const proj = () => st().project;
 const ids = (p: Project = proj()) => p.dancers.map((d) => d.id);
@@ -111,13 +111,21 @@ export function duplicateDancer(id: string, n = 1): string | null {
   return clones[0].id;
 }
 
-/** Múa canon: người thứ k trong lựa chọn (theo thứ tự danh sách) lệch thêm k·step giây. */
+/**
+ * Múa canon: người thứ k trong lựa chọn (theo thứ tự danh sách) lệch thêm
+ * k·step giây. Chỉ áp cho những người dùng chung video với người dẫn.
+ */
 export function canonOffsets(sel: string[], step: number) {
   const p = proj();
+  const picked = p.dancers.filter((d) => sel.includes(d.id)).length;
   const patch = canonPatch(p.dancers, sel, step);
   const n = Object.keys(patch).length;
   if (n < 2) {
-    st().notify("Chọn ít nhất 2 người để lệch canon");
+    st().notify(
+      picked >= 2
+        ? "Lệch canon chỉ dành cho những người dùng chung một video — nhân bản (×N) một người rồi lệch"
+        : "Chọn ít nhất 2 người để lệch canon",
+    );
     return;
   }
   st().commit((q) => ({
@@ -125,7 +133,12 @@ export function canonOffsets(sel: string[], step: number) {
     dancers: q.dancers.map((d) => (d.id in patch ? { ...d, offsetSec: patch[d.id] } : d)),
   }));
   clock.resync();
-  st().notify(`Lệch canon ${n} người, mỗi người sau ${step.toFixed(2)} s`, { undo: true });
+  const skipped = picked - n;
+  st().notify(
+    `Lệch canon ${n} người, mỗi người sau ${step.toFixed(2)} s` +
+      (skipped > 0 ? ` — giữ nguyên ${skipped} người dùng video khác` : ""),
+    { undo: true },
+  );
 }
 
 export function updateDancer(id: string, patch: Partial<VDancer>) {
@@ -533,26 +546,48 @@ export function autoFormations(o: { count?: number; everyEights?: number }) {
     st().notify("Thêm vũ công trước rồi mới tự chia đội hình");
     return;
   }
-  let duration = p.musicDuration;
+  // chỉ chia cho người đang hiện, như khi xếp hình nhanh
+  const vis = p.dancers.filter((d) => !d.hidden).map((d) => d.id);
+  if (!vis.length) {
+    st().notify("Mọi vũ công đang ẩn — hiện ít nhất một người rồi mới tự chia đội hình");
+    return;
+  }
+  // webm ghi từ máy có thể chưa biết độ dài (Infinity): bỏ qua số đó
+  const fin = (v: number) => (Number.isFinite(v) ? v : 0);
+  let duration = fin(p.musicDuration);
   if (!(duration > 0)) {
     duration = 32;
     const last = p.formations[p.formations.length - 1];
-    if (last) duration = Math.max(duration, last.end);
-    for (const d of p.dancers) if (d.mediaId) duration = Math.max(duration, d.offsetSec + d.durationSec);
+    if (last) duration = Math.max(duration, fin(last.end));
+    for (const d of p.dancers) if (d.mediaId) duration = Math.max(duration, fin(d.offsetSec + d.durationSec));
   }
   const buf = music.buffer;
-  const formations = autoPlan({
-    ids: ids(p), stage: p.stage, duration, bpm: p.bpm, downbeat: p.downbeat,
+  const r = planDance({
+    ids: vis, stage: p.stage, duration, bpm: p.bpm, downbeat: p.downbeat,
     count: o.count, everyEights: o.everyEights,
     start: p.formations[0]?.pos,
     changeScore: buf ? energyChangeScore(monoOf(buf), buf.sampleRate) : undefined,
     newId: () => uid("f"),
   });
+  // người đang ẩn đứng yên ở chỗ cũ trong đội hình đầu, chưa có chỗ thì vào cánh gà
+  const park: Record<string, Vec2> = {};
+  const parked: Vec2[] = [];
+  for (const d of p.dancers) {
+    if (!d.hidden) continue;
+    const q = p.formations[0]?.pos[d.id] ?? wingSpot(parked, p.stage);
+    park[d.id] = q;
+    parked.push(q);
+  }
+  const formations = r.formations.map((f) => ({ ...f, pos: { ...f.pos, ...park } }));
   const had = p.formations.length;
   st().commit((q) => ({ ...q, formations }));
   clock.seek(formations[0].start + 0.001);
   st().setUI({ selectedBlock: formations[0].id });
-  const how = buf ? ", điểm đổi theo nhạc" : "";
+  const notes: string[] = [];
+  if (r.merged > 0) notes.push(`bớt ${r.merged} vì đoạn quá ngắn, đi kịp phải chạy quá nhanh`);
+  if (r.crowded.length)
+    notes.push(`bỏ hình ${r.crowded.map((k) => SHAPE_LABEL[k].toLowerCase()).join(", ")} vì quá chật cho ${vis.length} người`);
+  const how = (buf ? ", điểm đổi theo nhạc" : "") + (notes.length ? ` (${notes.join("; ")})` : "");
   if (had > 1)
     st().notify(`Đã thay ${had} đội hình cũ bằng ${formations.length} đội hình mới${how} — Ctrl Z để hoàn tác`, { undo: true, kind: "warn" });
   else st().notify(`Đã tạo ${formations.length} đội hình${how} — Ctrl Z để hoàn tác`, { undo: true });

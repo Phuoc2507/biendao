@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   type Formation, type Vec2,
   newDancer, dist, inWings, spotNear, placeClones, canonOffsets, checkInvariants, emptyProject, MIN_GAP,
+  wingSpot,
 } from "./model.ts";
 
 const stage = { width: 10, depth: 6 };
@@ -66,4 +67,46 @@ test("canonOffsets: người thứ k lệch offset người đầu + k·Δ theo 
   assert.ok(!("a" in r));
   assert.deepEqual(canonOffsets(ds, [], 0.5), {});
   assert.deepEqual(canonOffsets(ds, ["a", "b"], -0.25), { a: 0, b: -0.25 });
+});
+
+test("canonOffsets: chỉ lệch những người dùng chung video với người dẫn", () => {
+  const ds = ["a", "b", "c", "d", "e"].map((id) => newDancer(id, id, "#fff"));
+  ds[0].mediaId = "m1"; ds[0].offsetSec = 0.3;
+  ds[1].mediaId = "m2"; ds[1].offsetSec = 1; // video khác, đã khớp nhạc riêng
+  ds[2].mediaId = "m1"; ds[2].offsetSec = 0.3;
+  ds[3].mediaId = "m1"; ds[3].offsetSec = 0.3;
+  // e chưa có video
+  assert.deepEqual(canonOffsets(ds, ["a", "b", "c", "d", "e"], 0.5), { a: 0.3, c: 0.8, d: 1.3 });
+  // người đầu danh sách chưa có video: dẫn là người đầu tiên có video
+  assert.deepEqual(canonOffsets(ds, ["e", "b"], 0.5), { b: 1 });
+  // lặp lại cùng bước không cộng dồn
+  ds[2].offsetSec = 0.8; ds[3].offsetSec = 1.3;
+  assert.deepEqual(canonOffsets(ds, ["a", "c", "d"], 0.5), { a: 0.3, c: 0.8, d: 1.3 });
+});
+
+test("placeClones: gốc trong cánh gà, nhiều bản sao không chồng nhau, kín bên này sang bên kia", () => {
+  const fs: Formation[] = [{ id: "f", name: "Đội hình 1", start: 0, end: 4, pos: { a: [5.75, 2.5] } }];
+  const newIds = Array.from({ length: 40 }, (_, i) => `c${i}`);
+  const out = placeClones(fs, "a", newIds, stage)[0].pos;
+  const pts = Object.values(out);
+  for (let i = 0; i < pts.length; i++)
+    for (let j = i + 1; j < pts.length; j++) assert.ok(dist(pts[i], pts[j]) > 0.4, `${i} ${j} chồng nhau`);
+  for (const id of newIds) assert.ok(inWings(out[id], stage));
+  assert.ok(out.c0[0] > 0, "cùng bên với bản gốc trước");
+  assert.ok(newIds.some((id) => out[id][0] < 0), "kín bên phải thì sang trái");
+  const p = {
+    ...emptyProject(),
+    dancers: ["a", ...newIds].map((id) => newDancer(id, id, "#fff")),
+    formations: [{ ...fs[0], pos: out }],
+  };
+  assert.deepEqual(checkInvariants(p), []);
+});
+
+test("wingSpot: cánh gà kín thì chọn chỗ thưa nhất, không dồn một điểm", () => {
+  const taken: Vec2[] = [];
+  for (let i = 0; i < 45; i++) taken.push(wingSpot(taken, stage, -1));
+  assert.equal(new Set(taken.map((p) => p.join())).size, taken.length);
+  for (const p of taken) assert.ok(inWings(p, stage) && p[0] < 0 && Math.abs(p[0]) <= stage.width / 2 + 1.5);
+  // 11 chỗ đầu như cũ: cột giữa cánh gà
+  assert.ok(taken.slice(0, 11).every((p) => p[0] === -5.75));
 });

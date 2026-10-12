@@ -2,12 +2,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   autoPlan, pairClearance, clearance, minTransitionGap, fittedShape, timeGrid,
-  changeIndices, energyChangeScore, nextArrangement, repairSwaps,
+  changeIndices, energyChangeScore, nextArrangement, repairSwaps, planDance, minPairDist, roomyShapes,
   DEFAULT_SHAPES, VMAX, CLEAR_M, MARGIN_X,
 } from "./autoplan.ts";
 import {
   type Project, type Vec2, type Formation, emptyProject, newDancer, checkInvariants,
-  inWings, smoothstep, lerp2, dist, findWarnings, assignNearest,
+  inWings, smoothstep, lerp2, dist, findWarnings, assignNearest, SHAPE_LABEL,
 } from "./model.ts";
 
 const stage = { width: 10, depth: 6 };
@@ -302,4 +302,57 @@ test("sửa va chạm (hoán đổi/lật/đổi kiểu) thoáng hơn chỉ gán
   assert.ok(ours >= CLEAR_M, `còn sát ${ours.toFixed(2)} m`);
   assert.ok(ours > hung, `${ours.toFixed(2)} không hơn Hungary ${hung.toFixed(2)}`);
   for (let k = 1; k < fs.length; k++) assert.notEqual(fs[k].name.split("· ")[1], fs[k - 1].name.split("· ")[1]);
+});
+
+test("autoPlan đông người: bỏ hình quá chật, lúc đứng không ai sát ai", () => {
+  for (const n of [18, 24, 31]) {
+    const ids = mkIds(n);
+    const r = planDance({ ids, stage, duration: 120, bpm: 120 });
+    assert.ok(r.crowded.length > 0, `n=${n} phải bỏ bớt hình`);
+    assert.ok(r.crowded.every((k) => minPairDist(fittedShape(k, n, stage)) < CLEAR_M));
+    for (const f of r.formations) {
+      const m = minPairDist(ids.map((id) => f.pos[id]));
+      assert.ok(m >= CLEAR_M - 1e-9, `${f.name} n=${n} sát ${m.toFixed(2)} m`);
+    }
+    assert.deepEqual(checkInvariants(asProject(ids, r.formations)), []);
+  }
+  // ít người: không bỏ hình nào
+  assert.deepEqual(planDance({ ids: mkIds(8), stage, duration: 120, bpm: 120 }).crowded, []);
+  // chật cho mọi hình: chỉ dùng các hình thoáng nhất, không dồn về hàng ngang
+  const keep = roomyShapes(DEFAULT_SHAPES, 40, stage);
+  assert.ok(keep.length > 0 && !keep.includes("line"));
+  const many = autoPlan({ ids: mkIds(40), stage, duration: 60, bpm: 120 });
+  for (const f of many) assert.ok(keep.some((k) => f.name.endsWith(SHAPE_LABEL[k])), f.name);
+});
+
+test("autoPlan: đoạn quá ngắn không kịp đi thì giữ đội hình cũ, không ai chạy quá VMAX", () => {
+  // hàng ngang 10.8 m <-> vòng tròn nhỏ: người ở đầu hàng phải đi ~4 m, mỗi
+  // đoạn chỉ dành được 1 lượt 8 (2.67 s ở 180 BPM) để chuyển -> không kịp
+  const big = { width: 20, depth: 10 };
+  const ids = mkIds(10);
+  const o = { ids, stage: big, duration: 120, bpm: 180, everyEights: 2, shapes: ["line", "circle"] as const };
+  const r = planDance({ ...o, shapes: [...o.shapes] });
+  assert.ok(r.merged > 0, "phải bỏ bớt điểm đổi");
+  assert.equal(r.formations.length + r.merged, r.wanted);
+  const fs = r.formations;
+  for (let k = 0; k + 1 < fs.length; k++) {
+    const gap = fs[k + 1].start - fs[k].end;
+    const far = Math.max(...ids.map((id) => dist(fs[k].pos[id], fs[k + 1].pos[id])));
+    assert.ok((1.5 * far) / gap <= VMAX + 1e-6, `chuyển ${k + 1}: ${((1.5 * far) / gap).toFixed(2)} m/s`);
+    assert.ok(fs[k].end - fs[k].start >= (8 * 60) / 180 - 1e-6, "vẫn giữ ít nhất 1 lượt 8");
+  }
+  assert.deepEqual(checkInvariants({ ...asProject(ids, fs), stage: big }), []);
+});
+
+test("timeGrid/autoPlan: độ dài vô hạn hay BPM hỏng không treo", () => {
+  assert.deepEqual(timeGrid(Infinity, 120).lines, [0]);
+  for (const bpm of [Infinity, NaN, -5, 0, 1e9]) {
+    const g = timeGrid(60, bpm);
+    assert.equal(g.onBeat, false, `bpm ${bpm}`);
+    assert.equal(g.lines.length, 16);
+  }
+  assert.equal(timeGrid(60, 120, NaN).lines[0], 0);
+  const fs = autoPlan({ ids: mkIds(4), stage, duration: Infinity, bpm: 120 });
+  assert.equal(fs.length, 1);
+  assert.deepEqual(checkInvariants(asProject(mkIds(4), fs)), []);
 });

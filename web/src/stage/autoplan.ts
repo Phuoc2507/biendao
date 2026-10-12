@@ -13,7 +13,11 @@
 //     dời điểm đổi tới vạch có điểm cao nhất gần đó.
 //  3. Khoảng chuyển nằm ngay TRƯỚC điểm đổi, nên mọi người tới đội hình mới
 //     đúng phách 1. Khoảng chuyển tối thiểu 1 lượt 8 (hoặc 2 s), giãn thêm khi
-//     đường xa để tốc độ đỉnh không quá VMAX.
+//     đường xa để tốc độ đỉnh không quá VMAX. Đoạn quá ngắn không kịp đi tới
+//     hình mới thì giữ nguyên đội hình cũ qua điểm đổi đó (bớt một đội hình)
+//     chứ không bắt ai chạy quá VMAX.
+//  Đông người: kiểu hình nào làm hai người đứng gần hơn CLEAR_M thì bỏ, không
+//  kiểu nào đủ chỗ thì chỉ dùng các kiểu thoáng nhất.
 
 import {
   type Formation, type ShapeKind, type StageSize, type Vec2,
@@ -94,7 +98,7 @@ export function minTransitionGap(fs: Formation[], ids: string[]): number {
 
 // ---------- đặt hình gọn trong sàn ----------
 
-function minPairDist(pts: Vec2[]): number {
+export function minPairDist(pts: Vec2[]): number {
   let m = Infinity;
   for (let i = 0; i < pts.length; i++)
     for (let j = i + 1; j < pts.length; j++) m = Math.min(m, dist(pts[i], pts[j]));
@@ -119,6 +123,18 @@ export function fittedShape(kind: ShapeKind, n: number, stage: StageSize, mirror
   return minPairDist(snapped) >= Math.min(minPairDist(fit), CLEAR_M + 0.25) - 1e-9 ? snapped : fit.map(clampIn);
 }
 
+/**
+ * Các kiểu hình đủ chỗ cho n người trên sàn (không ai đứng gần ai hơn CLEAR_M),
+ * giữ thứ tự. Không kiểu nào đủ chỗ thì lấy các kiểu thoáng nhất.
+ */
+export function roomyShapes(shapes: ShapeKind[], n: number, stage: StageSize): ShapeKind[] {
+  const room = shapes.map((k) => minPairDist(fittedShape(k, n, stage)));
+  const ok = shapes.filter((_, i) => room[i] >= CLEAR_M - 1e-9);
+  if (ok.length) return ok;
+  const top = Math.max(...room);
+  return shapes.filter((_, i) => room[i] >= top - 0.02);
+}
+
 // ---------- gán người, sửa va chạm ----------
 
 interface Cand {
@@ -127,20 +143,31 @@ interface Cand {
   to: Vec2[]; // vị trí đích theo thứ tự người
   c: Clearance;
   cost: number; // tổng bình phương quãng đường
+  over: number; // quãng vượt tầm với (m): > 0 là phải chạy quá VMAX
 }
 
 const sq = (a: Vec2, b: Vec2) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2;
 const totalCost = (from: Vec2[], to: Vec2[]) => from.reduce((s, p, i) => s + sq(p, to[i]), 0);
 
-/** a tốt hơn b: ít cặp va hơn, rồi (nếu còn va) thoáng hơn, rồi đi ít hơn. */
+const OVER_EPS = 1e-6;
+
+/**
+ * a tốt hơn b: kịp đi (không ai quá tầm với) trước, rồi ít cặp va hơn, rồi vượt
+ * tầm ít hơn, rồi (nếu còn va) thoáng hơn, rồi đi ít hơn.
+ */
 function better(a: Cand, b: Cand): boolean {
+  const fa = a.over <= OVER_EPS, fb = b.over <= OVER_EPS;
+  if (fa !== fb) return fa;
   if (a.c.hits !== b.c.hits) return a.c.hits < b.c.hits;
+  if (Math.abs(a.over - b.over) > OVER_EPS) return a.over < b.over;
   if (a.c.hits > 0 && Math.abs(a.c.min - b.c.min) > 1e-6) return a.c.min > b.c.min;
   return a.cost < b.cost - 1e-9;
 }
 
-function evalCand(kind: ShapeKind, mirror: boolean, from: Vec2[], to: Vec2[]): Cand {
-  return { kind, mirror, to, c: clearance(from, to), cost: totalCost(from, to) };
+function evalCand(kind: ShapeKind, mirror: boolean, from: Vec2[], to: Vec2[], reach = Infinity): Cand {
+  let far = 0;
+  for (let i = 0; i < from.length; i++) far = Math.max(far, dist(from[i], to[i]));
+  return { kind, mirror, to, c: clearance(from, to), cost: totalCost(from, to), over: Math.max(0, far - reach) };
 }
 
 /** Hoán đổi đích của từng cặp người khi việc đó làm giảm va chạm. */
@@ -162,42 +189,44 @@ export function repairSwaps(from: Vec2[], to: Vec2[], maxIter = 40): Vec2[] {
   return cur.to;
 }
 
-function candidate(kind: ShapeKind, mirror: boolean, from: Vec2[], stage: StageSize): Cand {
+function candidate(kind: ShapeKind, mirror: boolean, from: Vec2[], stage: StageSize, reach: number): Cand {
   const pts = fittedShape(kind, from.length, stage, mirror);
   const asg = assignNearest(from, pts);
-  let to = from.map((_, i) => pts[asg[i]]);
-  const c0 = clearance(from, to);
-  if (c0.hits > 0) to = repairSwaps(from, to);
-  return evalCand(kind, mirror, from, to);
+  const a = evalCand(kind, mirror, from, from.map((_, i) => pts[asg[i]]), reach);
+  if (a.c.hits === 0) return a;
+  const b = evalCand(kind, mirror, from, repairSwaps(from, a.to), reach);
+  return better(b, a) ? b : a;
 }
 
 const sameSet = (a: Vec2[], b: Vec2[]) =>
   a.length === b.length && a.every((p) => b.some((q) => dist(p, q) < 1e-6));
 
 /**
- * Chọn đội hình kế tiếp: thử kiểu hình dự định (thường và lật), nếu vẫn va thì
- * thử các kiểu khác; lấy phương án ít va nhất, ưu tiên kiểu dự định.
+ * Chọn đội hình kế tiếp: thử kiểu hình dự định (thường và lật), nếu vẫn va hoặc
+ * có người phải đi xa hơn reach mét thì thử các kiểu khác; lấy phương án tốt
+ * nhất theo better(), ưu tiên kiểu dự định. over > 0: không phương án nào kịp.
  */
 export function nextArrangement(
-  from: Vec2[], planned: ShapeKind, others: ShapeKind[], stage: StageSize,
-): { kind: ShapeKind; mirror: boolean; to: Vec2[]; clearance: Clearance } {
+  from: Vec2[], planned: ShapeKind, others: ShapeKind[], stage: StageSize, reach = Infinity,
+): { kind: ShapeKind; mirror: boolean; to: Vec2[]; clearance: Clearance; over: number } {
   const tryKind = (k: ShapeKind): Cand => {
-    const a = candidate(k, false, from, stage);
+    const a = candidate(k, false, from, stage, reach);
     const mp = fittedShape(k, from.length, stage, true);
     if (sameSet(mp, fittedShape(k, from.length, stage, false))) return a;
-    const b = candidate(k, true, from, stage);
+    const b = candidate(k, true, from, stage, reach);
     return better(b, a) ? b : a;
   };
+  const done = (c: Cand) => c.c.hits === 0 && c.over <= OVER_EPS;
   let best = tryKind(planned);
-  if (best.c.hits > 0) {
+  if (!done(best)) {
     for (const k of others) {
       if (k === planned) continue;
       const c = tryKind(k);
       if (better(c, best)) best = c;
-      if (best.c.hits === 0) break;
+      if (done(best)) break;
     }
   }
-  return { kind: best.kind, mirror: best.mirror, to: best.to, clearance: best.c };
+  return { kind: best.kind, mirror: best.mirror, to: best.to, clearance: best.c, over: best.over };
 }
 
 // ---------- chia thời gian ----------
@@ -209,9 +238,12 @@ export interface TimeGrid {
 }
 
 export function timeGrid(duration: number, bpm?: number | null, downbeat = 0): TimeGrid {
-  const onBeat = !!bpm && bpm > 0;
+  // độ dài vô hạn (webm ghi từ máy chưa có duration) hay BPM hỏng làm vòng lặp
+  // dưới không dừng: coi như không có
+  if (!Number.isFinite(duration)) duration = 0;
+  const onBeat = typeof bpm === "number" && Number.isFinite(bpm) && bpm >= 20 && bpm <= 400;
   const unit = onBeat ? 8 * beatLen(bpm!) : PSEUDO_EIGHT;
-  const base = onBeat ? downbeat : 0;
+  const base = onBeat && Number.isFinite(downbeat) ? downbeat : 0;
   const j0 = Math.ceil((0 - base) / unit - 1e-9);
   const lines: number[] = [];
   for (let j = j0; base + j * unit <= duration + 1e-6; j++) lines.push(round3(base + j * unit));
@@ -254,11 +286,27 @@ const ceilTo = (v: number, step: number) => Math.ceil(v / step - 1e-9) * step;
 
 // ---------- tổng hợp ----------
 
+export interface AutoPlanResult {
+  formations: Formation[];
+  /** Số đội hình định chia (đã kẹp theo độ dài bài). */
+  wanted: number;
+  /** Số điểm đổi bị bỏ vì đoạn quá ngắn, đi tới hình mới sẽ phải chạy quá VMAX. */
+  merged: number;
+  /** Kiểu hình bị bỏ vì quá chật cho từng ấy người. */
+  crowded: ShapeKind[];
+}
+
 export function autoPlan(o: AutoPlanOpts): Formation[] {
+  return planDance(o).formations;
+}
+
+export function planDance(o: AutoPlanOpts): AutoPlanResult {
   const ids = o.ids;
   const n = ids.length;
-  const shapes = o.shapes?.length ? o.shapes : DEFAULT_SHAPES;
-  const g = timeGrid(Math.max(0, o.duration), o.bpm, o.downbeat ?? 0);
+  const asked = o.shapes?.length ? o.shapes : DEFAULT_SHAPES;
+  const shapes = roomyShapes(asked, n, o.stage);
+  const duration = Number.isFinite(o.duration) ? Math.max(0, o.duration) : 0;
+  const g = timeGrid(duration, o.bpm, o.downbeat ?? 0);
   const minHold = g.onBeat ? g.unit : 2;
   const baseGap = g.onBeat ? g.unit : 2;
   const minU = g.onBeat ? 2 : 1; // số vạch tối thiểu mỗi đoạn: giữ + chuyển
@@ -270,74 +318,82 @@ export function autoPlan(o: AutoPlanOpts): Formation[] {
   else N = Math.max(1, Math.round(M / Math.max(1, o.everyEights ?? 4)));
   N = Math.max(1, Math.min(N, Math.floor(M / minU)));
 
-  // --- vị trí ---
-  const posList: Vec2[][] = [];
-  const kinds: ShapeKind[] = [];
-  for (let k = 0; k < N; k++) {
-    let planned = shapes[k % shapes.length];
-    // lần trước phải đổi kiểu vì va: đừng lặp lại đúng kiểu vừa đứng
-    if (k > 0 && planned === kinds[k - 1] && shapes.length > 1) planned = shapes[(k + 1) % shapes.length];
-    if (k === 0) {
-      const pts = fittedShape(planned, n, o.stage);
-      const st = o.start;
-      if (st && ids.every((id) => st[id])) {
-        const from = ids.map((id) => st[id]);
-        const asg = assignNearest(from, pts);
-        posList.push(from.map((_, i) => pts[asg[i]]));
-      } else {
-        // không có vị trí sẵn: xếp theo thứ tự danh sách từ trái sang phải
-        const order = pts.map((p, i) => i).sort((a, b) => pts[a][0] - pts[b][0] || pts[b][1] - pts[a][1]);
-        posList.push(ids.map((_, i) => pts[order[i]]));
-      }
-      kinds.push(planned);
-      continue;
-    }
-    // các kiểu khác: ưu tiên kiểu chưa dùng gần đây
-    const others = [...shapes.slice((k + 1) % shapes.length), ...shapes.slice(0, (k + 1) % shapes.length)]
-      .filter((s) => s !== kinds[k - 1]);
-    const r = nextArrangement(posList[k - 1], planned, others, o.stage);
-    posList.push(r.to);
-    kinds.push(r.kind);
-  }
-
-  // --- thời gian ---
-  let starts: number[];
-  let lastEnd: number;
+  // --- thời gian: cuts[k] là lúc bắt đầu đội hình k, cuts[N] là hết khối cuối ---
+  let cuts: number[];
   if (M < minU) {
     // bài quá ngắn so với một đoạn: một khối duy nhất
     const s = g.lines[0] ?? 0;
-    starts = [s];
-    lastEnd = Math.max(s + minHold, o.duration);
+    cuts = [s, Math.max(s + minHold, duration)];
     N = 1;
   } else {
     const score = o.changeScore;
-    const idx = changeIndices(M, N, minU, score ? (j) => score(g.lines[j]) : undefined);
-    starts = idx.slice(0, N).map((j) => g.lines[j]);
-    lastEnd = g.lines[idx[N]];
+    cuts = changeIndices(M, N, minU, score ? (j) => score(g.lines[j]) : undefined).map((j) => g.lines[j]);
   }
 
+  // --- vị trí, lần lượt từng điểm đổi ---
+  const blocks: { start: number; pts: Vec2[]; kind: ShapeKind }[] = [];
+  {
+    const planned = shapes[0];
+    const pts = fittedShape(planned, n, o.stage);
+    const st = o.start;
+    let first: Vec2[];
+    if (st && ids.every((id) => st[id])) {
+      const from = ids.map((id) => st[id]);
+      const asg = assignNearest(from, pts);
+      first = from.map((_, i) => pts[asg[i]]);
+    } else {
+      // không có vị trí sẵn: xếp theo thứ tự danh sách từ trái sang phải
+      const order = pts.map((p, i) => i).sort((a, b) => pts[a][0] - pts[b][0] || pts[b][1] - pts[a][1]);
+      first = ids.map((_, i) => pts[order[i]]);
+    }
+    blocks.push({ start: cuts[0], pts: first, kind: planned });
+  }
+  let merged = 0;
+  for (let j = 1; j < N; j++) {
+    const k = blocks.length;
+    const prev = blocks[k - 1];
+    let planned = shapes[k % shapes.length];
+    // lần trước phải đổi kiểu vì va: đừng lặp lại đúng kiểu vừa đứng
+    if (planned === prev.kind && shapes.length > 1) planned = shapes[(k + 1) % shapes.length];
+    // các kiểu khác: ưu tiên kiểu chưa dùng gần đây
+    const others = [...shapes.slice((k + 1) % shapes.length), ...shapes.slice(0, (k + 1) % shapes.length)]
+      .filter((s) => s !== prev.kind);
+    // tầm với: đi xa nhất được bao nhiêu nếu dành hết phần sau lượt giữ để chuyển
+    const reach = (VMAX * (cuts[j] - prev.start - minHold)) / 1.5;
+    const r = nextArrangement(prev.pts, planned, others, o.stage, reach);
+    if (r.over > OVER_EPS) {
+      // không kịp: giữ đội hình cũ qua điểm đổi này, đoạn sau dài ra
+      merged++;
+      continue;
+    }
+    blocks.push({ start: cuts[j], pts: r.to, kind: r.kind });
+  }
+
+  // --- khoảng chuyển ---
+  const lastEnd = cuts[N];
   const out: Formation[] = [];
-  for (let k = 0; k < N; k++) {
-    const start = starts[k];
-    let end = k + 1 < N ? starts[k + 1] : lastEnd;
-    if (k + 1 < N) {
-      const travel = Math.max(0, ...posList[k].map((p, i) => dist(p, posList[k + 1][i])));
+  for (let k = 0; k < blocks.length; k++) {
+    const b = blocks[k];
+    let end = k + 1 < blocks.length ? blocks[k + 1].start : lastEnd;
+    if (k + 1 < blocks.length) {
+      const nx = blocks[k + 1].pts;
+      const travel = Math.max(0, ...b.pts.map((p, i) => dist(p, nx[i])));
       const need = (1.5 * travel) / VMAX; // tốc độ đỉnh smoothstep = 1.5·quãng/thời gian
       let gap = Math.max(baseGap, g.onBeat ? ceilTo(need, g.unit) : ceilTo(need, 0.5));
-      gap = Math.min(gap, end - start - minHold);
+      gap = Math.min(gap, end - b.start - minHold);
       end = round3(end - gap);
     }
     const pos: Record<string, Vec2> = {};
-    ids.forEach((id, i) => { pos[id] = [posList[k][i][0], posList[k][i][1]]; });
+    ids.forEach((id, i) => { pos[id] = [b.pts[i][0], b.pts[i][1]]; });
     out.push({
       id: mkId(k),
-      name: `Đội hình ${k + 1} · ${SHAPE_LABEL[kinds[k]]}`,
-      start: round3(start),
+      name: `Đội hình ${k + 1} · ${SHAPE_LABEL[b.kind]}`,
+      start: round3(b.start),
       end: round3(end),
       pos,
     });
   }
-  return out;
+  return { formations: out, wanted: N, merged, crowded: asked.filter((k) => !shapes.includes(k)) };
 }
 
 // ---------- năng lượng nhạc ----------
