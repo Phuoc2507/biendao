@@ -133,6 +133,12 @@ Mỗi đội hình là một **khối** trên dòng thời gian: trong khối m�
 2. Kéo người trên sơ đồ tới chỗ mới. Kéo vùng trống để chọn nhiều người; Shift bấm để thêm bớt.
 3. Kéo **mép khối** để đổi lúc bắt đầu, kết thúc; kéo **giữa khối** để dời cả khối. Khoảng giữa hai khối càng dài thì đi càng chậm.
 4. Trong thẻ *Đội hình*: đổi tên, ghi chú, **Lật** trái phải, **Dàn đều**, đưa người vào **Cánh trái** hoặc **Cánh phải** (hai dải mờ hai bên sân khấu là cánh gà, người ở đó coi như chưa ra sân).
+5. **Tự chia đội hình** (thẻ *Đội hình*): chọn **Mỗi … lượt 8** hoặc **Số đội hình**, bấm **Tạo**. App thay toàn bộ đội hình bằng một chuỗi hình xoay vòng (hàng ngang, chữ V, vòng tròn, hai hàng, đường chéo, so le, vòng cung) cho cả bài:
+   * Có nhịp thì mỗi khối bắt đầu và kết thúc đúng vạch lượt 8, mọi người tới đội hình mới đúng phách 1; chưa đặt nhịp thì chia theo mốc 4 s.
+   * Khoảng chuyển ít nhất 1 lượt 8 (hoặc 2 s), tự giãn khi phải đi xa để không ai chạy quá 1.5 m/s.
+   * Người được gán vào chỗ gần nhất của hình sau để ít đi chéo nhau; nếu vẫn có hai người sát nhau dưới 0.5 m khi chuyển, app thử đổi chỗ, lật hình hoặc đổi sang hình khác. Không ai bị xếp vào cánh gà.
+   * Đã thả nhạc thì điểm đổi đội hình được dời tới vạch lượt 8 gần chỗ nhạc đổi mạnh nhất (vào điệp khúc, nhạc to lên hay lắng xuống).
+   * Đã có sẵn nhiều đội hình thì app vẫn thay và báo cảnh báo: bấm **Hoàn tác** hoặc **Ctrl Z** để lấy lại. Đây là bản nháp để sửa tiếp bằng tay.
 
 ### Trình chiếu để tập
 

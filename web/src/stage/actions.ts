@@ -16,6 +16,7 @@ import {
 } from "./media";
 import { estimateOffset, CONFIDENT } from "./align";
 import { saveProject, loadProject, allMediaIds, deleteMedia } from "./db";
+import { autoPlan, energyChangeScore } from "./autoplan";
 
 export const proj = () => st().project;
 const ids = (p: Project = proj()) => p.dancers.map((d) => d.id);
@@ -522,3 +523,37 @@ export function setStage(width: number, depth: number) {
 }
 
 export { clock };
+
+// ---------- tự chia đội hình ----------
+
+/** Thay toàn bộ đội hình bằng kế hoạch tự chia (một commit, Ctrl Z hoàn tác được). */
+export function autoFormations(o: { count?: number; everyEights?: number }) {
+  const p = proj();
+  if (!p.dancers.length) {
+    st().notify("Thêm vũ công trước rồi mới tự chia đội hình");
+    return;
+  }
+  let duration = p.musicDuration;
+  if (!(duration > 0)) {
+    duration = 32;
+    const last = p.formations[p.formations.length - 1];
+    if (last) duration = Math.max(duration, last.end);
+    for (const d of p.dancers) if (d.mediaId) duration = Math.max(duration, d.offsetSec + d.durationSec);
+  }
+  const buf = music.buffer;
+  const formations = autoPlan({
+    ids: ids(p), stage: p.stage, duration, bpm: p.bpm, downbeat: p.downbeat,
+    count: o.count, everyEights: o.everyEights,
+    start: p.formations[0]?.pos,
+    changeScore: buf ? energyChangeScore(monoOf(buf), buf.sampleRate) : undefined,
+    newId: () => uid("f"),
+  });
+  const had = p.formations.length;
+  st().commit((q) => ({ ...q, formations }));
+  clock.seek(formations[0].start + 0.001);
+  st().setUI({ selectedBlock: formations[0].id });
+  const how = buf ? ", điểm đổi theo nhạc" : "";
+  if (had > 1)
+    st().notify(`Đã thay ${had} đội hình cũ bằng ${formations.length} đội hình mới${how} — Ctrl Z để hoàn tác`, { undo: true, kind: "warn" });
+  else st().notify(`Đã tạo ${formations.length} đội hình${how} — Ctrl Z để hoàn tác`, { undo: true });
+}
