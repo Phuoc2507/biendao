@@ -42,10 +42,15 @@ export const getSpeed = () => speed;
 export const getLoop = () => loop;
 
 function syncVideos(hard: boolean) {
-  for (const d of getDancers()) {
+  // bản nhân bản dùng chung một <video>: chỉ người đầu tiên lái nó, kẻo hai
+  // độ lệch khác nhau giành nhau tua liên tục
+  const done = new Set<HTMLVideoElement>();
+  const ds = [...getDancers()].sort((a, b) => +a.hidden - +b.hidden);
+  for (const d of ds) {
     const v = getVideo(d.mediaId);
-    if (!v) continue;
+    if (!v || done.has(v.el)) continue;
     const el = v.el;
+    done.add(el);
     const dur = d.durationSec || v.duration;
     const tg = videoTarget(t, d.offsetSec, dur);
     if (playing && tg.inRange && !d.hidden) {

@@ -9,7 +9,7 @@ import { st, useProject, useUI } from "../store";
 import * as clock from "../clock";
 import { useTime } from "../clock";
 import {
-  addDancer, updateDancer, removeDancer, moveDancerOrder, realign, replaceVideo,
+  addDancer, duplicateDancer, updateDancer, removeDancer, moveDancerOrder, realign, replaceVideo,
   importFiles, applyShape, mirrorSelected, distributeSelected, sendToWings,
   addFormation, removeFormation, renameBlock, setStage, setBpm,
 } from "../actions";
@@ -155,6 +155,7 @@ function DancerRow({ d, sel }: { d: VDancer; sel: boolean }) {
         <button className="btn sm icon ghost" title={d.hidden ? "Hiện" : "Ẩn (không tính cảnh báo)"} onClick={() => updateDancer(d.id, { hidden: !d.hidden })}>
           <Icon name={d.hidden ? "eyeOff" : "eye"} />
         </button>
+        <button className="btn sm icon ghost" title="Nhân bản (dùng chung video)" onClick={() => duplicateDancer(d.id)}><Icon name="copy" /></button>
         <button className="btn sm icon ghost danger" title="Xoá vũ công" onClick={() => removeDancer(d.id)}><Icon name="trash" /></button>
       </div>
     </div>

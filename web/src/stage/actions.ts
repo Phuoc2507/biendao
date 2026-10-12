@@ -2,7 +2,7 @@
 
 import {
   type Project, type VDancer, type Vec2, type ShapeKind,
-  PALETTE, newDancer, lineup, posesAt, ensureFormationAt, setPositions,
+  PALETTE, newDancer, cloneDancer, lineup, posesAt, ensureFormationAt, setPositions,
   addFormationAfter, deleteFormation, addDancerToAll, removeDancerFromAll,
   arrangeShape, mirrorPositions, distributeX, holdIndexAt, segmentAt,
   snapPos, emptyProject, renameFormation, wingSpot,
@@ -78,6 +78,23 @@ export function addDancer(name?: string): string {
     }
     return { ...q, dancers, formations };
   });
+  return d.id;
+}
+
+/** Nhân bản vũ công: bản sao dùng chung video, đứng ở cánh gà mọi đội hình. */
+export function duplicateDancer(id: string): string | null {
+  const p = proj();
+  const src = p.dancers.find((d) => d.id === id);
+  if (!src) return null;
+  const d = cloneDancer(src, uid("d"), p.dancers.map((x) => x.name), nextColor(p));
+  st().commit((q) => {
+    // xếp sau bản cuối cùng của cùng video: "Lan, Lan 2, Lan 3" đúng thứ tự
+    let k = q.dancers.findIndex((x) => x.id === id);
+    q.dancers.forEach((x, i) => { if (src.mediaId && x.mediaId === src.mediaId) k = Math.max(k, i); });
+    const dancers = [...q.dancers.slice(0, k + 1), d, ...q.dancers.slice(k + 1)];
+    return { ...q, dancers, formations: addDancerToAll(q.formations, d.id, q.stage) };
+  });
+  clock.resync();
   return d.id;
 }
 

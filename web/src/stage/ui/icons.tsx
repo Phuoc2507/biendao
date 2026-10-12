@@ -43,6 +43,7 @@ const P: Record<string, string> = {
   camera: "M3 7h4l2-3h6l2 3h4v13H3zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
   up: "M6 15l6-6 6 6",
   down: "M6 9l6 6 6-6",
+  copy: "M8 8h12v12H8zM4 16V4h12",
   edit: "M4 20h4L19 9l-4-4L4 16zM14 6l4 4",
   route: "M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 17h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7",
   ghost: "M5 21V10a7 7 0 0 1 14 0v11l-3-2-2 2-2-2-2 2-2-2zM9 10v1M15 10v1",

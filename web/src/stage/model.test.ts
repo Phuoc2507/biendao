@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   type Formation, type Project, type Vec2,
-  emptyProject, newDancer, initials, smoothstep, lineup, clampToStage, snapPos,
+  emptyProject, newDancer, cloneDancer, initials, smoothstep, lineup, clampToStage, snapPos,
   segmentAt, poseAt, posesAt, ensureFormationAt, setPositions, addFormationAfter,
   setBlockTimes, moveBlock, addDancerToAll, removeDancerFromAll, checkInvariants,
   shapePoints, assignNearest, arrangeShape, mirrorPositions, distributeX,
@@ -233,4 +233,16 @@ test("findWarnings: chồng, chạy quá nhanh, va nhau", () => {
     { id: "B", name: "B", start: 5, end: 6, pos: { a: [-2, 1], b: [2, 1] } },
   ];
   assert.deepEqual(findWarnings(ok, ds), []);
+});
+
+test("nhân bản: chung video và độ lệch, tên đánh số không trùng", () => {
+  const src = { ...newDancer("a", "Lan", "#f00"), mediaId: "m1", offsetSec: 1.5, stacked: true };
+  const c = cloneDancer(src, "b", ["Lan", "Lan 2"], "#0f0");
+  assert.equal(c.id, "b");
+  assert.equal(c.name, "Lan 3");
+  assert.equal(c.color, "#0f0");
+  assert.equal(c.mediaId, "m1");
+  assert.equal(c.offsetSec, 1.5);
+  assert.equal(c.stacked, true);
+  assert.equal(cloneDancer(c, "c", ["Lan", "Lan 2", "Lan 3"], "#00f").name, "Lan 4");
 });

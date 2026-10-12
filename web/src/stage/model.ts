@@ -82,6 +82,14 @@ export function newDancer(id: string, name: string, color: string): VDancer {
   };
 }
 
+/** Bản sao vũ công dùng chung video gốc (cùng mediaId, cùng độ lệch nhạc). */
+export function cloneDancer(src: VDancer, id: string, names: string[], color: string): VDancer {
+  const base = src.name.replace(/ \d+$/, "");
+  let k = 2;
+  while (names.includes(`${base} ${k}`)) k++;
+  return { ...src, id, name: `${base} ${k}`, color };
+}
+
 export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
