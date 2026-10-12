@@ -3,7 +3,7 @@
 // performance.now().
 
 import { useSyncExternalStore } from "react";
-import { getVideo, getDancerVideo, peekDancerVideo, pruneDancerVideos, subscribeMedia, music } from "./media";
+import { getVideo, listPlayers, syncPlayers, subscribeMedia, subscribePlayerReady, music } from "./media";
 import { videoTarget } from "./timing";
 
 export interface SyncDancer {
@@ -32,10 +32,11 @@ let mediaHooked = false;
 export function configureClock(o: { dancers: () => SyncDancer[]; end: () => number }) {
   getDancers = o.dancers;
   getEnd = o.end;
-  // element video mới của vũ công vừa có khung đầu: tua nó tới đúng chỗ ngay
   if (!mediaHooked) {
     mediaHooked = true;
     subscribeMedia(() => syncVideos(false));
+    // element video mới vừa có khung đầu: tua riêng nó tới đúng chỗ ngay
+    subscribePlayerReady((el) => syncVideos(true, el));
   }
 }
 
@@ -48,23 +49,18 @@ export const isPlaying = () => playing;
 export const getSpeed = () => speed;
 export const getLoop = () => loop;
 
-function syncVideos(hard: boolean) {
-  // mỗi vũ công có <video> riêng (kể cả bản nhân bản chung tệp), nên ai cũng
-  // tua theo offsetSec của chính mình
-  const ds = getDancers();
-  pruneDancerVideos(ds.map((d) => d.id));
-  for (const d of ds) {
-    if (d.hidden) {
-      // người bị ẩn không vẽ thẻ: chỉ dừng element sẵn có, không tạo mới
-      const el = peekDancerVideo(d.id);
-      if (el && !el.paused) el.pause();
-      continue;
-    }
-    const v = getVideo(d.mediaId);
-    const el = v && getDancerVideo(d.id, d.mediaId);
-    if (!v || !el) continue;
-    const dur = d.durationSec || v.duration;
-    const tg = videoTarget(t, d.offsetSec, dur);
+function syncVideos(hard: boolean, only?: HTMLVideoElement) {
+  // mỗi element gắn với một khoá tệp@độ lệch (bản nhân bản cùng lệch dùng
+  // chung), nên ai cũng tua theo offsetSec của mình; người bị ẩn không có element
+  syncPlayers(getDancers());
+  for (const p of listPlayers()) {
+    const el = p.el;
+    if (only && el !== only) continue;
+    const v = getVideo(p.mediaId);
+    if (!v) continue;
+    // thời lượng chưa rõ (0) thì coi như không giới hạn
+    const dur = p.durationSec || v.duration || Infinity;
+    const tg = videoTarget(t, p.offsetSec, dur);
     if (playing && tg.inRange) {
       if (el.playbackRate !== speed) el.playbackRate = speed;
       if (Math.abs(el.currentTime - tg.time) > DRIFT || hard) el.currentTime = tg.time;
@@ -89,7 +85,8 @@ function tick() {
   lastNow = n;
   if (loop && t >= loop.b) {
     seek(loop.a);
-  } else if (t >= getEnd() || (m && m.ended)) {
+  } else if (t >= getEnd()) {
+    // không dừng theo m.ended: nhạc hết sớm hơn bài thì đồng hồ chạy tiếp tới cuối
     t = Math.min(t, getEnd());
     pause();
     return;

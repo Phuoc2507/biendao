@@ -250,26 +250,6 @@ export async function applyProject(p: Project): Promise<string[]> {
 
 // ---------- nhạc theo Hoàn tác ----------
 
-// Hoàn tác việc mở tệp/bài mới làm đổi musicId mà không ai nạp lại nhạc. Chỉ
-// can thiệp khi musicId đổi và bản nhạc đang nạp không khớp.
-let watching = false;
-let musicJob: Promise<void> = Promise.resolve();
-
-export function watchMusic() {
-  if (watching) return;
-  watching = true;
-  useStore.subscribe((s, prev) => {
-    const id = s.project.musicId;
-    if (s.project === prev.project || id === prev.project.musicId || id === music.id) return;
-    musicJob = musicJob.then(syncMusic).catch(() => {});
-  });
-}
-
-async function syncMusic() {
-  const id = st().project.musicId;
-  if (id === music.id) return;
-  const rec = id ? await getMedia(id).catch(() => undefined) : null;
-  if (rec === undefined || st().project.musicId !== id) return; // không còn trong máy, hoặc đã đổi tiếp
-  await setMusic(rec);
-  clock.seek(clock.now());
-}
+/** Giữ để không đổi chỗ gọi: nhạc theo project.musicId đã do followMusic
+ * (actions.ts, đăng ký lúc mở app) lo, kể cả khi Hoàn tác/Làm lại. */
+export function watchMusic() {}

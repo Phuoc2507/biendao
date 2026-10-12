@@ -17,6 +17,7 @@ import { Busy, DropZone, Help, ToastView } from "./ui/Overlays";
 import { useShortcuts } from "./ui/shortcuts";
 import { closeSide, usePhone, useSplitDir } from "./ui/useLayout";
 import { Icon } from "./ui/icons";
+import { SaveGuard } from "./ui/SaveGuard";
 
 function SelectionHud({ phone }: { phone: boolean }) {
   const ui = useUI();
@@ -107,7 +108,7 @@ export function App() {
     );
   }, [ui.saveState, ui.saveError]);
 
-  if (!ui.loaded) return <div className="empty"><div className="dim">Đang mở…</div></div>;
+  if (!ui.loaded) return <div className="empty"><div className="dim">{ui.busy?.msg ?? "Đang mở…"}</div></div>;
 
   const empty = p.dancers.length === 0;
   const cls = phone ? `app phone${ui.sideOpen ? " drawer" : ""}` : `app${ui.sideOpen ? "" : " noside"}`;
@@ -132,6 +133,7 @@ export function App() {
       <Busy />
       <Help />
       <ToastView />
+      <SaveGuard />
     </>
   );
 }

@@ -101,6 +101,11 @@ Sau này muốn làm bài khác thì **Tệp ▸ Bài mới**.
 
 Kéo thả **cả thư mục `the/` và tệp nhạc** vào cửa sổ app (thả thư mục hay chọn nhiều tệp đều được) (hoặc **Tệp ▸ Nạp video và nhạc…**). App tự đọc `.card.json` để lấy tên, độ lệch và biết thẻ đã xoá phông. Video gốc chưa qua công cụ cũng thả vào được.
 
+* Cả lượt thả là **một bước hoàn tác** (Ctrl Z bỏ hết), xong app báo một dòng tổng kết.
+* Thả lại đúng tệp đã nạp thì app bỏ qua, không lưu lần hai. Tệp lạ (`.json` không phải thẻ hay dự án, ảnh…) bị bỏ qua kèm thông báo.
+* Một video hỏng không chặn các video khác; video đó không được lưu.
+* Đang nạp nhiều tệp, bấm **Dừng** trong hộp tiến độ để dừng sau tệp đang làm.
+
 ### Nhịp
 
 Ở thẻ *Vũ công*, mục Nhạc:
@@ -115,6 +120,10 @@ Từ đó thanh trên đếm 1 tới 8, dòng thời gian có vạch phách, và
 Chọn một vũ công trong danh sách:
 
 * **Tự khớp**: app nghe tiếng trong video và tìm chỗ khớp với nhạc.
+* **Khớp tất cả** (cạnh tiêu đề danh sách vũ công): khớp lại những người còn dấu ⚠; không ai có dấu ⚠ thì khớp lại hết. Bản nhân bản cùng video giữ nguyên khoảng lệch canon.
+* Thẻ có `.card.json` dùng luôn độ lệch trong đó, không phải nghe lại. Thay video bằng đúng tệp cũ thì giữ độ lệch đã căn.
+* Đổi bài nhạc: app tự khớp lại những người chưa chắc; người đã căn tay hoặc đã khớp chắc thì giữ.
+* Video quá lớn (trên 400 MB) hoặc không có tiếng thì app không tự khớp, hãy căn tay.
 * Nút **−0,1, −0,01, +0,01, +0,1** chỉnh độ lệch bằng tay. Mẹo: bật Trình chiếu, nhìn bước chân rơi đúng phách.
 * Ô **Thẻ đã tách nền (tệp .card.mp4)** phải được tích cho thẻ ra từ công cụ (app tự tích khi có `.card.json`).
 * **Cao thẻ** chỉnh chiều cao người trên sân khấu (một lần kéo là một bước Hoàn tác); chấm màu đổi màu nhận diện.
@@ -168,8 +177,9 @@ Trong khung khán giả: nút **Đặt lại** đưa góc nhìn về vừa khít
 
 ### Lưu
 
-* App **tự lưu** trong trình duyệt (góc trên có dấu ✓ "Đã lưu"; bấm vào để xem bài đang chiếm bao nhiêu chỗ).
+* App **tự lưu** trong trình duyệt (góc trên có dấu ✓ "Đã lưu"; bấm vào để xem bài đang chiếm bao nhiêu chỗ), lưu ngay cả khi đóng hay chuyển thẻ.
 * Lưu hỏng thì góc trên đổi thành ô đỏ **Không lưu được** và giữ nguyên tới khi lưu lại được. Bấm vào để xem lý do, **Lưu ra tệp** ngay hoặc **Thử lưu lại**. Hay gặp nhất là trình duyệt hết chỗ: xoá bớt video không dùng rồi thử lại.
+* Chỉ **một thẻ trình duyệt** được tự lưu. Mở bài ở thẻ thứ hai thì thẻ đó báo và ngừng lưu; bấm **Dùng thẻ này** để chuyển quyền lưu sang, hoặc **Tải lại** để xem bản mới nhất.
 * **Ctrl S** lưu ngay vào trình duyệt và ghi tệp dự án `ten-bai.choreo.json`. Chrome, Edge hỏi chỗ lưu ở lần đầu, các lần sau ghi đè im lặng vào đúng tệp đó ("Đã lưu vào …"). Trình duyệt khác thì tải xuống một lần; các lần Ctrl S sau chỉ lưu trong trình duyệt. **Tệp ▸ Lưu thành tệp khác…** để chọn tệp mới.
 * Tệp `.choreo.json` chỉ chứa đội hình và thông tin, **không chứa video**. Muốn chép sang máy khác cho đủ cả nhạc và video: **Tệp ▸ Đóng gói cả video (.zip)…** ra một tệp `.zip` duy nhất (tối đa 4 GB).
 * Mở trên máy mới: **Tệp ▸ Mở…** chọn tệp `.zip` (hoặc kéo thả tệp `.zip` vào cửa sổ), **không cần giải nén**. App chép video vào trình duyệt rồi mở bài; bấm Hoàn tác (Ctrl Z) nếu lỡ tay. Mở tệp `.choreo.json` thì thả lại thư mục thẻ và nhạc, app tự gắn theo tên tệp.
@@ -219,4 +229,7 @@ Khi đang gõ trong ô chữ hay ô số, phím tắt tạm nghỉ (trừ Ctrl S
 * **Video lệch nhạc:** bấm Tự khớp; nếu vẫn lệch thì chỉnh tay bằng nút ±0,1 / ±0,01.
 * **Gõ số vào ô mà không thấy đổi:** bấm Enter hoặc bấm ra ngoài ô để chốt; gõ sai (chữ, để trống) thì ô tự trả về số cũ.
 * **Bấm Delete mà không xoá:** đang chọn người thì Delete không xoá gì; bấm vào khối đội hình trước rồi mới Delete.
+* **"Không mở được … (trình duyệt không giải mã được)" hoặc "không có hình":** video quay bằng HEVC (iPhone mặc định). Đổi sang H.264 bằng `python -m choreo.videocard`, hoặc trên iPhone chọn **Cài đặt › Camera › Định dạng › Tương thích nhất** rồi quay lại.
+* **Mở app thấy "Video/nhạc đã lưu không mở được":** trình duyệt đã xoá bớt dữ liệu. Thả lại các tệp đó, app tự gắn theo tên.
+* **Báo "Không đọc được bài đã lưu":** app ngừng tự lưu để khỏi ghi đè. Bấm **Tải bản cũ về máy** để giữ bản cũ, rồi **Tải lại**; vẫn lỗi thì chọn **Vẫn tự lưu** và làm bài mới.
 * **Công cụ báo thiếu ffmpeg, onnxruntime hoặc mô hình:** làm đúng câu lệnh nó in ra (mục 2).
