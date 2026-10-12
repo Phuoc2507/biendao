@@ -14,6 +14,7 @@ import {
   addFormation, removeFormation, renameBlock, setStage, setBpm,
 } from "../actions";
 import { useWarnings } from "./hooks";
+import { AutoPlanSection } from "./AutoPlanSection";
 import { Icon } from "./icons";
 
 export function SidePanel() {
@@ -331,8 +332,9 @@ function FormationsTab() {
           </div>
         </div>
       )}
+      <AutoPlanSection />
       <div className="section">
-        <h4>Xếp nhanh <span className="grow" /><span className="dim" style={{ textTransform: "none", letterSpacing: 0 }}>cho {target}</span></h4>
+        <h4>Xếp nhanh<span className="grow" /><span className="dim" style={{ textTransform: "none", letterSpacing: 0 }}>cho {target}</span></h4>
         <div className="shape-grid">
           {SHAPES.map((k) => (
             <button key={k} onClick={() => applyShape(k)} title={`Xếp ${SHAPE_LABEL[k].toLowerCase()} tại vạch phát`}>
