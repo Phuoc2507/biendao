@@ -57,6 +57,7 @@ python -m choreo.videocard --music nhac.mp3 --out the lan.mp4 mai.mp4 hoa.mp4
 | `--height px` | Chiều cao mỗi nửa thẻ (mặc định 540). Máy yếu hạ xuống 360 cho nhẹ. |
 | `--no-matting` | Không xoá phông, chỉ khớp nhạc và mã hoá lại. Không cần onnxruntime và mô hình. |
 | `--all-people` | Giữ mọi người trong khung. Mặc định công cụ chỉ giữ **người múa chính** (người lớn nhất ở đầu video, bám theo vị trí và màu trang phục) và xoá bạn bè đứng xem, người đi ngang. |
+| `--fixed-crop` | Một khung cắt cố định cả video (hợp vùng người qua mọi khung) — hợp với máy đặt chân máy đứng yên. Mặc định công cụ **cắt bám theo người từng khung** (kích thước thẻ vẫn cố định, chân giữ gần đáy thẻ) nên video cầm tay lia theo người vẫn cho vũ công to, nằm giữa thẻ. |
 
 Mỗi video ra hai tệp trong thư mục `--out`:
 

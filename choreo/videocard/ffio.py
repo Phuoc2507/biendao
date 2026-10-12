@@ -114,3 +114,38 @@ def stack_card(ffmpeg: str, rgb_path: str, alpha_path: str, out_path: str,
          "-preset", "medium", "-crf", "18", "-r", str(FPS),
          "-movflags", "+faststart", out_path],
         check=True)
+
+
+class CardWriter:
+    """Ghi thẻ xếp chồng từ khung đã cắt sẵn bằng numpy (chế độ bám người).
+
+    Mỗi lần write nhận hình màu và mặt nạ cùng cỡ (ch, cw); ffmpeg co từng nửa
+    RIÊNG về out_w x half_height rồi xếp chồng (co chung cả khung sẽ làm màu
+    chân nhoè sang mép trên mặt nạ ở đường nối).
+    """
+
+    def __init__(self, ffmpeg: str, path: str, cw: int, ch: int, out_w: int,
+                 half_height: int):
+        self.cw, self.ch = cw, ch
+        s = f"scale={out_w}:{half_height}:flags=lanczos"
+        graph = (f"[0:v]split[t][b];[t]crop={cw}:{ch}:0:0,{s},format=yuv420p[a];"
+                 f"[b]crop={cw}:{ch}:0:{ch},{s},format=gray,format=yuv420p[m];"
+                 f"[a][m]vstack=inputs=2,format=yuv420p[v]")
+        self.proc = subprocess.Popen(
+            [ffmpeg, "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
+             "-s", f"{cw}x{2 * ch}", "-r", str(FPS), "-i", "-",
+             "-filter_complex", graph, "-map", "[v]", "-an", "-c:v", "libx264",
+             "-preset", "medium", "-crf", "18", "-r", str(FPS),
+             "-movflags", "+faststart", path],
+            stdin=subprocess.PIPE)
+
+    def write(self, rgb: np.ndarray, alpha_rgb: np.ndarray) -> None:
+        assert self.proc.stdin is not None
+        self.proc.stdin.write(np.ascontiguousarray(
+            np.concatenate([rgb, alpha_rgb], axis=0), dtype=np.uint8).tobytes())
+
+    def close(self) -> None:
+        assert self.proc.stdin is not None
+        self.proc.stdin.close()
+        if self.proc.wait() != 0:
+            raise RuntimeError("ffmpeg ghi thẻ thất bại")

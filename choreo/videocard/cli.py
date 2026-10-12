@@ -22,7 +22,8 @@ import time
 from pathlib import Path
 
 from .align import estimate_offset
-from .crop import BBoxAccumulator, padded_crop
+from .crop import (BBoxAccumulator, crop_padded, frame_bbox, padded_crop,
+                   track_crops)
 
 DEFAULT_MODEL = os.path.join("models", "rvm_mobilenetv3_fp32.onnx")
 MODEL_URL = ("https://github.com/PeterL1n/RobustVideoMatting/releases/download/"
@@ -98,7 +99,11 @@ def _plain(ff: str, video: str, out_mp4: str, height: int) -> tuple[float, int, 
 
 
 def _matted(ff: str, video: str, out_mp4: str, model: str, half: int,
-            work_h: int, all_people: bool = False) -> tuple[float, int, int]:
+            work_h: int, all_people: bool = False,
+            fixed_crop: bool = False) -> tuple[float, int, int]:
+    """Lượt 1: RVM từng khung, ghi màu/mặt nạ tạm toàn khung + bbox từng khung.
+    Lượt 2: cố định thì ffmpeg cắt một khung chung; bám người thì đọc lại hai
+    tệp tạm, cắt từng khung bằng numpy theo quỹ đạo đã làm mượt rồi ghi thẻ."""
     import numpy as np
 
     from . import ffio
@@ -108,8 +113,11 @@ def _matted(ff: str, video: str, out_mp4: str, model: str, half: int,
     sess = RVMSession(model)
     main_person = None if all_people else MainPersonFilter()
     acc = BBoxAccumulator()
+    boxes: list = []
     w, h = ffio.frame_size(ff, video, work_h)
-    with tempfile.TemporaryDirectory() as tmp:
+    # lỗi giữa chừng thì ffmpeg con còn giữ tệp tạm: đừng để lỗi dọn thư mục
+    # (WinError) che mất lỗi thật
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         rgb_p, a_p = os.path.join(tmp, "rgb.mp4"), os.path.join(tmp, "a.mp4")
         wr_rgb, wr_a = ffio.Writer(ff, rgb_p, w, h), ffio.Writer(ff, a_p, w, h)
         n, t0 = 0, time.time()
@@ -118,6 +126,7 @@ def _matted(ff: str, video: str, out_mp4: str, model: str, half: int,
             if main_person is not None:
                 pha = main_person(pha, frame)
             acc.add(pha)
+            boxes.append(frame_bbox(pha))
             # hình màu: tiền cảnh RVM (đã khử màu nền ở mép tóc, tà áo)
             wr_rgb.write(fgr)
             a8 = np.clip(pha * 255.0 + 0.5, 0, 255).astype(np.uint8)
@@ -130,10 +139,27 @@ def _matted(ff: str, video: str, out_mp4: str, model: str, half: int,
         wr_a.close()
         if acc.bbox is None:
             raise RuntimeError("không tìm thấy người trong video (mặt nạ rỗng)")
-        crop = padded_crop(acc.bbox, w, h)
-        ffio.stack_card(ff, rgb_p, a_p, out_mp4, crop, half)
-    cw, ch = crop[2], crop[3]
-    width = 2 * round(cw * half / ch / 2)
+        if fixed_crop:
+            crop = padded_crop(acc.bbox, w, h)
+            ffio.stack_card(ff, rgb_p, a_p, out_mp4, crop, half)
+            cw, ch = crop[2], crop[3]
+            return n / ffio.FPS, 2 * round(cw * half / ch / 2), half
+        (cw, ch), xy = track_crops(boxes, w, h)
+        width = 2 * round(cw * half / ch / 2)
+        print(f"  cắt bám người: khung {cw}x{ch} trên ảnh {w}x{h}")
+        wr = ffio.CardWriter(ff, out_mp4, cw, ch, width, half)
+        # đóng tường minh cả hai bộ đọc: zip dừng ở bộ hết trước, bộ kia còn giữ
+        # ffmpeg mở tệp tạm → Windows không xoá được thư mục tạm
+        g_rgb, g_a = ffio.frames(ff, rgb_p, h), ffio.frames(ff, a_p, h)
+        try:
+            for i, (rgb, a) in enumerate(zip(g_rgb, g_a)):
+                x, y = xy[min(i, len(xy) - 1)]
+                wr.write(crop_padded(rgb, x, y, cw, ch),
+                         crop_padded(a, x, y, cw, ch))
+        finally:
+            g_rgb.close()
+            g_a.close()
+        wr.close()
     return n / ffio.FPS, width, half
 
 
@@ -142,7 +168,7 @@ def main(argv: list[str] | None = None) -> int:
     for s in (sys.stdout, sys.stderr):
         if hasattr(s, "reconfigure"):
             s.reconfigure(encoding="utf-8", errors="replace")
-    ap =argparse.ArgumentParser(prog="python -m choreo.videocard",
+    ap = argparse.ArgumentParser(prog="python -m choreo.videocard",
                                  description="Tạo thẻ video cho sân khấu ảo")
     ap.add_argument("videos", nargs="+", help="video gốc quay từng vũ công")
     ap.add_argument("--music", help="tệp nhạc gốc để tự khớp thời gian")
@@ -154,6 +180,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="không xoá phông, chỉ khớp nhạc và mã hoá lại")
     ap.add_argument("--all-people", action="store_true",
                     help="giữ mọi người trong khung (mặc định chỉ giữ người múa chính)")
+    ap.add_argument("--fixed-crop", action="store_true",
+                    help="một khung cắt cố định cả video (hợp mọi khung); mặc định"
+                         " cắt bám theo người từng khung")
     args = ap.parse_args(argv)
 
     ff, code = _check_deps(args.no_matting, args.model)
@@ -179,7 +208,8 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 dur, w, h = _matted(ff, video, out_mp4, args.model, args.height,
                                     work_h=max(2 * args.height, 960),
-                                    all_people=args.all_people)
+                                    all_people=args.all_people,
+                                    fixed_crop=args.fixed_crop)
             meta = card_meta(name, stacked=not args.no_matting, duration=dur,
                              width=w, height=h, offset=off, confident=ok)
             with open(os.path.join(args.out, f"{name}.card.json"), "w",
