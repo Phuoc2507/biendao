@@ -5,6 +5,10 @@ import { countAt, fmtTime } from "../timing";
 import { st, useProject, useStore, useUI, type View } from "../store";
 import * as clock from "../clock";
 import { usePlaying, useTime } from "../clock";
+import { createPortal } from "react-dom";
+import { saveAs, saveBundle, saveTargetName, forgetSaveTarget, watchMusic, openBundleFile, isBlankProject } from "../export/save";
+import { printFormations } from "../export/print";
+import { ExportDialog } from "./ExportDialog";
 import { exportProject, newProject, openProjectFile, setTitle, stepBeat, projectEnd } from "../actions";
 import { saveProject } from "../db";
 import { errText, storageInfo } from "../storage";
@@ -36,35 +40,56 @@ function Clock() {
   );
 }
 
+const DEV = typeof location !== "undefined" && new URLSearchParams(location.search).has("dev");
+
 function FileMenu() {
   const [open, setOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
     const f = (e: PointerEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(false);
+    // Esc đóng menu (bắt trước phím tắt chung)
+    const k = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      setOpen(false);
+    };
     window.addEventListener("pointerdown", f);
-    return () => window.removeEventListener("pointerdown", f);
+    window.addEventListener("keydown", k, true);
+    return () => {
+      window.removeEventListener("pointerdown", f);
+      window.removeEventListener("keydown", k, true);
+    };
   }, [open]);
   const run = (fn: () => void) => () => {
     setOpen(false);
     fn();
   };
-  const openJson = () => {
+  const openFile = () => {
     const inp = document.createElement("input");
     inp.type = "file";
-    inp.accept = ".json,application/json";
+    inp.accept = ".json,.zip,application/json,application/zip";
     inp.onchange = async () => {
       const f = inp.files?.[0];
       if (!f) return;
+      if (/\.zip$/i.test(f.name)) return void openBundleFile(f);
+      if (!isBlankProject(st().project) && !confirm(`Mở "${f.name}"? Bài hiện tại sẽ bị thay (có thể Hoàn tác).`)) return;
       try {
-        await openProjectFile(f);
-        st().notify("Đã mở dự án. Nếu thiếu video, thả các tệp video vào để gắn lại.");
+        const missing = await openProjectFile(f);
+        st().notify(
+          missing.length
+            ? `Đã mở dự án. Thiếu ${missing.length} tệp nhạc/video: thả chúng vào để gắn lại.`
+            : "Đã mở dự án.",
+          { undo: true, kind: missing.length ? "warn" : "info" },
+        );
       } catch (e) {
         st().notify(`Không mở được: ${(e as Error).message}`, { kind: "error" });
       }
     };
     inp.click();
   };
+  const target = open ? saveTargetName() : null;
   return (
     <div className="menu" ref={ref}>
       <button className={`btn${open ? " on" : ""}`} onClick={() => setOpen(!open)}>
@@ -73,21 +98,38 @@ function FileMenu() {
       {open && (
         <div className="pop">
           <button onClick={run(pickAnyFiles)}><Icon name="upload" size={16} /> Nạp video và nhạc…</button>
-          <button onClick={run(openJson)}><Icon name="file" size={16} /> Mở tệp dự án (.choreo.json)…</button>
-          <button onClick={run(exportProject)}><Icon name="download" size={16} /> Lưu ra tệp <kbd>Ctrl S</kbd></button>
+          <button onClick={run(openFile)}><Icon name="file" size={16} /> Mở… (.choreo.json, .zip)</button>
+          <hr />
+          <button onClick={run(exportProject)} title="Tệp dự án .choreo.json, không kèm video">
+            <Icon name="download" size={16} /> {target ? `Lưu vào ${target}` : "Lưu ra tệp"} <kbd>Ctrl S</kbd>
+          </button>
+          <button onClick={run(saveAs)}><Icon name="copy" size={16} /> Lưu thành tệp khác…</button>
+          <button onClick={run(saveBundle)} title="Một tệp có dự án, nhạc và mọi video, để chép sang máy khác">
+            <Icon name="folder" size={16} /> Đóng gói cả video (.zip)…
+          </button>
+          <hr />
+          <button onClick={run(printFormations)}><Icon name="print" size={16} /> In tờ đội hình…</button>
+          <button onClick={run(() => setExporting(true))}><Icon name="video" size={16} /> Xuất video…</button>
           <hr />
           <button
             onClick={run(() => {
-              if (confirm("Bắt đầu bài mới? Bài hiện tại sẽ bị thay (có thể Hoàn tác).")) newProject();
+              if (!confirm("Bắt đầu bài mới? Bài hiện tại sẽ bị thay (có thể Hoàn tác).")) return;
+              forgetSaveTarget();
+              watchMusic();
+              newProject();
             })}
           >
             <Icon name="plus" size={16} /> Bài mới
           </button>
-          <hr />
-          <button onClick={run(() => window.open("./3d.html", "_blank"))}><Icon name="cube" size={16} /> Mở app nhân vật 3D cũ</button>
-          <div className="hint">Dự án tự lưu trong trình duyệt này. Lưu ra tệp để chép sang máy khác.</div>
+          {DEV && (
+            <button onClick={run(() => window.open("./3d.html", "_blank"))}><Icon name="cube" size={16} /> Mở app nhân vật 3D cũ</button>
+          )}
+          <div className="hint">
+            Bài tự lưu trong trình duyệt này. Ctrl S lưu tệp dự án (.choreo.json, không kèm video). Chép sang máy khác cho đủ video: Đóng gói (.zip).
+          </div>
         </div>
       )}
+      {exporting && createPortal(<ExportDialog onClose={() => setExporting(false)} />, document.body)}
     </div>
   );
 }
