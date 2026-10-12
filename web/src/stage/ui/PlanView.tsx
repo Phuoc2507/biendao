@@ -2,7 +2,7 @@
 // hướng xuống màn hình), nên trái/phải trên màn hình đúng là trái/phải của
 // khán giả. Kéo người để sửa vị trí ở đội hình đang đứng; kéo nền để chọn vùng.
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   type Vec2, WING, initials, posesAt, prevFormation, nextFormation, segmentAt, snapPos,
   clampToStage, NEAR_M, dist,
@@ -11,9 +11,22 @@ import { st, useProject, useUI } from "../store";
 import { useTime } from "../clock";
 import * as clock from "../clock";
 import { setPositionsNow } from "../actions";
-import { describePos } from "./hooks";
+import { fmtTime } from "../timing";
+import { dancerLegs, dancerStops, stopLabel } from "../rehearse";
+import { describePos, useWarnings } from "./hooks";
+import { Icon } from "./icons";
+import { MePicker } from "./MePicker";
+import "./rehearse.css";
 
 const R = 0.3; // bán kính chấm người (m)
+
+/** Đoạn a→b rút bớt hai đầu (để mũi tên không đè lên chấm). */
+function shorten(a: Vec2, b: Vec2, cut: number): [Vec2, Vec2] {
+  const l = dist(a, b);
+  const c = Math.min(cut, l / 3);
+  const ux = (b[0] - a[0]) / (l || 1), uz = (b[1] - a[1]) / (l || 1);
+  return [[a[0] + ux * c, a[1] + uz * c], [b[0] - ux * c, b[1] - uz * c]];
+}
 
 interface Drag {
   kind: "move" | "box";
@@ -25,10 +38,14 @@ interface Drag {
   id?: string;
 }
 
-export function PlanView({ readOnly = false, compact = false }: { readOnly?: boolean; compact?: boolean }) {
+export function PlanView({
+  readOnly = false, compact = false, mirror = false,
+}: { readOnly?: boolean; compact?: boolean; mirror?: boolean }) {
   const p = useProject();
   const ui = useUI();
   const t = useTime();
+  const issues = useWarnings();
+  const X = (x: number) => (mirror ? -x : x); // soi gương: lật trái phải
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<Drag | null>(null);
   const [box, setBox] = useState<[Vec2, Vec2] | null>(null);
@@ -64,7 +81,7 @@ export function PlanView({ readOnly = false, compact = false }: { readOnly?: boo
     pt.x = e.clientX;
     pt.y = e.clientY;
     const q = pt.matrixTransform(svg.getScreenCTM()!.inverse());
-    return [q.x, q.y];
+    return [X(q.x), q.y];
   };
 
   const onDancerDown = (e: React.PointerEvent, id: string) => {
@@ -191,26 +208,110 @@ export function PlanView({ readOnly = false, compact = false }: { readOnly?: boo
     for (const d of vis) {
       const q = prev.pos[d.id];
       if (!q) continue;
-      ghosts.push(<circle key={`g${d.id}`} cx={q[0]} cy={q[1]} r={R * 0.85} fill={d.color} opacity={0.14} />);
+      ghosts.push(<circle key={`g${d.id}`} cx={X(q[0])} cy={q[1]} r={R * 0.85} fill={d.color} opacity={0.14} />);
     }
   const targets: JSX.Element[] = [];
   const paths: JSX.Element[] = [];
-  if (next && (seg.kind === "hold" || seg.kind === "gap" || seg.kind === "before")) {
+  // bóng đội hình kế: chấm mờ ở chỗ đứng của khối kế tiếp
+  const nk = seg.kind === "hold" || seg.kind === "gap" ? seg.k + 1 : seg.kind === "before" ? 1 : -1;
+  const nextF = ui.showNext && nk >= 0 ? p.formations[nk] ?? null : null;
+  if (nextF) {
+    for (const d of vis) {
+      const a = poses[d.id];
+      const b = nextF.pos[d.id];
+      if (!b) continue;
+      if (a && dist(a, b) >= 0.05) {
+        const [s, e] = shorten(a, b, R + 0.05);
+        paths.push(
+          <line key={`np${d.id}`} x1={X(s[0])} y1={s[1]} x2={X(e[0])} y2={e[1]} stroke={d.color} strokeOpacity={0.6}
+            strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeDasharray="5 3" markerEnd="url(#rhArrG)" />,
+        );
+      }
+      targets.push(
+        <g key={`nt${d.id}`} transform={`translate(${X(b[0])} ${b[1]})`} opacity={0.3}>
+          <circle r={R} fill={d.color} />
+          <text y={0.09} fontSize={0.24} textAnchor="middle" fill="#111" fontWeight={800}>{initials(d.name)}</text>
+        </g>,
+      );
+    }
+  } else if (next && (seg.kind === "hold" || seg.kind === "gap" || seg.kind === "before")) {
     for (const d of vis) {
       const a = poses[d.id];
       const b = next.pos[d.id];
       if (!a || !b || dist(a, b) < 0.05) continue;
       if (ui.showPaths)
         paths.push(
-          <line key={`p${d.id}`} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={d.color} strokeOpacity={0.55}
+          <line key={`p${d.id}`} x1={X(a[0])} y1={a[1]} x2={X(b[0])} y2={b[1]} stroke={d.color} strokeOpacity={0.55}
             strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeDasharray="4 3" markerEnd="url(#arr)" />,
         );
       targets.push(
-        <circle key={`t${d.id}`} cx={b[0]} cy={b[1]} r={R * 0.85} fill="none" stroke={d.color} strokeOpacity={0.5}
+        <circle key={`t${d.id}`} cx={X(b[0])} cy={b[1]} r={R * 0.85} fill="none" stroke={d.color} strokeOpacity={0.5}
           strokeWidth={1.2} vectorEffect="non-scaling-stroke" strokeDasharray="3 3" />,
       );
     }
   }
+
+  // "Tôi là ai": cả đường đi của một người, có số đội hình ở mỗi chỗ đứng
+  const meD = vis.find((d) => d.id === ui.me) ?? null;
+  const meLayer: JSX.Element[] = [];
+  if (meD) {
+    const curK = seg.kind === "hold" ? seg.k : -1;
+    for (const l of dancerLegs(p.formations, meD.id)) {
+      const [s, e] = shorten(l.a, l.b, 0.2);
+      meLayer.push(
+        <line key={`ml${l.k}`} x1={X(s[0])} y1={s[1]} x2={X(e[0])} y2={e[1]} stroke="#fff" strokeOpacity={0.85}
+          strokeWidth={2} vectorEffect="non-scaling-stroke" markerEnd="url(#rhArrMe)" />,
+      );
+    }
+    dancerStops(p.formations, meD.id).forEach((s, i) => {
+      const cur = s.ks.includes(curK);
+      meLayer.push(
+        <g key={`ms${i}`} transform={`translate(${X(s.pos[0])} ${s.pos[1]})`}>
+          <circle r={0.16} fill={cur ? meD.color : "#0b0d10"} stroke="#fff" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+          {!compact && (
+            <text x={0.22} y={-0.2} fontSize={0.22} fill="#fff" fontWeight={700} stroke="#0b0d10" strokeWidth={0.06} paintOrder="stroke">
+              {stopLabel(s.ks)}
+            </text>
+          )}
+        </g>,
+      );
+    });
+  }
+
+  // cảnh báo của lúc chuyển sắp tới / đang chuyển: vẽ đỏ trên sơ đồ
+  const curFrom = seg.kind === "hold" || seg.kind === "gap" ? p.formations[seg.k]?.id : seg.kind === "before" ? p.formations[0]?.id : undefined;
+  const issueLayer: JSX.Element[] = [];
+  if (!compact && curFrom)
+    issues.forEach((w, i) => {
+      if (w.from !== curFrom) return;
+      if (w.kind === "collide") {
+        w.paths.forEach(([a, b], j) =>
+          issueLayer.push(
+            <line key={`ip${i}-${j}`} x1={X(a[0])} y1={a[1]} x2={X(b[0])} y2={b[1]} stroke="#ff5d6c" strokeOpacity={0.8}
+              strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeDasharray="3 3" />,
+          ),
+        );
+        issueLayer.push(
+          <g key={`ic${i}`} transform={`translate(${X(w.at[0])} ${w.at[1]})`}>
+            <circle r={0.2} fill="#ff5d6c" stroke="#0b0d10" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+            <text y={0.08} fontSize={0.24} textAnchor="middle" fill="#fff" fontWeight={800}>×</text>
+          </g>,
+        );
+      } else if (w.kind === "fast") {
+        w.paths.forEach(([a, b], j) =>
+          issueLayer.push(
+            <line key={`ip${i}-${j}`} x1={X(a[0])} y1={a[1]} x2={X(b[0])} y2={b[1]} stroke="#ff5d6c" strokeOpacity={0.75}
+              strokeWidth={4} vectorEffect="non-scaling-stroke" strokeLinecap="round" />,
+          ),
+        );
+        issueLayer.push(
+          <text key={`iv${i}`} x={X(w.at[0])} y={w.at[1] - 0.18} fontSize={0.22} textAnchor="middle" fill="#ff8a95" fontWeight={700}
+            stroke="#0b0d10" strokeWidth={0.06} paintOrder="stroke">
+            {Number.isFinite(w.value) ? `${w.value.toFixed(1).replace(".", ",")} m/s` : "dịch ngay"}
+          </text>,
+        );
+      }
+    });
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
@@ -230,6 +331,12 @@ export function PlanView({ readOnly = false, compact = false }: { readOnly?: boo
           </pattern>
           <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
             <path d="M0 0L10 5L0 10z" fill="#8b95a7" />
+          </marker>
+          <marker id="rhArrMe" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="0.3" markerHeight="0.3" markerUnits="userSpaceOnUse" orient="auto">
+            <path d="M0 0L10 5L0 10z" fill="#fff" />
+          </marker>
+          <marker id="rhArrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+            <path d="M0 0L10 5L0 10z" fill="#c8d0dc" />
           </marker>
           <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#141820" />
@@ -268,6 +375,8 @@ export function PlanView({ readOnly = false, compact = false }: { readOnly?: boo
           {ghosts}
           {targets}
           {paths}
+          {issueLayer}
+          {meLayer}
         </g>
 
         {p.dancers.map((d) => {
@@ -278,10 +387,13 @@ export function PlanView({ readOnly = false, compact = false }: { readOnly?: boo
             <g
               key={d.id}
               className="dancer"
-              transform={`translate(${q[0]} ${q[1]})`}
-              opacity={d.hidden ? 0.3 : 1}
+              transform={`translate(${X(q[0])} ${q[1]})`}
+              opacity={d.hidden ? 0.3 : meD && meD.id !== d.id ? 0.35 : 1}
               onPointerDown={(e) => onDancerDown(e, d.id)}
             >
+              {meD?.id === d.id && (
+                <circle r={R + 0.14} fill="none" stroke="#fff" strokeWidth={3} vectorEffect="non-scaling-stroke" />
+              )}
               {near.has(d.id) && !d.hidden && (
                 <circle r={R + 0.12} fill="none" stroke="#ff5d6c" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeDasharray="4 2" />
               )}
@@ -303,7 +415,7 @@ export function PlanView({ readOnly = false, compact = false }: { readOnly?: boo
 
         {box && (
           <rect
-            x={Math.min(box[0][0], box[1][0])} y={Math.min(box[0][1], box[1][1])}
+            x={Math.min(X(box[0][0]), X(box[1][0]))} y={Math.min(box[0][1], box[1][1])}
             width={Math.abs(box[1][0] - box[0][0])} height={Math.abs(box[1][1] - box[0][1])}
             fill="rgba(79,157,255,.12)" stroke="#4f9dff" strokeWidth={1} vectorEffect="non-scaling-stroke" strokeDasharray="4 3"
           />
@@ -311,6 +423,76 @@ export function PlanView({ readOnly = false, compact = false }: { readOnly?: boo
       </svg>
       {tip && <div className="drag-tip" style={{ left: tip.x, top: tip.y }}>{tip.text}</div>}
       {!compact && <StateChip seg={seg} hasDancers={p.dancers.length > 0} fsName={(k) => p.formations[k]?.name ?? ""} />}
+      {!compact && p.dancers.length > 0 && <PlanTools issues={issues} />}
+    </div>
+  );
+}
+
+type Issues = ReturnType<typeof useWarnings>;
+
+/** Thanh nhỏ góc phải sơ đồ: Tôi là ai, bóng đội hình kế, danh sách cảnh báo. */
+function PlanTools({ issues }: { issues: Issues }) {
+  const ui = useUI();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const down = (e: PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setOpen(false);
+      }
+    };
+    window.addEventListener("pointerdown", down, true);
+    window.addEventListener("keydown", key, true);
+    return () => {
+      window.removeEventListener("pointerdown", down, true);
+      window.removeEventListener("keydown", key, true);
+    };
+  }, [open]);
+  const jump = (w: Issues[number]) => {
+    clock.pause();
+    clock.seek(w.t);
+    st().setUI({ selected: w.ids, selectedBlock: w.formation });
+    setOpen(false);
+  };
+  const mark = (k: string) => (k === "collide" ? "×" : k === "fast" ? "»" : "!");
+  return (
+    <div className="rh-plan-tools" ref={ref} onPointerDown={(e) => e.stopPropagation()}>
+      <MePicker small />
+      <button
+        className={`btn sm${ui.showNext ? " on" : ""}`}
+        title="Hiện mờ chỗ đứng của đội hình kế tiếp"
+        onClick={() => st().setUI({ showNext: !ui.showNext })}
+      >
+        <Icon name="ghost" /> Bóng đội hình kế
+      </button>
+      <button
+        className={`btn sm rh-warnbtn${issues.length ? " has" : ""}${open ? " on" : ""}`}
+        title="Ai va nhau, chồng lên nhau hay phải chạy quá nhanh"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Icon name="warn" /> Cảnh báo
+        {issues.length > 0 && <span className="rh-badge">{issues.length}</span>}
+      </button>
+      {open && (
+        <div className="rh-pop">
+          {issues.length === 0 ? (
+            <div className="rh-ok">✓ Không thấy ai va nhau, chồng lên nhau hay phải chạy quá nhanh.</div>
+          ) : (
+            issues.map((w, i) => (
+              <button key={i} className="rh-item" onClick={() => jump(w)} title="Tua tới chỗ này">
+                <span className={`rh-ic ${w.kind}`}>{mark(w.kind)}</span>
+                <span className="rh-msg">{w.msg}</span>
+                <span className="rh-t">{fmtTime(w.t)}</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }

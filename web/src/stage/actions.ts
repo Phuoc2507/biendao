@@ -5,17 +5,25 @@ import {
   PALETTE, newDancer, cloneDancer, lineup, posesAt, ensureFormationAt, setPositions,
   addFormationAfter, deleteFormation, addDancerToAll, removeDancerFromAll,
   arrangeShape, mirrorPositions, distributeX, holdIndexAt, segmentAt,
-  snapPos, emptyProject, renameFormation, wingSpot,
+  snapPos, emptyProject, renameFormation, wingSpot, placeClones, canonOffsets as canonPatch, SHAPE_LABEL,
 } from "./model";
 import { defaultLens, snapTime } from "./timing";
-import { st, useStore } from "./store";
+import { st, useStore, batch } from "./store";
 import * as clock from "./clock";
 import {
-  classify, registerVideo, setMusic, storeBlob, stripName, uid, getVideo,
-  decodeAudio, music, monoOf, loadMediaFor,
+  classify, registerVideo, setMusic, storeFile, discardMedia, failCode, stripName, uid, getVideo,
+  decodeAudio, music, monoOf, loadMediaFor, loadMediaDetailed, loadMusicId, type CardMeta,
 } from "./media";
 import { estimateOffset, CONFIDENT } from "./align";
-import { saveProject, loadProject, allMediaIds, deleteMedia } from "./db";
+import { saveProject, loadProject, allMediaIds, deleteMedia, saveKey, loadKey } from "./db";
+import {
+  offsetPlan, emptyReport, importSummary, normalizeProject, ALIGN_MAX_BYTES,
+  type OffsetHow, type ImportReport,
+} from "./intake";
+import { claimTab, canAutosave, setBootProblem, otherTabsOpen, onTakeOver, subscribeGuard } from "./guard";
+import { planDance, energyChangeScore } from "./autoplan";
+import { errText } from "./storage";
+import { quickSave, openProjectJson, openBundleFile } from "./export/save";
 
 export const proj = () => st().project;
 const ids = (p: Project = proj()) => p.dancers.map((d) => d.id);
@@ -30,6 +38,7 @@ export function projectEnd(p: Project = proj()): number {
 
 export function initClock() {
   clock.configureClock({ dancers: () => proj().dancers, end: () => projectEnd() });
+  followMusic();
 }
 
 // ---------- vũ công ----------
@@ -81,21 +90,63 @@ export function addDancer(name?: string): string {
   return d.id;
 }
 
-/** Nhân bản vũ công: bản sao dùng chung video, đứng ở cánh gà mọi đội hình. */
-export function duplicateDancer(id: string): string | null {
+/**
+ * Nhân bản vũ công thành n bản: bản sao dùng chung tệp video (mỗi bản một
+ * <video> riêng, chỉnh lệch nhạc riêng được), đứng CẠNH bản gốc ở mọi đội
+ * hình nếu sân còn chỗ, không thì ở cánh gà. Trả id bản sao đầu tiên.
+ */
+export function duplicateDancer(id: string, n = 1): string | null {
   const p = proj();
   const src = p.dancers.find((d) => d.id === id);
+  n = Math.max(1, Math.min(30, Math.floor(n)));
   if (!src) return null;
-  const d = cloneDancer(src, uid("d"), p.dancers.map((x) => x.name), nextColor(p));
+  const clones: VDancer[] = [];
+  let q0 = p;
+  for (let i = 0; i < n; i++) {
+    const d = cloneDancer(src, uid("d"), q0.dancers.map((x) => x.name), nextColor(q0));
+    clones.push(d);
+    q0 = { ...q0, dancers: [...q0.dancers, d] };
+  }
   st().commit((q) => {
     // xếp sau bản cuối cùng của cùng video: "Lan, Lan 2, Lan 3" đúng thứ tự
     let k = q.dancers.findIndex((x) => x.id === id);
     q.dancers.forEach((x, i) => { if (src.mediaId && x.mediaId === src.mediaId) k = Math.max(k, i); });
-    const dancers = [...q.dancers.slice(0, k + 1), d, ...q.dancers.slice(k + 1)];
-    return { ...q, dancers, formations: addDancerToAll(q.formations, d.id, q.stage) };
+    const dancers = [...q.dancers.slice(0, k + 1), ...clones, ...q.dancers.slice(k + 1)];
+    return { ...q, dancers, formations: placeClones(q.formations, id, clones.map((d) => d.id), q.stage) };
   });
   clock.resync();
-  return d.id;
+  if (n > 1) st().notify(`Đã nhân bản ${src.name} thành ${n} người`, { undo: true });
+  return clones[0].id;
+}
+
+/**
+ * Múa canon: người thứ k trong lựa chọn (theo thứ tự danh sách) lệch thêm
+ * k·step giây. Chỉ áp cho những người dùng chung video với người dẫn.
+ */
+export function canonOffsets(sel: string[], step: number) {
+  const p = proj();
+  const picked = p.dancers.filter((d) => sel.includes(d.id)).length;
+  const patch = canonPatch(p.dancers, sel, step);
+  const n = Object.keys(patch).length;
+  if (n < 2) {
+    st().notify(
+      picked >= 2
+        ? "Lệch canon chỉ dành cho những người dùng chung một video — nhân bản (×N) một người rồi lệch"
+        : "Chọn ít nhất 2 người để lệch canon",
+    );
+    return;
+  }
+  st().commit((q) => ({
+    ...q,
+    dancers: q.dancers.map((d) => (d.id in patch ? { ...d, offsetSec: patch[d.id] } : d)),
+  }));
+  clock.resync();
+  const skipped = picked - n;
+  st().notify(
+    `Lệch canon ${n} người, mỗi người sau ${step.toFixed(2)} s` +
+      (skipped > 0 ? ` — giữ nguyên ${skipped} người dùng video khác` : ""),
+    { undo: true },
+  );
 }
 
 export function updateDancer(id: string, patch: Partial<VDancer>) {
@@ -168,9 +219,11 @@ export function nudgeSelected(dx: number, dz: number) {
   const cur = currentPoses();
   const moves: Record<string, Vec2> = {};
   for (const id of sel) {
+    if (!cur[id]) continue; // người đã bị xoá mà còn trong lựa chọn
     const p: Vec2 = [cur[id][0] + dx, cur[id][1] + dz];
     moves[id] = st().ui.snap ? snapPos(p, 0.25) : p;
   }
+  if (!Object.keys(moves).length) return;
   setPositionsNow(moves, false);
 }
 
@@ -271,56 +324,120 @@ export function stepBeat(n: number) {
   clock.seek(p.bpm ? snapTime(t, p.bpm, p.downbeat) : t);
 }
 
-export function setBpm(bpm: number | null, downbeat?: number) {
-  st().commit((q) => ({ ...q, bpm, downbeat: downbeat ?? q.downbeat }));
+export function setBpm(bpm: number | null, downbeat?: number, merge?: string) {
+  st().commit((q) => ({ ...q, bpm, downbeat: downbeat ?? q.downbeat }), merge);
 }
 
 // ---------- nhập tệp ----------
 
-async function attachVideo(file: File, meta: import("./media").CardMeta | null, intoId: string | null) {
-  const rec = await storeBlob(file.name, file);
-  const v = await registerVideo(rec);
+let cancelReq = false;
+let working = false; // đang nạp / đang khớp: không cho chạy chồng lượt khác
+
+/** Nút "Dừng" trong hộp đang xử lý: dừng sau tệp / video đang làm. */
+export function cancelBusy() {
+  cancelReq = true;
+  const b = st().ui.busy;
+  if (b) st().setUI({ busy: { ...b, msg: "Đang dừng…", cancel: false } });
+}
+const busy = (msg: string, progress = -1, cancel = true) => st().setUI({ busy: { msg, progress, cancel } });
+const round3 = (x: number) => Math.round(x * 1000) / 1000;
+
+interface Attached {
+  id: string;
+  how: OffsetHow;
+  confident: boolean;
+  noAudio: boolean;
+}
+
+async function attachVideo(
+  file: File, meta: CardMeta | null, intoId: string | null, onlyTarget = false,
+): Promise<Attached | "same"> {
+  const { rec, fresh } = await storeFile(file);
+  // cùng tệp đã gắn rồi: không gắn lần hai
+  if (!fresh && proj().dancers.some((d) => d.mediaId === rec.id && (!onlyTarget || d.id === intoId))) return "same";
+  let v;
+  try {
+    v = await registerVideo(rec);
+  } catch (e) {
+    if (fresh) await discardMedia(rec.id);
+    throw e;
+  }
   const stacked = meta?.stacked ?? /\.card\./i.test(file.name);
   const frameH = stacked ? v.height / 2 : v.height;
   const aspect = v.width && frameH ? v.width / frameH : 0.5;
-  let offsetSec = meta?.offsetSec ?? 0;
-  let alignConfident = meta?.alignConfident ?? false;
-  let aligned = !!meta;
-  if (!meta && music.buffer) {
-    const r = await alignBlob(file);
+  const durationSec = meta?.durationSec ?? v.duration;
+  const prev = intoId ? proj().dancers.find((x) => x.id === intoId) : undefined;
+  const plan = offsetPlan({ prev, fileName: file.name, fileSize: file.size, durationSec, meta, hasMusic: !!music.buffer });
+  let { offsetSec, confident } = plan;
+  let noAudio = false;
+  if (plan.how === "align") {
+    const r = await alignBlob(rec.blob).catch(() => null);
     if (r) {
-      offsetSec = Math.round(r.offset * 1000) / 1000;
-      alignConfident = r.confidence >= CONFIDENT;
-      aligned = true;
-    }
+      offsetSec = round3(r.offset);
+      confident = r.confidence >= CONFIDENT;
+    } else noAudio = true;
   }
   const patch: Partial<VDancer> = {
-    mediaId: rec.id, mediaName: file.name, stacked, aspect,
-    durationSec: meta?.durationSec ?? v.duration, offsetSec, alignConfident,
+    mediaId: rec.id, mediaName: file.name, stacked, aspect, durationSec, offsetSec, alignConfident: confident,
   };
   const label = meta?.name ?? stripName(file.name);
-  let id = intoId;
-  if (!id) id = addDancer(label);
+  const id = intoId ?? addDancer(label);
   const d = proj().dancers.find((x) => x.id === id)!;
   if (/^D\d+$/.test(d.name)) patch.name = label;
   updateDancer(id, patch);
-  return { id, aligned, confident: alignConfident };
+  // bản nhân bản mở từ tệp dự án (cùng tên tệp, chưa có video): gắn luôn,
+  // giữ độ lệch riêng (canon) nếu đã tin được
+  const fname = file.name.toLowerCase();
+  for (const o of proj().dancers) {
+    if (o.id === id || o.mediaId || o.mediaName.toLowerCase() !== fname) continue;
+    const keep = offsetPlan({ prev: o, fileName: file.name, fileSize: file.size, durationSec, meta: null, hasMusic: true }).how === "keep";
+    updateDancer(o.id, {
+      mediaId: rec.id, mediaName: file.name, stacked, aspect, durationSec,
+      offsetSec: keep ? o.offsetSec : offsetSec, alignConfident: keep || confident,
+    });
+  }
+  return { id, how: plan.how, confident, noAudio };
+}
+
+const dancerName = (id: string) => proj().dancers.find((d) => d.id === id)?.name ?? "";
+
+/** Ghi kết quả gắn một video vào bản tổng kết. */
+function tally(rep: ImportReport, file: File, r: Attached | "same") {
+  if (r === "same") return void rep.same.push(file.name);
+  const name = dancerName(r.id) || file.name;
+  rep.added.push(name);
+  if (r.how === "none") rep.noMusic++;
+  else if (r.how === "big") rep.big.push(name);
+  else if (r.noAudio) rep.noAudio.push(name);
+  else if (!r.confident) rep.weak.push(name);
 }
 
 /** Gắn (hoặc thay) video cho đúng một vũ công. */
 export async function replaceVideo(id: string, file: File) {
   const d = proj().dancers.find((x) => x.id === id);
   if (!d) return;
-  st().setUI({ busy: { msg: `Đang nạp video cho ${d.name}…`, progress: -1 } });
+  if (working) return void st().notify("Đang xử lý tệp khác, chờ xong rồi thử lại", { kind: "warn" });
+  working = true;
+  cancelReq = false;
+  busy(`Đang nạp video cho ${d.name}…`, -1, false);
+  const p0 = proj();
+  const rep = emptyReport();
   try {
-    const r = await attachVideo(file, null, id);
-    st().notify(
-      r.aligned && !r.confident ? `${d.name}: khớp nhạc chưa chắc, hãy nghe thử và căn tay` : `Đã gắn video cho ${d.name}`,
-      { kind: r.aligned && !r.confident ? "warn" : "info", undo: true },
-    );
+    const r = await batch(() => attachVideo(file, null, id, true));
+    if (r === "same") st().notify(`${d.name} đã dùng đúng video này`);
+    else {
+      tally(rep, file, r);
+      const s = importSummary(rep);
+      st().notify(rep.weak.length || rep.noAudio.length || rep.big.length ? s.msg : `Đã gắn video cho ${d.name}`, {
+        kind: s.kind, undo: proj() !== p0,
+      });
+      askPersist();
+    }
   } catch (e) {
-    st().notify(`Không đọc được video: ${(e as Error).message}`, { kind: "error" });
+    rep.bad.push({ name: file.name, code: failCode(e) });
+    st().notify(importSummary(rep).msg, { kind: "error" });
   } finally {
+    working = false;
     st().setUI({ busy: null });
     clock.resync();
   }
@@ -333,6 +450,57 @@ export async function alignBlob(blob: Blob): Promise<{ offset: number; confidenc
   return estimateOffset(monoOf(a), a.sampleRate, monoOf(music.buffer), music.buffer.sampleRate);
 }
 
+interface AlignOut {
+  ok: string[];
+  weak: string[];
+  noAudio: string[];
+  big: string[];
+  cancelled: boolean;
+}
+
+/**
+ * Khớp lại theo nhạc cho các vũ công `ids`: mỗi tệp giải mã một lần. Bản nhân
+ * bản cùng tệp giữ nguyên khoảng lệch giữa nhau (canon), cả nhóm dời theo.
+ */
+async function alignDancers(ids: string[]): Promise<AlignOut> {
+  const out: AlignOut = { ok: [], weak: [], noAudio: [], big: [], cancelled: false };
+  const groups = new Map<string, VDancer[]>();
+  for (const d of proj().dancers) {
+    if (!ids.includes(d.id) || !d.mediaId || !getVideo(d.mediaId)) continue;
+    groups.set(d.mediaId, [...(groups.get(d.mediaId) ?? []), d]);
+  }
+  let i = 0;
+  for (const [mid, ds] of groups) {
+    if (cancelReq) {
+      out.cancelled = true;
+      break;
+    }
+    i++;
+    const names = ds.map((d) => d.name);
+    busy(`Đang khớp nhạc ${i}/${groups.size}: ${names[0]}…`, (i - 1) / groups.size);
+    const v = getVideo(mid)!;
+    if (v.blob.size > ALIGN_MAX_BYTES) {
+      out.big.push(...names);
+      continue;
+    }
+    const r = await alignBlob(v.blob).catch(() => null);
+    if (!r) {
+      out.noAudio.push(...names);
+      continue;
+    }
+    const conf = r.confidence >= CONFIDENT;
+    const ref = ds[0].offsetSec;
+    const next = new Map(ds.map((d) => [d.id, round3(r.offset + d.offsetSec - ref)]));
+    st().commit((q) => ({
+      ...q,
+      dancers: q.dancers.map((d) => (next.has(d.id) ? { ...d, offsetSec: next.get(d.id)!, alignConfident: conf } : d)),
+    }));
+    (conf ? out.ok : out.weak).push(...names);
+  }
+  clock.resync();
+  return out;
+}
+
 export async function realign(id: string) {
   const d = proj().dancers.find((x) => x.id === id);
   const v = getVideo(d?.mediaId);
@@ -341,145 +509,325 @@ export async function realign(id: string) {
     st().notify("Cần thả bài nhạc trước rồi mới tự khớp được");
     return;
   }
+  if (working) return void st().notify("Đang xử lý tệp khác, chờ xong rồi thử lại", { kind: "warn" });
+  if (v.blob.size > ALIGN_MAX_BYTES) {
+    st().notify(`${d.name}: tệp quá lớn để tự khớp. Hãy kéo thanh video để căn tay, hoặc dùng thẻ .card.mp4`, { kind: "warn" });
+    return;
+  }
+  working = true;
   st().setUI({ busy: { msg: `Đang khớp nhạc cho ${d.name}…`, progress: -1 } });
   try {
-    const blob = await fetch(v.url).then((r) => r.blob());
-    const r = await alignBlob(blob);
-    if (!r) st().notify("Video không có tiếng, hãy kéo thanh video để căn tay", { kind: "warn" });
+    const r = await alignBlob(v.blob);
+    if (!r) st().notify(`${d.name}: video không có tiếng, hãy kéo thanh video để căn tay`, { kind: "warn" });
     else {
-      updateDancer(id, { offsetSec: Math.round(r.offset * 1000) / 1000, alignConfident: r.confidence >= CONFIDENT });
+      updateDancer(id, { offsetSec: round3(r.offset), alignConfident: r.confidence >= CONFIDENT });
       st().notify(
         r.confidence >= CONFIDENT
           ? `${d.name}: khớp nhạc lệch ${r.offset.toFixed(2)} s`
           : `${d.name}: khớp chưa chắc, hãy nghe thử và căn tay`,
-        { kind: r.confidence >= CONFIDENT ? "info" : "warn" },
+        { kind: r.confidence >= CONFIDENT ? "info" : "warn", undo: true },
       );
     }
+  } catch (e) {
+    st().notify(`${d.name}: không tự khớp được (${(e as Error)?.message || "lỗi đọc tệp"}). Hãy căn tay.`, { kind: "error" });
   } finally {
+    working = false;
     st().setUI({ busy: null });
   }
 }
 
+/** "Khớp tất cả": người chưa chắc; không ai chưa chắc thì khớp lại hết. Một bước hoàn tác. */
+export async function realignAll() {
+  if (!music.buffer) return void st().notify("Cần thả bài nhạc trước rồi mới tự khớp được");
+  if (working) return void st().notify("Đang xử lý tệp khác, chờ xong rồi thử lại", { kind: "warn" });
+  const withMedia = proj().dancers.filter((d) => d.mediaId && getVideo(d.mediaId));
+  const untrusted = withMedia.filter((d) => !d.alignConfident);
+  const pick = untrusted.length ? untrusted : withMedia;
+  if (!pick.length) return void st().notify("Chưa có video nào để khớp");
+  working = true;
+  cancelReq = false;
+  const p0 = proj();
+  try {
+    const r = await batch(() => alignDancers(pick.map((d) => d.id)));
+    const s = importSummary({
+      ...emptyReport(), realigned: r.ok.length + r.weak.length, weak: r.weak, noAudio: r.noAudio, big: r.big,
+      cancelled: r.cancelled,
+    });
+    st().notify(s.msg, { kind: s.kind, undo: proj() !== p0 });
+  } catch (e) {
+    st().notify(`Không tự khớp được: ${(e as Error)?.message || "lỗi đọc tệp"}. Hãy căn tay.`, { kind: "error" });
+  } finally {
+    working = false;
+    cancelReq = false;
+    st().setUI({ busy: null });
+  }
+}
+
+/** Vũ công nhận video vừa thả (giữ nguyên thứ tự ưu tiên cũ). */
+function pickTarget(file: File, meta: CardMeta | null, count: number): VDancer | undefined {
+  const key = stripName(file.name).toLowerCase();
+  const p = proj();
+  const sel = st().ui.selected.length === 1 ? p.dancers.find((d) => d.id === st().ui.selected[0] && !d.mediaId) : undefined;
+  return (
+    p.dancers.find((d) => !d.mediaId && stripName(d.mediaName).toLowerCase() === key && d.mediaName) ??
+    p.dancers.find((d) => d.name.toLowerCase() === (meta?.name ?? key).toLowerCase()) ??
+    (count === 1 ? sel : undefined) ??
+    p.dancers.find((d) => !d.mediaId)
+  );
+}
+
+/** Thả / chọn nhiều tệp: mỗi tệp lỗi riêng không chặn tệp khác; cả lượt là một bước hoàn tác. */
 export async function importFiles(files: File[]) {
   if (!files.length) return;
-  const c = await classify(files);
-  const msgs: string[] = [];
+  const zip = files.find((f) => /\.zip$/i.test(f.name)); // gói .zip có đủ video: mở riêng
+  if (zip) return void (await openBundleFile(zip));
+  if (working) return void st().notify("Đang nạp tệp khác, chờ xong rồi thả tiếp", { kind: "warn" });
+  working = true;
+  cancelReq = false;
+  const rep = emptyReport();
+  const p0 = proj();
   try {
-    if (c.project) {
-      await openProjectFile(c.project);
-      msgs.push("đã mở dự án");
-    }
-    if (c.music) {
-      st().setUI({ busy: { msg: "Đang đọc nhạc…", progress: -1 } });
-      const rec = await storeBlob(c.music.name, c.music);
-      const dur = await setMusic(rec);
-      st().commit((q) => ({ ...q, musicId: rec.id, musicName: c.music!.name, musicDuration: dur }));
-      msgs.push(`nhạc "${c.music.name}"`);
-    }
-    let i = 0;
-    let weak = 0;
-    for (const { file, meta } of c.videos) {
-      i++;
-      st().setUI({ busy: { msg: `Đang nạp video ${i}/${c.videos.length}: ${file.name}`, progress: (i - 1) / c.videos.length } });
-      const key = stripName(file.name).toLowerCase();
-      const p = proj();
-      const sel = st().ui.selected.length === 1 ? p.dancers.find((d) => d.id === st().ui.selected[0] && !d.mediaId) : undefined;
-      const target =
-        p.dancers.find((d) => !d.mediaId && stripName(d.mediaName).toLowerCase() === key && d.mediaName) ??
-        p.dancers.find((d) => d.name.toLowerCase() === (meta?.name ?? key).toLowerCase()) ??
-        (c.videos.length === 1 ? sel : undefined) ??
-        p.dancers.find((d) => !d.mediaId);
-      const r = await attachVideo(file, meta, target?.id ?? null);
-      if (r.aligned && !r.confident) weak++;
-    }
-    if (c.videos.length) msgs.push(`${c.videos.length} video`);
-    if (weak) st().notify(`${weak} video khớp nhạc chưa chắc: xem dấu ⚠ ở danh sách vũ công`, { kind: "warn" });
-    else if (msgs.length) st().notify(`Đã nạp ${msgs.join(", ")}`);
-    if (c.unknown.length) st().notify(`Bỏ qua ${c.unknown.length} tệp không nhận ra: ${c.unknown.map((f) => f.name).join(", ")}`, { kind: "warn" });
+    await batch(async () => {
+      busy("Đang đọc tệp…");
+      const c = await classify(files);
+      rep.skipped = c.unknown.map((f) => f.name);
+      if (c.project) {
+        try {
+          await openProjectFile(c.project);
+          rep.project = true;
+        } catch {
+          rep.projectError = true;
+        }
+      }
+      let musicChanged = false;
+      if (c.music && !cancelReq) {
+        const f = c.music;
+        busy(`Đang đọc nhạc ${f.name}…`);
+        let stored: Awaited<ReturnType<typeof storeFile>> | null = null;
+        try {
+          stored = await storeFile(f);
+          const { rec } = stored;
+          if (rec.id === proj().musicId && music.id === rec.id) rep.musicSame = true;
+          else {
+            if (clock.isPlaying()) clock.pause();
+            const dur = await setMusic(rec);
+            st().commit((q) => ({ ...q, musicId: rec.id, musicName: f.name, musicDuration: dur }));
+            rep.music = f.name;
+            musicChanged = true;
+          }
+        } catch (e) {
+          if (stored?.fresh) await discardMedia(stored.rec.id);
+          rep.bad.push({ name: f.name, code: failCode(e) });
+        }
+      }
+      const fresh = new Set<string>(); // vũ công vừa khớp với nhạc mới trong lượt này
+      const n = c.videos.length;
+      for (let i = 0; i < n; i++) {
+        if (cancelReq) {
+          rep.cancelled = true;
+          break;
+        }
+        const { file, meta } = c.videos[i];
+        busy(`Đang nạp video ${i + 1}/${n}: ${file.name}`, i / n);
+        try {
+          const r = await attachVideo(file, meta, pickTarget(file, meta, n)?.id ?? null);
+          if (r !== "same") fresh.add(r.id);
+          tally(rep, file, r);
+        } catch (e) {
+          rep.bad.push({ name: file.name, code: failCode(e) });
+        }
+      }
+      // đổi nhạc: tự khớp lại những người chưa chắc (đã căn tay thì giữ)
+      if (musicChanged && !cancelReq) {
+        const ids = proj().dancers.filter((d) => d.mediaId && !d.alignConfident && !fresh.has(d.id)).map((d) => d.id);
+        if (ids.length) {
+          const r = await alignDancers(ids);
+          rep.realigned = r.ok.length + r.weak.length;
+          rep.weak.push(...r.weak);
+          rep.noAudio.push(...r.noAudio);
+          rep.big.push(...r.big);
+          if (r.cancelled) rep.cancelled = true;
+        }
+      }
+      if (cancelReq) rep.cancelled = true;
+    });
+    const s = importSummary(rep);
+    st().notify(s.msg, { kind: s.kind, undo: proj() !== p0 });
+    if (rep.added.length || rep.music) askPersist();
   } catch (e) {
-    st().notify(`Lỗi khi nạp tệp: ${(e as Error).message}`, { kind: "error" });
+    st().notify(errText(e, "Lỗi khi nạp tệp"), { kind: "error" });
   } finally {
+    working = false;
+    cancelReq = false;
     st().setUI({ busy: null });
     clock.resync();
   }
 }
 
+/** Xin trình duyệt giữ dữ liệu lâu dài (khỏi tự xoá khi máy thiếu chỗ). Hỏi một lần. */
+let persistAsked = false;
+function askPersist() {
+  if (persistAsked) return;
+  persistAsked = true;
+  const s = typeof navigator !== "undefined" ? navigator.storage : undefined;
+  if (!s?.persist) return;
+  s.persisted()
+    .then((ok) => ok || s.persist())
+    .catch(() => {});
+}
+
+// ---------- nhạc theo dự án ----------
+
+let followHooked = false;
+/** Nhạc đang mở luôn theo project.musicId (hoàn tác, bài mới, mở dự án). */
+function followMusic() {
+  if (followHooked) return;
+  followHooked = true;
+  useStore.subscribe((s, prev) => {
+    const id = s.project.musicId;
+    if (id === prev.project.musicId || id === music.id) return;
+    if (clock.isPlaying()) clock.pause();
+    loadMusicId(id).then((ok) => {
+      if (!ok && id && st().project.musicId === id)
+        st().notify(`Không mở được nhạc "${st().project.musicName}". Hãy thả lại tệp nhạc.`, { kind: "warn" });
+    });
+  });
+}
+
 // ---------- lưu / mở ----------
 
 let saveTimer = 0;
+let dirty = false;
+
+async function writeNow() {
+  clearTimeout(saveTimer);
+  saveTimer = 0;
+  if (!dirty || !st().ui.loaded) return;
+  if (!canAutosave()) {
+    st().setUI({ saveState: "error", saveError: "Bài đang mở ở thẻ khác hoặc bản lưu cũ đọc lỗi, chưa tự lưu" });
+    return;
+  }
+  dirty = false;
+  try {
+    await saveProject(st().project);
+    if (!dirty) st().setUI({ saveState: "saved", saveError: null });
+  } catch (e) {
+    dirty = true;
+    // thông báo nổi do App.tsx báo một lần mỗi đợt lỗi; ô đỏ ở thanh trên giữ lý do
+    st().setUI({ saveState: "error", saveError: errText(e, "Trình duyệt báo lỗi") });
+  }
+}
+
+/** Lưu ngay phần còn chờ (đóng thẻ, chuyển thẻ). */
+export function flushSave() {
+  if (dirty) void writeNow();
+}
+
+let autosaveOn = false;
 export function startAutosave() {
+  if (autosaveOn) return;
+  autosaveOn = true;
   let last = proj();
   useStore.subscribe((s) => {
     if (s.project === last || !s.ui.loaded) return;
     last = s.project;
+    dirty = true;
+    if (!canAutosave()) {
+      if (s.ui.saveState !== "error") st().setUI({ saveState: "error" });
+      return;
+    }
     if (s.ui.saveState !== "saving") st().setUI({ saveState: "saving" });
     clearTimeout(saveTimer);
-    saveTimer = window.setTimeout(() => {
-      saveProject(st().project)
-        .then(() => st().setUI({ saveState: "saved" }))
-        .catch(() => st().setUI({ saveState: "error" }));
-    }, 400);
+    saveTimer = window.setTimeout(() => void writeNow(), 400);
+  });
+  window.addEventListener("pagehide", flushSave);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushSave();
+  });
+  // giành quyền lưu từ thẻ khác / người dùng chọn "vẫn tự lưu": lưu bản của thẻ này
+  onTakeOver(() => {
+    dirty = true;
+    void writeNow();
+  });
+  subscribeGuard(() => {
+    if (dirty && canAutosave()) void writeNow();
   });
 }
 
+const mediaIdsOf = (p: Project | null) => (p ? [p.musicId, ...p.dancers.map((d) => d.mediaId)] : []);
+
 export async function boot() {
   initClock();
+  await claimTab();
+  let readOk = true;
+  let raw: unknown = null;
   try {
-    const p = await loadProject();
-    if (p && p.version === 1) {
-      const full = { ...emptyProject(), ...p, dancers: p.dancers.map((d) => ({ ...newDancer(d.id, d.name, d.color), ...d })) };
-      st().load(full);
-      await loadMediaFor(full.musicId, full.dancers.map((d) => d.mediaId).filter((x): x is string => !!x));
-      // dọn media không còn dùng
-      const used = new Set([full.musicId, ...full.dancers.map((d) => d.mediaId)]);
-      for (const k of await allMediaIds()) if (!used.has(String(k))) deleteMedia(String(k)).catch(() => {});
-    }
+    raw = await loadProject();
   } catch (e) {
-    console.warn("Không mở được dự án đã lưu", e);
+    console.warn("Không đọc được dự án đã lưu", e);
+    readOk = false;
+    setBootProblem("unreadable");
   }
-  st().setUI({ loaded: true });
+  let full: Project | null = null;
+  if (readOk && raw != null) {
+    full = normalizeProject(raw);
+    if (!full) {
+      // dữ liệu hỏng: cất riêng trước, không để tự lưu đè mất
+      let backedUp = false;
+      try {
+        await saveKey("current-backup", raw);
+        backedUp = true;
+      } catch { /* cất không được thì chặn tự lưu */ }
+      setBootProblem("invalid", { backedUp, raw });
+    }
+  }
+  if (full) {
+    st().load(full);
+    const vids = full.dancers.map((d) => d.mediaId).filter((x): x is string => !!x);
+    if (vids.length || full.musicId) st().setUI({ busy: { msg: "Đang nạp bài…", progress: -1 } });
+    const r = await loadMediaDetailed(full.musicId, vids, (i, n) =>
+      st().setUI({ busy: { msg: `Đang nạp ${i}/${n} video…`, progress: (i - 1) / n } }),
+    );
+    // mất hẳn trong máy: bỏ liên kết, giữ tên tệp để thả lại là tự ghép
+    const miss = new Set(r.missing);
+    if (miss.size) {
+      const p = proj();
+      st().load({
+        ...p,
+        musicId: p.musicId && miss.has(p.musicId) ? null : p.musicId,
+        dancers: p.dancers.map((d) => (d.mediaId && miss.has(d.mediaId) ? { ...d, mediaId: null } : d)),
+      });
+    }
+    const lost = r.missing.length + r.failed.length;
+    if (lost)
+      st().notify(`${lost} tệp video/nhạc đã lưu không mở được. Hãy thả lại các tệp đó, app tự ghép theo tên.`, { kind: "warn" });
+  }
+  // dọn media không còn dùng (chỉ thẻ chính, đọc được bài, không thẻ nào khác đang mở)
+  if (readOk && canAutosave() && !(await otherTabsOpen())) {
+    try {
+      const backup = await loadKey("current-backup").catch(() => null);
+      const used = new Set<string | null>([...mediaIdsOf(proj()), ...mediaIdsOf(normalizeProject(backup))]);
+      for (const k of await allMediaIds()) if (!used.has(String(k))) deleteMedia(String(k)).catch(() => {});
+    } catch { /* bỏ qua, lần sau dọn */ }
+  }
+  st().setUI({ loaded: true, busy: null });
   startAutosave();
   clock.seek(0);
 }
 
-function download(blob: Blob, name: string) {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-}
-
+/** Ctrl S: lưu ngay vào trình duyệt và ghi tệp .choreo.json (xem export/save.ts). */
 export function exportProject() {
-  const p = proj();
-  const safe = (p.title || "bai-mua").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
-  download(new Blob([JSON.stringify(p, null, 2)], { type: "application/json" }), `${safe}.choreo.json`);
-  st().notify("Đã lưu tệp dự án. Video và nhạc giữ riêng, khi mở lại thả chúng vào cùng lúc.");
+  return quickSave();
 }
 
-export async function openProjectFile(f: File) {
-  const j = JSON.parse(await f.text()) as Project;
-  if (!j || j.version !== 1 || !Array.isArray(j.dancers)) throw new Error("Không phải tệp dự án sân khấu");
-  const full: Project = {
-    ...emptyProject(), ...j,
-    dancers: j.dancers.map((d) => ({ ...newDancer(d.id, d.name, d.color), ...d })),
-  };
-  const missing = await loadMediaFor(full.musicId, full.dancers.map((d) => d.mediaId).filter((x): x is string => !!x));
-  const miss = new Set(missing);
-  // media không có trong máy: bỏ liên kết, giữ tên tệp để ghép khi thả vào
-  full.dancers = full.dancers.map((d) => (d.mediaId && miss.has(d.mediaId) ? { ...d, mediaId: null } : d));
-  if (full.musicId && miss.has(full.musicId)) full.musicId = null;
-  st().commit(() => full);
-  st().setUI({ selected: [], selectedBlock: null });
-  clock.seek(0);
+/** Mở tệp .choreo.json (một commit, Hoàn tác được). */
+export function openProjectFile(f: File): Promise<string[]> {
+  return openProjectJson(f);
 }
 
 export function newProject() {
   clock.pause();
-  setMusic(null);
-  st().commit(() => emptyProject());
+  st().commit(() => emptyProject()); // nhạc tự đóng theo musicId (followMusic)
   st().setUI({ selected: [], selectedBlock: null });
   clock.seek(0);
 }
@@ -493,3 +841,59 @@ export function setStage(width: number, depth: number) {
 }
 
 export { clock };
+
+// ---------- tự chia đội hình ----------
+
+/** Thay toàn bộ đội hình bằng kế hoạch tự chia (một commit, Ctrl Z hoàn tác được). */
+export function autoFormations(o: { count?: number; everyEights?: number }) {
+  const p = proj();
+  if (!p.dancers.length) {
+    st().notify("Thêm vũ công trước rồi mới tự chia đội hình");
+    return;
+  }
+  // chỉ chia cho người đang hiện, như khi xếp hình nhanh
+  const vis = p.dancers.filter((d) => !d.hidden).map((d) => d.id);
+  if (!vis.length) {
+    st().notify("Mọi vũ công đang ẩn — hiện ít nhất một người rồi mới tự chia đội hình");
+    return;
+  }
+  // webm ghi từ máy có thể chưa biết độ dài (Infinity): bỏ qua số đó
+  const fin = (v: number) => (Number.isFinite(v) ? v : 0);
+  let duration = fin(p.musicDuration);
+  if (!(duration > 0)) {
+    duration = 32;
+    const last = p.formations[p.formations.length - 1];
+    if (last) duration = Math.max(duration, fin(last.end));
+    for (const d of p.dancers) if (d.mediaId) duration = Math.max(duration, fin(d.offsetSec + d.durationSec));
+  }
+  const buf = music.buffer;
+  const r = planDance({
+    ids: vis, stage: p.stage, duration, bpm: p.bpm, downbeat: p.downbeat,
+    count: o.count, everyEights: o.everyEights,
+    start: p.formations[0]?.pos,
+    changeScore: buf ? energyChangeScore(monoOf(buf), buf.sampleRate) : undefined,
+    newId: () => uid("f"),
+  });
+  // người đang ẩn đứng yên ở chỗ cũ trong đội hình đầu, chưa có chỗ thì vào cánh gà
+  const park: Record<string, Vec2> = {};
+  const parked: Vec2[] = [];
+  for (const d of p.dancers) {
+    if (!d.hidden) continue;
+    const q = p.formations[0]?.pos[d.id] ?? wingSpot(parked, p.stage);
+    park[d.id] = q;
+    parked.push(q);
+  }
+  const formations = r.formations.map((f) => ({ ...f, pos: { ...f.pos, ...park } }));
+  const had = p.formations.length;
+  st().commit((q) => ({ ...q, formations }));
+  clock.seek(formations[0].start + 0.001);
+  st().setUI({ selectedBlock: formations[0].id });
+  const notes: string[] = [];
+  if (r.merged > 0) notes.push(`bớt ${r.merged} vì đoạn quá ngắn, đi kịp phải chạy quá nhanh`);
+  if (r.crowded.length)
+    notes.push(`bỏ hình ${r.crowded.map((k) => SHAPE_LABEL[k].toLowerCase()).join(", ")} vì quá chật cho ${vis.length} người`);
+  const how = (buf ? ", điểm đổi theo nhạc" : "") + (notes.length ? ` (${notes.join("; ")})` : "");
+  if (had > 1)
+    st().notify(`Đã thay ${had} đội hình cũ bằng ${formations.length} đội hình mới${how} — Ctrl Z để hoàn tác`, { undo: true, kind: "warn" });
+  else st().notify(`Đã tạo ${formations.length} đội hình${how} — Ctrl Z để hoàn tác`, { undo: true });
+}

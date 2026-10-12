@@ -84,26 +84,34 @@ Lần đầu mở, màn chào có ba lối vào:
 * **Chưa có video:** nhập số người múa, bấm Bắt đầu để xếp đội hình với người giữ chỗ, gắn video sau.
 * **Xem bài mẫu:** sáu người múa quạt, sáu đội hình, dựng ngay trong trình duyệt để thử app.
 
+Nạp nhạc trước thì màn chào ghi tên bài nhạc, độ dài và nhịp, rồi nhắc bước tiếp theo là thả video từng người. Bài và video lưu ngay trong trình duyệt, không tải lên mạng; app xin trình duyệt giữ dữ liệu lâu dài để khỏi bị tự xoá khi máy đầy.
+
 Sau này muốn làm bài khác thì **Tệp ▸ Bài mới**.
 
 ## 4. Dùng app
 
 ### Bố cục
 
-* **Thanh trên:** tên bài, menu Tệp, hoàn tác và làm lại, nút phát, đồng hồ và đếm phách (phách / lượt 8), nút bám lưới, chọn chế độ xem, Trình chiếu, Trợ giúp.
-* **Cột trái:** thẻ *Vũ công* (nhạc, nhịp, danh sách người) và thẻ *Đội hình*.
-* **Giữa:** sân khấu. *Sơ đồ* là nhìn từ trên xuống; *Khán giả* là nhìn từ hàng ghế khán giả; *Cả hai* là hai khung cạnh nhau. Khán giả luôn ở phía dưới sơ đồ.
+* **Thanh trên:** nút ẩn hiện cột trái, tên bài, ô lưu, menu Tệp, hoàn tác và làm lại, nút phát, đồng hồ và đếm phách (phách / lượt 8), nút bám lưới, chọn chế độ xem, Trình chiếu, Trợ giúp. Cửa sổ hẹp thì chữ trên nút tự ẩn, chỉ còn biểu tượng (rê chuột để xem tên); xoá trắng tên bài thì app trả lại tên cũ.
+* **Cột trái:** thẻ *Vũ công* (nhạc, nhịp, danh sách người) và thẻ *Đội hình*. Bấm nút ở góc trái thanh trên để ẩn hoặc hiện; app nhớ lựa chọn cho lần mở sau.
+* **Giữa:** sân khấu. *Sơ đồ* là nhìn từ trên xuống; *Khán giả* là nhìn từ hàng ghế khán giả; *Cả hai* là hai khung cạnh nhau, vùng giữa cao mà hẹp (ví dụ cửa sổ chia đôi màn hình) thì tự xếp trên dưới. Khán giả luôn ở phía dưới sơ đồ.
+* **Điện thoại:** thanh trên tách hai hàng (tên bài và tệp ở trên, phát và chế độ xem ở dưới); cột trái thành ngăn kéo, bấm nút góc trái để mở, chạm ra ngoài để đóng. Menu hiện từ đáy màn hình cho dễ bấm.
 * **Dưới:** dòng thời gian với sóng nhạc, vạch phách và các khối đội hình.
 
 ### Nạp nhạc và thẻ
 
 Kéo thả **cả thư mục `the/` và tệp nhạc** vào cửa sổ app (thả thư mục hay chọn nhiều tệp đều được) (hoặc **Tệp ▸ Nạp video và nhạc…**). App tự đọc `.card.json` để lấy tên, độ lệch và biết thẻ đã xoá phông. Video gốc chưa qua công cụ cũng thả vào được.
 
+* Cả lượt thả là **một bước hoàn tác** (Ctrl Z bỏ hết), xong app báo một dòng tổng kết.
+* Thả lại đúng tệp đã nạp thì app bỏ qua, không lưu lần hai. Tệp lạ (`.json` không phải thẻ hay dự án, ảnh…) bị bỏ qua kèm thông báo.
+* Một video hỏng không chặn các video khác; video đó không được lưu.
+* Đang nạp nhiều tệp, bấm **Dừng** trong hộp tiến độ để dừng sau tệp đang làm.
+
 ### Nhịp
 
 Ở thẻ *Vũ công*, mục Nhạc:
 
-* Gõ số **BPM**, hoặc bấm **Gõ nhịp** theo nhạc 4 đến 8 lần.
+* Gõ số **BPM** (30 đến 300) rồi bấm Enter, hoặc bấm **Gõ nhịp** theo nhạc 4 đến 8 lần (cả loạt gõ chỉ là một bước Hoàn tác).
 * Phát tới đúng phách 1 của lượt đếm 8 đầu tiên rồi bấm **Đặt phách 1**.
 
 Từ đó thanh trên đếm 1 tới 8, dòng thời gian có vạch phách, và mọi thao tác kéo thả bám theo phách khi bật bám lưới (N).
@@ -113,9 +121,23 @@ Từ đó thanh trên đếm 1 tới 8, dòng thời gian có vạch phách, và
 Chọn một vũ công trong danh sách:
 
 * **Tự khớp**: app nghe tiếng trong video và tìm chỗ khớp với nhạc.
-* Nút **−0.1, −0.01, +0.01, +0.1** chỉnh độ lệch bằng tay. Mẹo: bật Trình chiếu, nhìn bước chân rơi đúng phách.
-* Ô **Video đã xoá phông** phải được tích cho thẻ ra từ công cụ (app tự tích khi có `.card.json`).
-* **Cao thẻ** chỉnh chiều cao người trên sân khấu; chấm màu đổi màu nhận diện.
+* **Khớp tất cả** (cạnh tiêu đề danh sách vũ công): khớp lại những người còn dấu ⚠; không ai có dấu ⚠ thì khớp lại hết. Bản nhân bản cùng video giữ nguyên khoảng lệch canon.
+* Thẻ có `.card.json` dùng luôn độ lệch trong đó, không phải nghe lại. Thay video bằng đúng tệp cũ thì giữ độ lệch đã căn.
+* Đổi bài nhạc: app tự khớp lại những người chưa chắc; người đã căn tay hoặc đã khớp chắc thì giữ.
+* Video quá lớn (trên 400 MB) hoặc không có tiếng thì app không tự khớp, hãy căn tay.
+* Nút **−0,1, −0,01, +0,01, +0,1** chỉnh độ lệch bằng tay. Mẹo: bật Trình chiếu, nhìn bước chân rơi đúng phách.
+* Ô **Thẻ đã tách nền (tệp .card.mp4)** phải được tích cho thẻ ra từ công cụ (app tự tích khi có `.card.json`).
+* **Cao thẻ** chỉnh chiều cao người trên sân khấu (một lần kéo là một bước Hoàn tác); chấm màu đổi màu nhận diện.
+* Các ô số (nhịp, số người nhân bản, giây canon, rộng, sâu sân khấu): gõ xong bấm **Enter** hoặc bấm ra ngoài mới chốt, **Esc** huỷ. Số lẻ gõ `1,5` hay `1.5` đều được; mũi tên lên, xuống đổi số trong ô (Shift: gấp 10) rồi vẫn Enter để chốt.
+
+### Nhân bản và múa canon
+
+Một video có thể dùng cho nhiều người trên sân (ví dụ chỉ quay một bạn rồi nhân lên cả nhóm):
+
+* Nút **nhân bản** (biểu tượng hai tờ giấy) ở dòng vũ công thêm một bản sao; **Shift bấm** để hỏi số người. Trong khung chi tiết vũ công có ô **Nhân bản thêm [n] người**.
+* Bản sao đứng **cạnh** bản gốc (cách ít nhất 0.8 m) ở mọi đội hình còn chỗ trên sân; bản gốc đang ở cánh gà hoặc sân đã kín thì bản sao vào cánh gà.
+* Mỗi bản sao phát video **riêng**, nên chỉnh độ lệch từng người được.
+* **Lệch canon**: chọn nhiều người (Shift bấm trong danh sách), ở khung *N người đang chọn* nhập số giây mỗi người (mặc định 1 phách nếu đã đặt nhịp, không thì 0,5 s), bấm **Lệch canon**. Theo thứ tự danh sách, người sau vào trễ hơn người trước đúng khoảng đó, người đầu giữ nguyên độ lệch. Hoàn tác được (Ctrl+Z).
 
 ### Đội hình
 
@@ -125,26 +147,56 @@ Mỗi đội hình là một **khối** trên dòng thời gian: trong khối m�
 2. Kéo người trên sơ đồ tới chỗ mới. Kéo vùng trống để chọn nhiều người; Shift bấm để thêm bớt.
 3. Kéo **mép khối** để đổi lúc bắt đầu, kết thúc; kéo **giữa khối** để dời cả khối. Khoảng giữa hai khối càng dài thì đi càng chậm.
 4. Trong thẻ *Đội hình*: đổi tên, ghi chú, **Lật** trái phải, **Dàn đều**, đưa người vào **Cánh trái** hoặc **Cánh phải** (hai dải mờ hai bên sân khấu là cánh gà, người ở đó coi như chưa ra sân).
+5. **Tự chia đội hình** (thẻ *Đội hình*): chọn **Mỗi … lượt 8** hoặc **Số đội hình**, bấm **Tạo**. App thay toàn bộ đội hình bằng một chuỗi hình xoay vòng (hàng ngang, chữ V, vòng tròn, hai hàng, đường chéo, so le, vòng cung) cho cả bài:
+   * Có nhịp thì mỗi khối bắt đầu và kết thúc đúng vạch lượt 8, mọi người tới đội hình mới đúng phách 1; chưa đặt nhịp thì chia theo mốc 4 s.
+   * Khoảng chuyển ít nhất 1 lượt 8 (hoặc 2 s), tự giãn khi phải đi xa để không ai chạy quá 1.5 m/s.
+   * Người được gán vào chỗ gần nhất của hình sau để ít đi chéo nhau; nếu vẫn có hai người sát nhau dưới 0.5 m khi chuyển, app thử đổi chỗ, lật hình hoặc đổi sang hình khác. Không ai bị xếp vào cánh gà.
+   * Đã thả nhạc thì điểm đổi đội hình được dời tới vạch lượt 8 gần chỗ nhạc đổi mạnh nhất (vào điệp khúc, nhạc to lên hay lắng xuống).
+   * Đã có sẵn nhiều đội hình thì app vẫn thay và báo cảnh báo: bấm **Hoàn tác** hoặc **Ctrl Z** để lấy lại. Đây là bản nháp để sửa tiếp bằng tay.
 
 ### Trình chiếu để tập
 
 Bấm **Trình chiếu** (F): toàn màn hình góc khán giả, có tên đội hình và đếm phách cỡ lớn. Chiếu lên tivi hoặc máy chiếu cho cả đội nhìn theo. Space phát, dừng; mũi tên hoặc PageUp, PageDown nhảy đội hình; Esc thoát.
 
+* **Chiếu lên tivi, máy chiếu:** cắm máy, chọn *Mở rộng* (Win P ▸ Extend). Kéo cửa sổ Chrome sang màn hình tivi (hoặc bấm **Win Shift →**) **rồi mới bấm F**, vì toàn màn hình mở trên màn hình đang chứa cửa sổ.
+* **Đếm vào 5 · 6 · 7 · 8:** nút **5-6-7-8** (bật sẵn). Bấm phát thì app đếm bốn số theo nhịp bài (chưa đặt nhịp thì 0,6 s một số) rồi mới chạy nhạc. Space hoặc Esc để huỷ.
+* **Khoá sửa:** lúc trình chiếu không kéo được người, góc dưới trái ghi *Khoá sửa*. Góc nhìn cũng khoá; nút ổ khoá mở cho xoay bằng chuột. Nút máy ảnh hoặc phím **C** đặt lại góc nhìn vừa khít sân.
+* **Gương:** lật trái phải cả hình và sơ đồ nhỏ, để đội đứng quay mặt vào màn hình như soi gương.
+* **Sáng:** sân sáng hơn, dễ nhìn trên máy chiếu yếu.
+* **Tôi là ai:** chọn tên mình; người khác mờ đi, có vòng trắng dưới chân mình và dòng nhắc "bạn đứng ở đâu, còn bao lâu thì đi tới đâu".
+* Dòng **Tiếp** đếm theo lượt 8 và phách (ví dụ *còn 1×8 + 4*); chưa đặt nhịp thì theo giây.
+
+### Xem và tập trên sơ đồ
+
+Góc trên phải sơ đồ có ba nút:
+
+* **Tôi là ai…:** làm nổi một người, vẽ cả đường đi qua bài, mỗi chỗ đứng ghi số đội hình.
+* **Bóng đội hình kế:** hiện mờ chỗ đứng ở đội hình sau, có mũi tên.
+* **Cảnh báo:** danh sách ai va nhau (dưới 0,5 m), chồng lên nhau, hay phải chạy quá 1,5 m/s. Bấm một dòng để tua tới đó. Chỗ va nhau hiện dấu × đỏ, đoạn chạy quá nhanh tô đỏ trên sơ đồ.
+
+Trong khung khán giả: nút **Đặt lại** đưa góc nhìn về vừa khít sân; kéo thẻ giữ **Alt** để đặt tự do không bám lưới.
+
 ### Lưu
 
-* App **tự lưu** trong trình duyệt (góc trên ghi "Đã lưu").
-* **Ctrl S** hoặc **Tệp ▸ Lưu ra tệp** xuất `ten-bai.choreo.json` để chép sang máy khác. Tệp này chỉ chứa đội hình và thông tin, **không chứa video**: sang máy mới thì **Tệp ▸ Mở tệp dự án** rồi thả lại thư mục thẻ và nhạc, app tự gắn theo tên tệp.
+* App **tự lưu** trong trình duyệt (góc trên có dấu ✓ "Đã lưu"; bấm vào để xem bài đang chiếm bao nhiêu chỗ), lưu ngay cả khi đóng hay chuyển thẻ.
+* Lưu hỏng thì góc trên đổi thành ô đỏ **Không lưu được** và giữ nguyên tới khi lưu lại được. Bấm vào để xem lý do, **Lưu ra tệp** ngay hoặc **Thử lưu lại**. Hay gặp nhất là trình duyệt hết chỗ: xoá bớt video không dùng rồi thử lại.
+* Chỉ **một thẻ trình duyệt** được tự lưu. Mở bài ở thẻ thứ hai thì thẻ đó báo và ngừng lưu; bấm **Dùng thẻ này** để chuyển quyền lưu sang, hoặc **Tải lại** để xem bản mới nhất.
+* **Ctrl S** lưu ngay vào trình duyệt và ghi tệp dự án `ten-bai.choreo.json`. Chrome, Edge hỏi chỗ lưu ở lần đầu, các lần sau ghi đè im lặng vào đúng tệp đó ("Đã lưu vào …"). Trình duyệt khác thì tải xuống một lần; các lần Ctrl S sau chỉ lưu trong trình duyệt. **Tệp ▸ Lưu thành tệp khác…** để chọn tệp mới.
+* Tệp `.choreo.json` chỉ chứa đội hình và thông tin, **không chứa video**. Muốn chép sang máy khác cho đủ cả nhạc và video: **Tệp ▸ Đóng gói cả video (.zip)…** ra một tệp `.zip` duy nhất (tối đa 4 GB).
+* Mở trên máy mới: **Tệp ▸ Mở…** chọn tệp `.zip` (hoặc kéo thả tệp `.zip` vào cửa sổ), **không cần giải nén**. App chép video vào trình duyệt rồi mở bài; bấm Hoàn tác (Ctrl Z) nếu lỡ tay. Mở tệp `.choreo.json` thì thả lại thư mục thẻ và nhạc, app tự gắn theo tên tệp.
+* **Tệp ▸ In tờ đội hình…**: in (hoặc lưu PDF) mỗi trang A4 hai đội hình, sơ đồ nhìn từ trên có tên từng người, mũi tên từ chỗ đứng trước, và bảng vị trí từng người. Phát cho cả đội.
+* **Tệp ▸ Xuất video…**: ghi video `.mp4` (hoặc `.webm` nếu trình duyệt không ghi được MP4) kèm nhạc, góc khán giả 3D hoặc sơ đồ từ trên. Sơ đồ có thể tô đậm một người ("video riêng cho Lan") để gửi riêng. Video ghi theo thời gian thật: bài dài 3 phút thì mất 3 phút, phải **giữ tab mở**, chuyển tab là dừng. Esc hoặc Hủy để dừng.
 
 ## 5. Phím tắt
 
 | Phím | Việc |
 |---|---|
 | Space | Phát / dừng |
-| Home | Về đầu bài |
+| Home, End | Về đầu, về cuối bài |
 | ← → | Không chọn ai: lùi, tới một phách (Shift: một lượt 8). Đang chọn: dịch người 0,25 m (Shift: 1 m) |
 | ↑ ↓ | Dịch người đang chọn lên, xuống |
 | Enter hoặc + | Thêm đội hình sau vạch phát |
-| Delete | Xoá khối đội hình đang chọn |
+| Delete | Xoá đội hình vừa bấm chọn (khối trên dòng thời gian hoặc dòng trong thẻ Đội hình). Đang chọn người thì Delete không xoá gì, chỉ nhắc: xoá người bằng nút thùng rác ở danh sách Vũ công |
 | [ ] | Nhảy tới đội hình trước, sau |
 | Esc | Bỏ chọn |
 | Ctrl A | Chọn tất cả |
@@ -152,16 +204,33 @@ Bấm **Trình chiếu** (F): toàn màn hình góc khán giả, có tên đội
 | N | Bật, tắt bám lưới và phách |
 | L | Lặp đoạn chuyển vào đội hình đang chọn (tập đi tập lại một chỗ di chuyển) |
 | V | Đổi chế độ xem |
-| Shift Z | Vừa khung sơ đồ |
+| Shift Z | Vừa khung dòng thời gian |
 | F | Trình chiếu |
 | Ctrl Z, Ctrl Y | Hoàn tác, làm lại |
-| Ctrl S | Lưu ra tệp |
+| Ctrl S | Lưu ngay (trình duyệt và tệp `.choreo.json`) |
 | ? | Bảng phím tắt |
+
+Khi đang gõ trong ô chữ hay ô số, phím tắt tạm nghỉ (trừ Ctrl S: chốt ô rồi lưu). Vừa bấm chuột vào ô đánh dấu, thanh kéo hay nút thì Space, mũi tên vẫn là phím tắt; đi tới bằng Tab thì phím thuộc về ô đó. Tab tới dòng vũ công, dòng đội hình, khối trên dòng thời gian hay dòng cảnh báo rồi bấm Enter để chọn.
+
+**Khi trình chiếu** chỉ nhận các phím dưới (không sửa được gì, Ctrl Z cũng tắt):
+
+| Phím | Việc |
+|---|---|
+| Space | Phát / dừng |
+| ← → hoặc PageUp, PageDown | Đội hình trước, sau |
+| Home, End | Về đầu, về cuối bài |
+| Esc hoặc F | Thoát trình chiếu |
 
 ## 6. Gỡ rối
 
 * **Thẻ đen hoặc trống:** bấm phát một lần (Chrome cần thao tác của người dùng trước khi phát video), hoặc tải lại trang.
-* **Thẻ hiện cả nền:** video chưa qua xoá phông, hoặc chưa tích ô "Video đã xoá phông".
+* **Thẻ hiện cả nền:** video chưa qua xoá phông, hoặc chưa tích ô "Thẻ đã tách nền (tệp .card.mp4)".
 * **Thẻ có viền xám nửa dưới:** ngược lại, đang tích ô đó cho một video thường; bỏ tích.
-* **Video lệch nhạc:** bấm Tự khớp; nếu vẫn lệch thì chỉnh tay bằng nút ±0.1 / ±0.01.
+* **Góc trên ghi "Không lưu được":** bài vẫn còn trên màn hình nhưng chưa vào trình duyệt. Bấm Ctrl S để lưu ra tệp trước, rồi xoá bớt video hoặc dọn chỗ trống cho máy.
+* **Video lệch nhạc:** bấm Tự khớp; nếu vẫn lệch thì chỉnh tay bằng nút ±0,1 / ±0,01.
+* **Gõ số vào ô mà không thấy đổi:** bấm Enter hoặc bấm ra ngoài ô để chốt; gõ sai (chữ, để trống) thì ô tự trả về số cũ.
+* **Bấm Delete mà không xoá:** đang chọn người thì Delete không xoá gì; bấm vào khối đội hình trước rồi mới Delete.
+* **"Không mở được … (trình duyệt không giải mã được)" hoặc "không có hình":** video quay bằng HEVC (iPhone mặc định). Đổi sang H.264 bằng `python -m choreo.videocard`, hoặc trên iPhone chọn **Cài đặt › Camera › Định dạng › Tương thích nhất** rồi quay lại.
+* **Mở app thấy "Video/nhạc đã lưu không mở được":** trình duyệt đã xoá bớt dữ liệu. Thả lại các tệp đó, app tự gắn theo tên.
+* **Báo "Không đọc được bài đã lưu":** app ngừng tự lưu để khỏi ghi đè. Bấm **Tải bản cũ về máy** để giữ bản cũ, rồi **Tải lại**; vẫn lỗi thì chọn **Vẫn tự lưu** và làm bài mới.
 * **Công cụ báo thiếu ffmpeg, onnxruntime hoặc mô hình:** làm đúng câu lệnh nó in ra (mục 2).
