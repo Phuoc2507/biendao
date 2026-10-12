@@ -10,7 +10,8 @@ import * as clock from "../clock";
 import { useLoop, usePlaying, useSpeed, useTime } from "../clock";
 import { music, PEAK_RATE } from "../media";
 import { addFormation, liveDancer, projectEnd, renameBlock } from "../actions";
-import { useMediaVersion, useWarnings } from "./hooks";
+import { rowKeys, useHoldIndex, useMediaVersion, useWarnings } from "./hooks";
+import { commaDec, fmtSigned } from "./num";
 import { Icon } from "./icons";
 
 const RULER = 26;
@@ -109,18 +110,28 @@ export function Timeline() {
   const onResize = (e: React.PointerEvent) => {
     const y0 = e.clientY;
     const h0 = height;
-    const move = (ev: PointerEvent) => setHUser(Math.max(120, Math.min(600, h0 - (ev.clientY - y0))));
+    // nhớ chiều cao mới nhất (biến `height` trong closure là số cũ lúc bắt đầu kéo)
+    let last = h0;
+    let moved = false;
+    const move = (ev: PointerEvent) => {
+      last = Math.max(120, Math.min(600, h0 - (ev.clientY - y0)));
+      moved = true;
+      setHUser(last);
+    };
     const up = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      if (!moved) return;
       try {
-        localStorage.setItem("stage.tlHeight", String(Math.round(height)));
+        localStorage.setItem("stage.tlHeight", String(Math.round(last)));
       } catch {
         /* bỏ qua */
       }
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
   };
 
   const onScroll = () => {
@@ -139,15 +150,15 @@ export function Timeline() {
         <LoopButton sel={sel} fs={p.formations} />
         <SpeedSelect />
         <span className="dim" style={{ marginLeft: 6 }}>
-          {sel ? `${sel.name}: ${fmtTime(sel.start)} → ${fmtTime(sel.end)} (${fmtCounts(sel.end - sel.start, p.bpm)})` : "Bấm khối đội hình để chọn · kéo mép để đổi độ dài · Alt để bỏ bám phách"}
+          {sel ? `${sel.name}: ${fmtTime(sel.start)} → ${fmtTime(sel.end)} (${commaDec(fmtCounts(sel.end - sel.start, p.bpm))})` :"Bấm khối đội hình để chọn · kéo mép để đổi độ dài · Alt để bỏ bám phách"}
         </span>
         <div className="grow" />
-        <button className={`btn sm${follow ? " on" : ""}`} onClick={() => setFollow(!follow)} title="Tự cuộn theo vạch phát">
-          <Icon name="follow" /> Bám
+        <button className={`btn sm${follow ? " on" : ""}`} onClick={() => setFollow(!follow)} title="Tự cuộn theo vạch phát" aria-pressed={follow}>
+          <Icon name="follow" /> Tự cuộn
         </button>
-        <button className="btn sm icon" onClick={() => zoomTo(pps / 1.4)} title="Thu nhỏ (Ctrl + lăn chuột)"><Icon name="zoomOut" /></button>
-        <button className="btn sm icon" onClick={() => zoomTo(pps * 1.4)} title="Phóng to (Ctrl + lăn chuột)"><Icon name="zoomIn" /></button>
-        <button className="btn sm icon" onClick={fit} title="Vừa khung (Shift+Z)"><Icon name="fit" /></button>
+        <button className="btn sm icon" onClick={() => zoomTo(pps / 1.4)} title="Thu nhỏ (Ctrl + lăn chuột)" aria-label="Thu nhỏ"><Icon name="zoomOut" /></button>
+        <button className="btn sm icon" onClick={() => zoomTo(pps * 1.4)} title="Phóng to (Ctrl + lăn chuột)" aria-label="Phóng to"><Icon name="zoomIn" /></button>
+        <button className="btn sm icon" onClick={fit} title="Vừa khung (Shift+Z)" aria-label="Vừa khung"><Icon name="fit" /></button>
       </div>
       <div className="tl-body">
         <div className="tl-names" ref={names}>
@@ -183,7 +194,7 @@ function SpeedSelect() {
   return (
     <select
       className="btn sm" value={s} onChange={(e) => clock.setSpeed(Number(e.target.value))}
-      title="Tốc độ phát (tập chậm)" style={{ paddingRight: 4 }}
+      title="Tốc độ phát (tập chậm)" aria-label="Tốc độ phát" style={{ paddingRight: 4 }}
     >
       {[0.5, 0.75, 1].map((v) => (
         <option key={v} value={v}>{v === 1 ? "1×" : `${v}×`}</option>
@@ -195,7 +206,7 @@ function SpeedSelect() {
 function LoopButton({ sel, fs }: { sel: Formation | null | undefined; fs: Formation[] }) {
   const loop = useLoop();
   return (
-    <button className={`btn sm${loop ? " on" : ""}`} onClick={toggleLoop} title="Lặp đoạn chuyển vào đội hình đang chọn (L)" disabled={!loop && !sel && fs.length === 0}>
+    <button className={`btn sm${loop ? " on" : ""}`} onClick={toggleLoop} title="Lặp đoạn chuyển vào đội hình đang chọn (L)" disabled={!loop && !sel && fs.length === 0} aria-pressed={!!loop}>
       <Icon name="loop" /> Lặp
     </button>
   );
@@ -311,7 +322,7 @@ function FormLane(props: {
 }) {
   const { fs, pps, snapT, xToT } = props;
   const ui = useUI();
-  const t = useTime();
+  const hk = useHoldIndex(fs);
   const [renaming, setRenaming] = useState<string | null>(null);
   const badTrans = new Set(props.warnTimes.filter((w) => w.kind !== "overlap").map((w) => w.formation));
   const badBlock = new Set(props.warnTimes.filter((w) => w.kind === "overlap").map((w) => w.formation));
@@ -323,6 +334,8 @@ function FormLane(props: {
     const s0 = f.start, e0 = f.end;
     let moved = false;
     st().setUI({ selectedBlock: f.id });
+    // giữ tiêu điểm ở khối để Delete xoá đúng khối vừa bấm
+    (e.currentTarget as HTMLElement).closest<HTMLElement>(".block")?.focus({ preventScroll: true });
     const move = (ev: PointerEvent) => {
       const dt = xToT(ev.clientX) - t0;
       if (!moved && Math.abs(dt * pps) < 3) return;
@@ -341,6 +354,7 @@ function FormLane(props: {
     const up = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
       if (moved) st().endGesture();
       else if (mode === "move") {
         const cur = clock.now();
@@ -349,6 +363,12 @@ function FormLane(props: {
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+  };
+  const pick = (f: Formation) => {
+    st().setUI({ selectedBlock: f.id });
+    const cur = clock.now();
+    if (cur < f.start || cur > f.end) clock.seek(f.start + 0.001);
   };
 
   return (
@@ -375,14 +395,24 @@ function FormLane(props: {
           />
         ) : null;
       })}
-      {fs.map((f) => {
-        const cur = t >= f.start && t <= f.end;
+      {fs.map((f, k) => {
+        const cur = k === hk;
         const w = (f.end - f.start) * pps;
+        const on = ui.selectedBlock === f.id;
         return (
           <div
             key={f.id}
-            className={`block${ui.selectedBlock === f.id ? " sel" : ""}${cur ? " cur" : ""}`}
+            className={`block${on ? " sel" : ""}${cur ? " cur" : ""}`}
             style={{ left: f.start * pps, width: Math.max(6, w), borderColor: badBlock.has(f.id) ? "var(--red)" : undefined }}
+            data-formation={f.id}
+            role="button"
+            aria-pressed={on}
+            aria-label={`${f.name}, ${fmtTime(f.start)} đến ${fmtTime(f.end)}`}
+            {...rowKeys(() => pick(f))}
+            onMouseDown={(e) => {
+              // không để trình duyệt tự cuộn tới khối khi bấm; tiêu điểm đặt trong startDrag
+              if (!(e.target instanceof HTMLInputElement)) e.preventDefault();
+            }}
             onPointerDown={(e) => startDrag(e, f, "move")}
             onDoubleClick={(e) => {
               e.stopPropagation();
@@ -410,7 +440,7 @@ function FormLane(props: {
               w > 30 && (
                 <>
                   <span className="bn">{f.name}</span>
-                  {w > 110 && <span className="bd">{fmtCounts(f.end - f.start, props.bpm)}</span>}
+                  {w > 110 && <span className="bd">{commaDec(fmtCounts(f.end - f.start, props.bpm))}</span>}
                 </>
               )
             )}
@@ -428,7 +458,7 @@ function VidLane({ d, pps, xToT }: { d: import("../model").VDancer; pps: number;
   if (!d.mediaId)
     return (
       <div className="lane vid" style={{ background: sel ? "rgba(255,159,67,.06)" : undefined }}>
-        <span className="dim" style={{ position: "sticky", left: 8, fontSize: 11, lineHeight: "22px" }}>chưa có video: thả tệp vào để gắn</span>
+        <span className="dim" style={{ position: "sticky", left: 8, fontSize: 11, lineHeight: "22px" }}>chưa có video: chọn người rồi bấm Gắn video</span>
       </div>
     );
   const onDown = (e: React.PointerEvent) => {
@@ -462,9 +492,9 @@ function VidLane({ d, pps, xToT }: { d: import("../model").VDancer; pps: number;
         className={`vbar${d.alignConfident ? "" : " warn"}`}
         style={{ left: d.offsetSec * pps, width: Math.max(4, d.durationSec * pps), background: d.color, opacity: d.hidden ? 0.3 : undefined }}
         onPointerDown={onDown}
-        title={`${d.name}: video bắt đầu ở ${d.offsetSec >= 0 ? "+" : ""}${d.offsetSec.toFixed(2)} s · kéo ngang để căn với nhạc (Shift: tinh)`}
+        title={`${d.name}: video bắt đầu ở ${fmtSigned(d.offsetSec)} s · kéo ngang để căn với nhạc (Shift: tinh)`}
       >
-        {d.name} {d.offsetSec >= 0 ? "+" : ""}{d.offsetSec.toFixed(2)} s{!d.alignConfident && " ⚠ chưa chắc"}
+        {d.name} {fmtSigned(d.offsetSec)} s{!d.alignConfident && " ⚠ chưa chắc"}
       </div>
     </div>
   );

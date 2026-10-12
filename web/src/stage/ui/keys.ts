@@ -1,0 +1,176 @@
+// Phím tắt dạng hàm thuần: phân loại phần tử đang giữ tiêu điểm và đổi phím
+// thành hành động. Không đụng DOM nên kiểm thử được bằng node.
+
+export type TargetKind = "text" | "button" | "toggle" | "radio" | "range" | "select" | "link" | "other";
+
+interface ElLike {
+  tagName?: string;
+  type?: string;
+  isContentEditable?: boolean;
+}
+
+const INPUT_KIND: Record<string, TargetKind> = {
+  checkbox: "toggle", radio: "radio", range: "range",
+  button: "button", submit: "button", reset: "button", color: "button", file: "button", image: "button",
+  hidden: "other",
+};
+
+/** Ô gõ chữ là "text" (phím tắt nhường hẳn); các loại còn lại chỉ giữ vài phím riêng. */
+export function targetKind(el: unknown): TargetKind {
+  const e = el as ElLike | null;
+  if (!e || typeof e.tagName !== "string") return "other";
+  if (e.isContentEditable) return "text";
+  const tag = e.tagName.toUpperCase();
+  if (tag === "TEXTAREA") return "text";
+  if (tag === "INPUT") return INPUT_KIND[(e.type || "text").toLowerCase()] ?? "text";
+  if (tag === "SELECT") return "select";
+  if (tag === "BUTTON") return "button";
+  if (tag === "A") return "link";
+  return "other";
+}
+
+const ARROW = (k: string) => k.startsWith("Arrow");
+const PAGE = (k: string) => k === "Home" || k === "End" || k === "PageUp" || k === "PageDown";
+
+/** Phím mà phần tử loại này tự xử lý khi đứng yên (Space bấm nút, mũi tên kéo thanh trượt...). */
+export function nativeKey(kind: TargetKind, key: string): boolean {
+  switch (kind) {
+    case "text": return true;
+    case "button": return key === " " || key === "Enter";
+    case "toggle": return key === " ";
+    case "radio": return key === " " || ARROW(key);
+    case "range": return ARROW(key) || PAGE(key);
+    case "select": return key === " " || key === "Enter" || ARROW(key) || PAGE(key);
+    case "link": return key === "Enter";
+    default: return false;
+  }
+}
+
+export type Route = "skip" | "run" | "steal";
+
+/**
+ * skip: để trình duyệt xử lý; run: chạy phím tắt; steal: chạy phím tắt và bỏ
+ * tiêu điểm khỏi phần tử. Vừa bấm chuột vào ô (hoặc đang trình chiếu) thì phím
+ * tắt thắng; đi tới bằng Tab thì phần tử giữ phím của nó.
+ */
+export function routeKey(kind: TargetKind, key: string, o: { pointerFocus: boolean; presenting: boolean }): Route {
+  if (kind === "text") return "skip";
+  if (!nativeKey(kind, key)) return "run";
+  return o.pointerFocus || o.presenting ? "steal" : "skip";
+}
+
+export type Action =
+  | { type: "save" }
+  | { type: "undo" }
+  | { type: "redo" }
+  | { type: "selectAll" }
+  | { type: "toggle" }
+  | { type: "seek"; to: "start" | "end" }
+  | { type: "jump"; dir: -1 | 1 }
+  | { type: "step"; beats: number }
+  | { type: "nudge"; dx: number; dz: number }
+  | { type: "clear" }
+  | { type: "add" }
+  | { type: "delete" }
+  | { type: "deleteHint" }
+  | { type: "help"; open: boolean }
+  | { type: "snap" }
+  | { type: "view" }
+  | { type: "present" }
+  | { type: "exit" }
+  | { type: "mirror" }
+  | { type: "loop" }
+  | { type: "fit" };
+
+export interface KeyIn {
+  key: string;
+  ctrl: boolean;
+  shift: boolean;
+  alt: boolean;
+  repeat?: boolean;
+}
+
+export interface KeyCtx {
+  presenting: boolean;
+  help: boolean;
+  hasSelection: boolean;
+  hasDancers: boolean;
+  hasBlock: boolean;
+  /** Tiêu điểm đang ở một khối đội hình (dòng thời gian hoặc danh sách). */
+  formationFocused: boolean;
+}
+
+// giữ phím thì chỉ lặp các phím di chuyển; còn lại một lần bấm một lần chạy
+const ONCE = new Set<Action["type"]>([
+  "save", "selectAll", "toggle", "clear", "add", "delete", "deleteHint", "help",
+  "snap", "view", "present", "exit", "mirror", "loop", "fit",
+]);
+
+export function resolveShortcut(k: KeyIn, c: KeyCtx): Action | null {
+  const a = resolve(k, c);
+  if (a && k.repeat && ONCE.has(a.type)) return null;
+  return a;
+}
+
+function resolve(k: KeyIn, c: KeyCtx): Action | null {
+  const key = k.key;
+  const lower = key.length === 1 ? key.toLowerCase() : key;
+  if (k.ctrl && lower === "s") return { type: "save" };
+  if (c.help) return key === "Escape" || key === "?" ? { type: "help", open: false } : null;
+  // "?" cần Shift (hoặc AltGr ở vài bàn phím) nên không xét phím bổ trợ
+  if (key === "?") return c.presenting ? null : { type: "help", open: true };
+  if (k.ctrl) {
+    // đang chiếu thì Ctrl Z, Ctrl A... không làm gì để khỏi sửa mà không thấy
+    if (c.presenting || k.alt) return null;
+    if (lower === "z") return { type: k.shift ? "redo" : "undo" };
+    if (lower === "y") return { type: "redo" };
+    if (lower === "a") return { type: "selectAll" };
+    return null;
+  }
+  if (k.alt) return null;
+  if (c.presenting) {
+    switch (key) {
+      case " ": return { type: "toggle" };
+      case "ArrowRight": case "PageDown": case "]": return { type: "jump", dir: 1 };
+      case "ArrowLeft": case "PageUp": case "[": return { type: "jump", dir: -1 };
+      case "Home": return { type: "seek", to: "start" };
+      case "End": return { type: "seek", to: "end" };
+      case "Escape": return { type: "exit" };
+    }
+    if (lower === "f") return { type: "exit" };
+    return null;
+  }
+  const sel = c.hasSelection;
+  switch (key) {
+    case " ": return { type: "toggle" };
+    case "Home": return { type: "seek", to: "start" };
+    case "End": return { type: "seek", to: "end" };
+    case "ArrowLeft": case "ArrowRight": {
+      const s = key === "ArrowLeft" ? -1 : 1;
+      if (sel) return { type: "nudge", dx: s * (k.shift ? 1 : 0.25), dz: 0 };
+      return { type: "step", beats: s * (k.shift ? 8 : 1) };
+    }
+    case "ArrowUp": case "ArrowDown": {
+      if (!sel) return null;
+      const s = key === "ArrowUp" ? -1 : 1;
+      return { type: "nudge", dx: 0, dz: s * (k.shift ? 1 : 0.25) };
+    }
+    case "Escape": return { type: "clear" };
+    case "Enter": case "+": return c.hasDancers ? { type: "add" } : null;
+    case "Delete":
+      if (c.formationFocused) return { type: "delete" };
+      if (sel) return { type: "deleteHint" };
+      return c.hasBlock ? { type: "delete" } : null;
+    case "[": return { type: "jump", dir: -1 };
+    case "]": return { type: "jump", dir: 1 };
+  }
+  switch (lower) {
+    case "n": return { type: "snap" };
+    case "v": return { type: "view" };
+    case "f": return c.hasDancers ? { type: "present" } : null;
+    case "m": return { type: "mirror" };
+    case "l": return { type: "loop" };
+    case "z": return k.shift ? { type: "fit" } : null;
+  }
+  return null;
+}

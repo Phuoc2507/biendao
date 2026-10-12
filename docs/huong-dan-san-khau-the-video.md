@@ -102,7 +102,7 @@ Kéo thả **cả thư mục `the/` và tệp nhạc** vào cửa sổ app (th�
 
 Ở thẻ *Vũ công*, mục Nhạc:
 
-* Gõ số **BPM**, hoặc bấm **Gõ nhịp** theo nhạc 4 đến 8 lần.
+* Gõ số **BPM** (30 đến 300) rồi bấm Enter, hoặc bấm **Gõ nhịp** theo nhạc 4 đến 8 lần (cả loạt gõ chỉ là một bước Hoàn tác).
 * Phát tới đúng phách 1 của lượt đếm 8 đầu tiên rồi bấm **Đặt phách 1**.
 
 Từ đó thanh trên đếm 1 tới 8, dòng thời gian có vạch phách, và mọi thao tác kéo thả bám theo phách khi bật bám lưới (N).
@@ -112,9 +112,10 @@ Từ đó thanh trên đếm 1 tới 8, dòng thời gian có vạch phách, và
 Chọn một vũ công trong danh sách:
 
 * **Tự khớp**: app nghe tiếng trong video và tìm chỗ khớp với nhạc.
-* Nút **−0.1, −0.01, +0.01, +0.1** chỉnh độ lệch bằng tay. Mẹo: bật Trình chiếu, nhìn bước chân rơi đúng phách.
-* Ô **Video đã xoá phông** phải được tích cho thẻ ra từ công cụ (app tự tích khi có `.card.json`).
-* **Cao thẻ** chỉnh chiều cao người trên sân khấu; chấm màu đổi màu nhận diện.
+* Nút **−0,1, −0,01, +0,01, +0,1** chỉnh độ lệch bằng tay. Mẹo: bật Trình chiếu, nhìn bước chân rơi đúng phách.
+* Ô **Thẻ đã tách nền (tệp .card.mp4)** phải được tích cho thẻ ra từ công cụ (app tự tích khi có `.card.json`).
+* **Cao thẻ** chỉnh chiều cao người trên sân khấu (một lần kéo là một bước Hoàn tác); chấm màu đổi màu nhận diện.
+* Các ô số (nhịp, số người nhân bản, giây canon, rộng, sâu sân khấu): gõ xong bấm **Enter** hoặc bấm ra ngoài mới chốt, **Esc** huỷ. Số lẻ gõ `1,5` hay `1.5` đều được; mũi tên lên, xuống đổi số trong ô (Shift: gấp 10) rồi vẫn Enter để chốt.
 
 ### Nhân bản và múa canon
 
@@ -123,7 +124,7 @@ Một video có thể dùng cho nhiều người trên sân (ví dụ chỉ quay
 * Nút **nhân bản** (biểu tượng hai tờ giấy) ở dòng vũ công thêm một bản sao; **Shift bấm** để hỏi số người. Trong khung chi tiết vũ công có ô **Nhân bản thêm [n] người**.
 * Bản sao đứng **cạnh** bản gốc (cách ít nhất 0.8 m) ở mọi đội hình còn chỗ trên sân; bản gốc đang ở cánh gà hoặc sân đã kín thì bản sao vào cánh gà.
 * Mỗi bản sao phát video **riêng**, nên chỉnh độ lệch từng người được.
-* **Lệch canon**: chọn nhiều người (Shift bấm trong danh sách), ở khung *N người đang chọn* nhập số giây mỗi người (mặc định 1 phách nếu đã đặt nhịp, không thì 0.5 s), bấm **Lệch canon**. Theo thứ tự danh sách, người sau vào trễ hơn người trước đúng khoảng đó, người đầu giữ nguyên độ lệch. Hoàn tác được (Ctrl+Z).
+* **Lệch canon**: chọn nhiều người (Shift bấm trong danh sách), ở khung *N người đang chọn* nhập số giây mỗi người (mặc định 1 phách nếu đã đặt nhịp, không thì 0,5 s), bấm **Lệch canon**. Theo thứ tự danh sách, người sau vào trễ hơn người trước đúng khoảng đó, người đầu giữ nguyên độ lệch. Hoàn tác được (Ctrl+Z).
 
 ### Đội hình
 
@@ -154,11 +155,11 @@ Bấm **Trình chiếu** (F): toàn màn hình góc khán giả, có tên đội
 | Phím | Việc |
 |---|---|
 | Space | Phát / dừng |
-| Home | Về đầu bài |
+| Home, End | Về đầu, về cuối bài |
 | ← → | Không chọn ai: lùi, tới một phách (Shift: một lượt 8). Đang chọn: dịch người 0,25 m (Shift: 1 m) |
 | ↑ ↓ | Dịch người đang chọn lên, xuống |
 | Enter hoặc + | Thêm đội hình sau vạch phát |
-| Delete | Xoá khối đội hình đang chọn |
+| Delete | Xoá đội hình vừa bấm chọn (khối trên dòng thời gian hoặc dòng trong thẻ Đội hình). Đang chọn người thì Delete không xoá gì, chỉ nhắc: xoá người bằng nút thùng rác ở danh sách Vũ công |
 | [ ] | Nhảy tới đội hình trước, sau |
 | Esc | Bỏ chọn |
 | Ctrl A | Chọn tất cả |
@@ -166,16 +167,29 @@ Bấm **Trình chiếu** (F): toàn màn hình góc khán giả, có tên đội
 | N | Bật, tắt bám lưới và phách |
 | L | Lặp đoạn chuyển vào đội hình đang chọn (tập đi tập lại một chỗ di chuyển) |
 | V | Đổi chế độ xem |
-| Shift Z | Vừa khung sơ đồ |
+| Shift Z | Vừa khung dòng thời gian |
 | F | Trình chiếu |
 | Ctrl Z, Ctrl Y | Hoàn tác, làm lại |
 | Ctrl S | Lưu ra tệp |
 | ? | Bảng phím tắt |
 
+Khi đang gõ trong ô chữ hay ô số, phím tắt tạm nghỉ (trừ Ctrl S: chốt ô rồi lưu). Vừa bấm chuột vào ô đánh dấu, thanh kéo hay nút thì Space, mũi tên vẫn là phím tắt; đi tới bằng Tab thì phím thuộc về ô đó. Tab tới dòng vũ công, dòng đội hình, khối trên dòng thời gian hay dòng cảnh báo rồi bấm Enter để chọn.
+
+**Khi trình chiếu** chỉ nhận các phím dưới (không sửa được gì, Ctrl Z cũng tắt):
+
+| Phím | Việc |
+|---|---|
+| Space | Phát / dừng |
+| ← → hoặc PageUp, PageDown | Đội hình trước, sau |
+| Home, End | Về đầu, về cuối bài |
+| Esc hoặc F | Thoát trình chiếu |
+
 ## 6. Gỡ rối
 
 * **Thẻ đen hoặc trống:** bấm phát một lần (Chrome cần thao tác của người dùng trước khi phát video), hoặc tải lại trang.
-* **Thẻ hiện cả nền:** video chưa qua xoá phông, hoặc chưa tích ô "Video đã xoá phông".
+* **Thẻ hiện cả nền:** video chưa qua xoá phông, hoặc chưa tích ô "Thẻ đã tách nền (tệp .card.mp4)".
 * **Thẻ có viền xám nửa dưới:** ngược lại, đang tích ô đó cho một video thường; bỏ tích.
-* **Video lệch nhạc:** bấm Tự khớp; nếu vẫn lệch thì chỉnh tay bằng nút ±0.1 / ±0.01.
+* **Video lệch nhạc:** bấm Tự khớp; nếu vẫn lệch thì chỉnh tay bằng nút ±0,1 / ±0,01.
+* **Gõ số vào ô mà không thấy đổi:** bấm Enter hoặc bấm ra ngoài ô để chốt; gõ sai (chữ, để trống) thì ô tự trả về số cũ.
+* **Bấm Delete mà không xoá:** đang chọn người thì Delete không xoá gì; bấm vào khối đội hình trước rồi mới Delete.
 * **Công cụ báo thiếu ffmpeg, onnxruntime hoặc mô hình:** làm đúng câu lệnh nó in ra (mục 2).
