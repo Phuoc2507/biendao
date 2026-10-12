@@ -1,19 +1,32 @@
 // Trình chiếu toàn màn hình để tập: khung khán giả, số đếm to, tên đội hình,
 // đội hình kế tiếp còn bao lâu. Điều khiển tự ẩn khi không rê chuột.
+// Đang trình chiếu thì KHOÁ SỬA: không kéo được người, chỉ xem và tập.
 
 import { useEffect, useRef, useState } from "react";
-import { nextFormation, segmentAt } from "../model";
+import { type Vec2, nextFormation, segmentAt } from "../model";
 import { countAt } from "../timing";
-import { st, useProject } from "../store";
+import { type UI, st, useProject, useUI } from "../store";
 import * as clock from "../clock";
 import { usePlaying, useSpeed, useTime } from "../clock";
 import { jumpFormation, projectEnd } from "../actions";
+import { meCue, untilText } from "../rehearse";
+import { cancelCountIn, isCounting, playWithCountIn, useCountIn, useCounting } from "../countin";
 import { AudienceView } from "./AudienceView";
 import { PlanView } from "./PlanView";
+import { MePicker } from "./MePicker";
+import { describePos } from "./hooks";
 import { Icon } from "./icons";
+import "./rehearse.css";
+
+const play = () => {
+  const p = st().project;
+  playWithCountIn({ on: st().ui.countIn, bpm: p.bpm, downbeat: p.downbeat, end: projectEnd(p) });
+};
+const resetCam = () => st().setUI({ camReset: st().ui.camReset + 1 });
 
 function Overlay() {
   const p = useProject();
+  const ui = useUI();
   const t = useTime();
   const s = segmentAt(p.formations, t);
   const c = p.bpm ? countAt(t, p.bpm, p.downbeat) : null;
@@ -24,15 +37,28 @@ function Overlay() {
         : s.kind === "before" ? "Chuẩn bị" : "";
   const until = nxt ? nxt.start - t : 0;
   const end = projectEnd(p);
+  const { width: W, depth: D } = p.stage;
+  const me = p.dancers.some((d) => d.id === ui.me && !d.hidden) ? (ui.me as string) : null;
+  const cue = me
+    ? meCue(p.formations, me, t, p.bpm, (q: Vec2) => describePos(ui.mirror ? -q[0] : q[0], q[1], W, D))
+    : null;
+  const label = useCountIn();
   return (
     <>
       <div className="ov fname">{cur}</div>
       {nxt && s.kind !== "gap" && until < 30 && (
-        <div className="ov fnext">Tiếp: {nxt.name} trong {Math.max(0, until).toFixed(1)} s</div>
+        <div className="ov fnext">Tiếp: {nxt.name} · {untilText(Math.max(0, until), p.bpm)}</div>
       )}
+      {cue && <div className="ov rh-cue">{cue}</div>}
       {c && (
         <div className="ov bigcount">
           {c.beat}<span>lượt {c.eight}</span>
+        </div>
+      )}
+      {label && (
+        <div className="ov rh-countin">
+          <b key={label}>{label}</b>
+          <span>Space hoặc Esc để huỷ</span>
         </div>
       )}
       <div className="ov pbar"><i style={{ width: `${Math.min(100, (t / end) * 100)}%` }} /></div>
@@ -42,13 +68,17 @@ function Overlay() {
 
 export function Present() {
   const playing = usePlaying();
+  const counting = useCounting();
   const speed = useSpeed();
+  const ui = useUI();
+  const bpm = useProject().bpm;
   const [show, setShow] = useState(true);
   const [mini, setMini] = useState(true);
   const timer = useRef(0);
   const root = useRef<HTMLDivElement>(null);
 
   const exit = () => {
+    cancelCountIn();
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     st().setUI({ presenting: false });
   };
@@ -62,6 +92,40 @@ export function Present() {
     return () => document.removeEventListener("fullscreenchange", onFs);
   }, []);
 
+  // phím riêng của trình chiếu, bắt trước shortcuts.ts (pha capture)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA")) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === " " || e.code === "Space") {
+        e.preventDefault();
+        e.stopPropagation();
+        (document.activeElement as HTMLElement | null)?.blur?.();
+        if (!e.repeat) play();
+        return;
+      }
+      if (e.key === "Escape" && isCounting()) {
+        e.preventDefault();
+        e.stopPropagation();
+        cancelCountIn();
+        return;
+      }
+      if (e.key === "c" || e.key === "C") {
+        e.stopPropagation();
+        resetCam();
+        return;
+      }
+      // tua đội hình trong lúc đếm vào: bỏ đếm, để shortcuts.ts tua tiếp
+      if (["PageUp", "PageDown", "ArrowLeft", "ArrowRight", "Home"].includes(e.key) && isCounting()) cancelCountIn();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      cancelCountIn();
+    };
+  }, []);
+
   const poke = () => {
     setShow(true);
     clearTimeout(timer.current);
@@ -72,22 +136,68 @@ export function Present() {
     return () => clearTimeout(timer.current);
   }, []);
 
+  const step = (d: 1 | -1) => {
+    cancelCountIn();
+    jumpFormation(d);
+  };
+  const toggle = (k: "countIn" | "mirror" | "bright" | "orbitFree") => st().setUI({ [k]: !st().ui[k] } as Partial<UI>);
+  const hasMe = !!ui.me;
+
   return (
     <div className="present" ref={root} onPointerMove={poke} style={{ cursor: show ? "default" : "none" }}>
-      <AudienceView interactive={false} showTools={false} />
+      <div className={`rh-stage${ui.mirror ? " mirror" : ""}`}>
+        <AudienceView
+          interactive={false}
+          showTools={false}
+          orbit={ui.orbitFree}
+          bright={ui.bright}
+          safe={{ top: hasMe ? 150 : 110, bottom: 92, side: 16 }}
+        />
+      </div>
       <Overlay />
       {mini && (
-        <div className="mini">
-          <PlanView readOnly compact />
+        <div className={`mini rh-mini${bpm ? "" : " nobpm"}`}>
+          <PlanView readOnly compact mirror={ui.mirror} />
         </div>
       )}
-      <div className={`ctl${show || !playing ? "" : " hide"}`}>
-        <button className="btn icon" onClick={() => jumpFormation(-1)} title="Đội hình trước (PageUp)"><Icon name="stepBack" /></button>
-        <button className="play" onClick={clock.toggle} title="Phát / dừng (Space)"><Icon name={playing ? "pause" : "play"} /></button>
-        <button className="btn icon" onClick={() => jumpFormation(1)} title="Đội hình sau (PageDown)"><Icon name="stepFwd" /></button>
-        <select className="btn" value={speed} onChange={(e) => clock.setSpeed(Number(e.target.value))} title="Tốc độ">
+      <div className="rh-lock" title="Đang trình chiếu: không kéo hay sửa được người">
+        <Icon name="lock" /> Khoá sửa{ui.orbitFree ? "" : " · khoá góc nhìn"}
+      </div>
+      <div className={`ctl rh-ctl${show || !playing ? "" : " hide"}`}>
+        <button className="btn icon" onClick={() => step(-1)} title="Đội hình trước (PageUp)"><Icon name="stepBack" /></button>
+        <button className="play" onClick={play} title="Phát / dừng (Space)">
+          <Icon name={playing || counting ? "pause" : "play"} />
+        </button>
+        <button className="btn icon" onClick={() => step(1)} title="Đội hình sau (PageDown)"><Icon name="stepFwd" /></button>
+        <select
+          className="btn"
+          value={speed}
+          onChange={(e) => {
+            clock.setSpeed(Number(e.target.value));
+            e.target.blur();
+          }}
+          title="Tốc độ"
+        >
           {[0.5, 0.75, 1].map((v) => <option key={v} value={v}>{v}×</option>)}
         </select>
+        <button className={`btn${ui.countIn ? " on" : ""}`} onClick={() => toggle("countIn")} title="Đếm 5 · 6 · 7 · 8 trước khi phát">
+          5-6-7-8
+        </button>
+        <MePicker />
+        <button className={`btn${ui.mirror ? " on" : ""}`} onClick={() => toggle("mirror")} title="Lật trái phải như soi gương">
+          <Icon name="mirror" /> Gương
+        </button>
+        <button className={`btn${ui.bright ? " on" : ""}`} onClick={() => toggle("bright")} title="Sân sáng hơn cho máy chiếu">
+          <Icon name="sun" /> Sáng
+        </button>
+        <button
+          className={`btn icon${ui.orbitFree ? " on" : ""}`}
+          onClick={() => toggle("orbitFree")}
+          title={ui.orbitFree ? "Khoá góc nhìn" : "Mở khoá góc nhìn (kéo chuột để xoay)"}
+        >
+          <Icon name={ui.orbitFree ? "unlock" : "lock"} />
+        </button>
+        <button className="btn icon" onClick={resetCam} title="Đặt lại góc nhìn (C)"><Icon name="camera" /></button>
         <button className={`btn${mini ? " on" : ""}`} onClick={() => setMini(!mini)} title="Sơ đồ nhỏ"><Icon name="plan" /> Sơ đồ</button>
         <button className="btn" onClick={exit} title="Thoát (Esc)"><Icon name="close" /> Thoát</button>
       </div>

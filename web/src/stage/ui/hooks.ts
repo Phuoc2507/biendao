@@ -1,7 +1,8 @@
 // Hook dùng chung cho giao diện.
 
 import { type KeyboardEvent, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { type Formation, findWarnings, holdIndexAt, segmentAt } from "../model";
+import { type Formation, holdIndexAt, segmentAt } from "../model";
+import { findIssues } from "../checks";
 import { useProject } from "../store";
 import { mediaVersion, subscribeMedia } from "../media";
 import { now, subscribeClock, useTime } from "../clock";
@@ -9,7 +10,7 @@ import { targetKind } from "./keys";
 
 export function useWarnings() {
   const p = useProject();
-  return useMemo(() => findWarnings(p.formations, p.dancers), [p.formations, p.dancers]);
+  return useMemo(() => findIssues(p.formations, p.dancers, p.stage, p.bpm), [p.formations, p.dancers, p.stage, p.bpm]);
 }
 
 export const useMediaVersion = () => useSyncExternalStore(subscribeMedia, mediaVersion);

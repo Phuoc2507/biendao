@@ -50,6 +50,9 @@ const P: Record<string, string> = {
   tag: "M3 3h8l10 10-8 8L3 11zM7.5 7.5v.5",
   print: "M6 9V3h12v6M6 18H3v-8h18v8h-3M6 14h12v7H6z",
   sidebar: "M3 4h18v16H3zM9 4v16",
+  lock: "M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4",
+  unlock: "M6 11h12v10H6zM8 11V7a4 4 0 0 1 7.5-2",
+  sun: "M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4",
 };
 
 const FILLED = new Set(["play", "pause"]);

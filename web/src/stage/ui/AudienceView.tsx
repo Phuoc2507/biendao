@@ -11,6 +11,7 @@ import { st, useProject, useUI } from "../store";
 import * as clock from "../clock";
 import { getVideo, getDancerVideo } from "../media";
 import { setPositionsNow } from "../actions";
+import { type View as CamView, SIDE_DIR, TOP_DIR, fitAlong, fitFront } from "../framing";
 import { useMediaVersion } from "./hooks";
 import { Icon } from "./icons";
 
@@ -184,6 +185,17 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
     mat.uniforms.lift.value = selected ? 0.06 : 0;
   });
 
+  // "Tôi là ai": vòng sáng dưới chân người được chọn, người khác mờ đi
+  const meRing = useRef<THREE.Mesh>(null);
+  const orbitWas = useRef(true);
+  useFrame(() => {
+    const s = st();
+    const me = s.ui.me;
+    const on = !!me && s.project.dancers.some((x) => x.id === me && !x.hidden);
+    if (meRing.current) meRing.current.visible = on && me === d.id;
+    if (on && me !== d.id) mat.uniforms.opacity.value *= 0.3;
+  });
+
   const groundHit = (e: ThreeEvent<PointerEvent>): THREE.Vector3 | null => {
     const out = new THREE.Vector3();
     return e.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), out);
@@ -193,7 +205,7 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
     if (!interactive || e.button !== 0) return;
     e.stopPropagation();
     if (clock.isPlaying()) clock.pause();
-    const additive = e.shiftKey || e.ctrlKey;
+    const additive = e.shiftKey || e.ctrlKey || e.metaKey;
     let sel = st().ui.selected;
     if (additive) sel = sel.includes(d.id) ? sel.filter((x) => x !== d.id) : [...sel, d.id];
     else if (!sel.includes(d.id)) sel = [d.id];
@@ -208,7 +220,10 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
     }
     dragRef.current = { base, hit, moved: false };
     (e.target as unknown as Element).setPointerCapture(e.pointerId);
-    if (controls) controls.enabled = false;
+    if (controls) {
+      orbitWas.current = controls.enabled; // khoá góc nhìn thì kéo xong vẫn khoá
+      controls.enabled = false;
+    }
   };
   const onMove = (e: ThreeEvent<PointerEvent>) => {
     const dr = dragRef.current;
@@ -226,7 +241,7 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
     const moves: Record<string, Vec2> = {};
     for (const [id, b] of Object.entries(dr.base)) {
       let q: Vec2 = [b[0] + dx, b[1] + dz];
-      if (st().ui.snap) q = snapPos(q, 0.25);
+      if (st().ui.snap && !e.altKey) q = snapPos(q, 0.25); // giữ Alt: đặt tự do
       moves[id] = clampToStage(q, p.stage);
     }
     setPositionsNow(moves, true);
@@ -236,7 +251,7 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
     if (!dr) return;
     dragRef.current = null;
     (e.target as unknown as Element).releasePointerCapture?.(e.pointerId);
-    if (controls) controls.enabled = true;
+    if (controls) controls.enabled = orbitWas.current;
     if (dr.moved) st().endGesture();
   };
 
@@ -249,6 +264,10 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
       <mesh ref={ring} rotation-x={-Math.PI / 2} position-y={0.01} visible={false}>
         <ringGeometry args={[0.36, 0.44, 40]} />
         <meshBasicMaterial color="#ff9f43" />
+      </mesh>
+      <mesh ref={meRing} rotation-x={-Math.PI / 2} position-y={0.012} visible={false}>
+        <ringGeometry args={[0.48, 0.6, 48]} />
+        <meshBasicMaterial color="#ffffff" />
       </mesh>
       <mesh
         ref={plane}
@@ -266,8 +285,13 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
   );
 }
 
-function StageSet() {
+// màu sân: tối (mặc định) và sáng cho máy chiếu
+const DARK = { floor: "#3a2a22", wing: "#14161b", curtain: "#5a1020", grid: "#5a463a", back: "#2a0f18", hall: "#0c0d10" };
+const BRIGHT = { floor: "#b8936f", wing: "#454a55", curtain: "#8c2a3c", grid: "#6d5440", back: "#6a5a66", hall: "#26282e" };
+
+function StageSet({ bright = false }: { bright?: boolean }) {
   const p = useProject();
+  const c = bright ? BRIGHT : DARK;
   const { width: W, depth: D } = p.stage;
   const lines = useMemo(() => {
     const pts: number[] = [];
@@ -282,24 +306,24 @@ function StageSet() {
       {/* sàn diễn */}
       <mesh rotation-x={-Math.PI / 2} receiveShadow>
         <planeGeometry args={[W, D]} />
-        <meshStandardMaterial color="#3a2a22" roughness={0.85} />
+        <meshStandardMaterial color={c.floor} roughness={0.85} />
       </mesh>
       {/* cánh gà */}
       {[-1, 1].map((s) => (
         <mesh key={s} rotation-x={-Math.PI / 2} position={[s * (W / 2 + WING / 2), -0.002, 0]}>
           <planeGeometry args={[WING, D]} />
-          <meshStandardMaterial color="#14161b" roughness={1} />
+          <meshStandardMaterial color={c.wing} roughness={1} />
         </mesh>
       ))}
       {/* màn hai bên che cánh gà */}
       {[-1, 1].map((s) => (
         <mesh key={`c${s}`} position={[s * (W / 2 + 0.05), 2.2, D / 2 - 0.6]} rotation-y={s * 0.15}>
           <planeGeometry args={[0.9, 4.4]} />
-          <meshStandardMaterial color="#5a1020" roughness={0.9} side={THREE.DoubleSide} />
+          <meshStandardMaterial color={c.curtain} roughness={0.9} side={THREE.DoubleSide} />
         </mesh>
       ))}
       <lineSegments geometry={lines}>
-        <lineBasicMaterial color="#5a463a" transparent opacity={0.5} />
+        <lineBasicMaterial color={c.grid} transparent opacity={0.5} />
       </lineSegments>
       {/* mép trước */}
       <mesh position={[0, 0.006, D / 2]} rotation-x={-Math.PI / 2}>
@@ -309,47 +333,26 @@ function StageSet() {
       {/* phông nền */}
       <mesh position={[0, 2.6, -D / 2 - 0.05]}>
         <planeGeometry args={[W + 2 * WING + 2, 5.2]} />
-        <meshStandardMaterial color="#2a0f18" roughness={1} />
+        <meshStandardMaterial color={c.back} roughness={1} />
       </mesh>
       {/* sàn khán phòng */}
       <mesh rotation-x={-Math.PI / 2} position={[0, -0.25, D / 2 + 6]}>
         <planeGeometry args={[W + 12, 12]} />
-        <meshStandardMaterial color="#0c0d10" />
+        <meshStandardMaterial color={c.hall} />
       </mesh>
     </group>
   );
 }
 
 type Preset = "front" | "top" | "side";
-const presetPos = (pr: Preset, W: number, D: number): [number, number, number] =>
-  pr === "front" ? [0, 2.6, D / 2 + Math.max(7, W * 0.85)] : pr === "top" ? [0, Math.max(10, W * 1.2), D / 2 + 0.5] : [W * 0.75, 3.2, D / 2 + 5];
+/** Lề an toàn (px) cho chữ và nút phủ lên khung. */
+export interface SafePx { top: number; bottom: number; side: number }
+const SAFE: SafePx = { top: 40, bottom: 44, side: 10 };
+const FOV = 38;
 
-/** Góc khán giả vừa khít: lùi máy cho đủ bề ngang sân khấu theo tỉ lệ khung,
- *  rồi nâng điểm nhìn sao cho mép trước sân nằm gần đáy khung (đỡ trống phía trên). */
-function fitFront(cam: THREE.PerspectiveCamera, W: number, D: number): { pos: THREE.Vector3; target: THREE.Vector3 } {
-  const half = W / 2 + 0.35;
-  const vf = THREE.MathUtils.degToRad(cam.fov) / 2;
-  const hf = Math.atan(Math.tan(vf) * cam.aspect);
-  const dist = Math.max(half / Math.tan(hf), 5);
-  const pos = new THREE.Vector3(0, 1.9 + dist * 0.08, D / 2 + dist);
-  const front = new THREE.Vector3(0, 0, D / 2);
-  const target = new THREE.Vector3();
-  let lo = 0, hi = 3;
-  for (let i = 0; i < 24; i++) {
-    const ty = (lo + hi) / 2;
-    target.set(0, ty, 0);
-    cam.position.copy(pos);
-    cam.lookAt(target);
-    cam.updateMatrixWorld();
-    const ny = front.clone().project(cam).y; // -1 là đáy khung
-    if (ny > -0.82) lo = ty;
-    else hi = ty;
-  }
-  target.set(0, (lo + hi) / 2, 0);
-  return { pos, target };
-}
-
-function CameraRig({ preset, stamp }: { preset: Preset; stamp: number }) {
+/** Canh máy: góc khán giả thấy cả sàn (mép trước, chân hàng đầu có lề, đỉnh
+ *  thẻ hàng cuối) với mọi tỉ lệ khung; đổi cỡ khung thì canh lại. */
+function CameraRig({ preset, stamp, safe }: { preset: Preset; stamp: number; safe: SafePx }) {
   const { camera, controls, size } = useThree() as unknown as {
     camera: THREE.PerspectiveCamera;
     controls: { target: THREE.Vector3; update(): void } | null;
@@ -357,24 +360,33 @@ function CameraRig({ preset, stamp }: { preset: Preset; stamp: number }) {
   };
   const p = useProject();
   const W = p.stage.width, D = p.stage.depth;
-  // khung đổi cỡ (đổi chế độ xem) thì canh lại góc khán giả
-  const sizeKey = preset === "front" ? `${Math.round(size.width / 40)}x${Math.round(size.height / 40)}` : "";
+  let H = 1.2;
+  for (const d of p.dancers) if (!d.hidden) H = Math.max(H, d.cardHeight || 0);
+  H += 0.12;
+  const w = Math.max(1, size.width), h = Math.max(1, size.height);
+  const sizeKey = `${Math.round(w / 20)}x${Math.round(h / 20)}`;
+  const safeKey = `${safe.top}/${safe.bottom}/${safe.side}`;
   useEffect(() => {
-    let pos: THREE.Vector3, target: THREE.Vector3;
-    if (preset === "front") {
-      camera.aspect = size.width / Math.max(1, size.height);
-      ({ pos, target } = fitFront(camera, W, D));
-    } else {
-      pos = new THREE.Vector3(...presetPos(preset, W, D));
-      target = new THREE.Vector3(0, preset === "top" ? 0 : 0.9, 0);
-    }
-    camera.position.copy(pos);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    const lens = { fov: camera.fov, aspect: camera.aspect };
+    const s = {
+      top: Math.min(0.6, (2 * safe.top) / h),
+      bottom: Math.min(0.6, (2 * safe.bottom) / h),
+      side: Math.min(0.4, (2 * safe.side) / w),
+    };
+    const box = { W, D, H };
+    const v: CamView =
+      preset === "front" ? fitFront(box, lens, s)
+      : preset === "top" ? fitAlong(box, lens, s, TOP_DIR, [0, 0, 0.3])
+      : fitAlong(box, lens, s, SIDE_DIR, [0, H / 3, 0]);
+    camera.position.set(...v.pos);
     if (controls) {
-      controls.target.copy(target);
+      controls.target.set(...v.target);
       controls.update();
-    } else camera.lookAt(target);
+    } else camera.lookAt(...v.target);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preset, stamp, controls, sizeKey, W, D]);
+  }, [preset, stamp, controls, sizeKey, safeKey, W, D, H]);
   return null;
 }
 
@@ -386,7 +398,21 @@ function DevHandle() {
   return null;
 }
 
-export function AudienceView({ interactive = true, showTools = true }: { interactive?: boolean; showTools?: boolean }) {
+export function AudienceView({
+  interactive = true,
+  showTools = true,
+  orbit = true,
+  bright = false,
+  safe = SAFE,
+}: {
+  interactive?: boolean;
+  showTools?: boolean;
+  /** cho xoay/kéo góc nhìn bằng chuột */
+  orbit?: boolean;
+  /** sân sáng cho máy chiếu */
+  bright?: boolean;
+  safe?: SafePx;
+}) {
   const p = useProject();
   const camReset = useUI().camReset;
   const [preset, setPreset] = useState<Preset>("front");
@@ -401,19 +427,19 @@ export function AudienceView({ interactive = true, showTools = true }: { interac
       <Canvas
         dpr={[1, 2]}
         gl={{ antialias: true, powerPreference: "high-performance" }}
-        camera={{ fov: 38, position: presetPos("front", W, D), near: 0.1, far: 200 }}
+        camera={{ fov: FOV, position: [0, 2.6, D / 2 + 10], near: 0.1, far: 600 }}
         onPointerMissed={() => interactive && st().setUI({ selected: [] })}
-        style={{ background: "#07080a" }}
+        style={{ background: bright ? "#2b2e35" : "#07080a" }}
       >
-        <ambientLight intensity={0.55} />
-        <spotLight position={[0, 8, D / 2 + 4]} angle={0.6} penumbra={0.6} intensity={60} decay={1.6} color="#ffe2c4" />
-        <spotLight position={[-W / 2, 6, D / 2]} angle={0.5} penumbra={0.8} intensity={25} decay={1.6} color="#ffb0c0" />
-        <StageSet />
+        <ambientLight intensity={bright ? 1.25 : 0.55} />
+        <spotLight position={[0, 8, D / 2 + 4]} angle={0.6} penumbra={0.6} intensity={bright ? 120 : 60} decay={1.6} color="#ffe2c4" />
+        <spotLight position={[-W / 2, 6, D / 2]} angle={0.5} penumbra={0.8} intensity={bright ? 45 : 25} decay={1.6} color="#ffb0c0" />
+        <StageSet bright={bright} />
         {p.dancers.filter((d) => !d.hidden).map((d) => (
           <Card key={d.id} d={d} interactive={interactive} />
         ))}
-        <OrbitControls makeDefault enablePan target={[0, 0.9, 0]} maxPolarAngle={Math.PI / 2 - 0.02} minDistance={2} maxDistance={40} />
-        <CameraRig preset={preset} stamp={stamp + camReset} />
+        <OrbitControls makeDefault enabled={orbit} enablePan maxPolarAngle={Math.PI / 2 - 0.02} minDistance={2} maxDistance={400} />
+        <CameraRig preset={preset} stamp={stamp + camReset} safe={safe} />
         <DevHandle />
       </Canvas>
       {showTools && (
@@ -423,8 +449,8 @@ export function AudienceView({ interactive = true, showTools = true }: { interac
             <button className={preset === "side" ? "on" : ""} onClick={() => pick("side")} title="Góc chéo">Chéo</button>
             <button className={preset === "top" ? "on" : ""} onClick={() => pick("top")} title="Nhìn từ trên">Trên cao</button>
           </div>
-          <button className="btn sm icon" title="Đặt lại góc nhìn" onClick={() => pick(preset)}>
-            <Icon name="camera" />
+          <button className="btn sm" title="Đặt lại góc nhìn" onClick={() => pick(preset)}>
+            <Icon name="camera" /> Đặt lại
           </button>
         </div>
       )}

@@ -1,0 +1,73 @@
+/* Trình chiếu & chế độ tập (W3). Đặt sau stage.css nên cùng độ ưu tiên thì thắng. */
+
+/* ---- trình chiếu ---- */
+.rh-stage { position: absolute; inset: 0; }
+.rh-stage.mirror { transform: scaleX(-1); }
+
+.present .ctl.rh-ctl { flex-wrap: wrap; justify-content: center; max-width: calc(100% - 32px); width: max-content; }
+.present .ctl.rh-ctl.hide { pointer-events: none; }
+
+.present .rh-cue {
+  left: 32px; top: 108px; max-width: min(62vw, 900px); font-size: 19px; line-height: 1.35;
+  color: #fff; background: rgba(0,0,0,.45); padding: 6px 12px; border-radius: 8px; border-left: 3px solid #fff;
+}
+
+.present .rh-countin {
+  left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.present .rh-countin b {
+  font-size: min(34vh, 260px); line-height: 1; font-weight: 800; color: var(--accent);
+  font-variant-numeric: tabular-nums; animation: rh-pop .35s ease-out;
+}
+.present .rh-countin span { font-size: 16px; color: #cfd6e2; }
+@keyframes rh-pop { from { transform: scale(1.35); opacity: .3; } to { transform: scale(1); opacity: 1; } }
+
+.present .rh-lock {
+  position: absolute; left: 16px; bottom: 16px; display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: #cfd6e2; background: rgba(0,0,0,.5); border: 1px solid var(--line2);
+  padding: 4px 9px; border-radius: 999px; pointer-events: none;
+}
+.present .rh-lock svg { width: 13px; height: 13px; }
+
+.present .mini.rh-mini { top: 136px; bottom: auto; right: 24px; }
+.present .mini.rh-mini.nobpm { top: 20px; }
+
+/* ---- chọn "Tôi là ai" ---- */
+select.btn.rh-me { max-width: 160px; }
+select.btn.rh-me.on { border-color: #fff; color: #fff; }
+
+/* ---- thanh công cụ sơ đồ ---- */
+.rh-plan-tools {
+  position: absolute; top: 36px; right: 8px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  justify-content: flex-end; max-width: calc(100% - 16px); z-index: 4;
+}
+.rh-plan-tools .btn svg { width: 14px; height: 14px; }
+.rh-warnbtn.has { border-color: var(--red); color: #ffb3ba; }
+.rh-badge {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--red); color: #fff;
+  font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-left: 2px;
+}
+.rh-pop {
+  position: absolute; top: calc(100% + 6px); right: 0; width: min(380px, calc(100vw - 32px)); max-height: 340px; overflow: auto;
+  background: var(--panel); border: 1px solid var(--line2); border-radius: var(--radius); padding: 6px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.5); display: flex; flex-direction: column; gap: 2px;
+}
+.rh-item {
+  display: flex; gap: 8px; align-items: flex-start; text-align: left; width: 100%; padding: 7px 8px;
+  border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; font-size: 13px; cursor: pointer;
+}
+.rh-item:hover { background: var(--panel2); }
+.rh-ic {
+  flex: none; width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 13px; color: #fff; background: var(--red);
+}
+.rh-ic.overlap { background: var(--yellow); color: #111; }
+.rh-ic.fast { background: #e0603a; }
+.rh-msg { flex: 1; line-height: 1.35; }
+.rh-t { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+.rh-ok { padding: 10px; color: var(--green); font-size: 13px; }
+
+@container (max-width: 560px) {
+  .rh-plan-tools .btn .rh-hide-narrow { display: none; }
+  .rh-plan-tools { top: 40px; }
+}
