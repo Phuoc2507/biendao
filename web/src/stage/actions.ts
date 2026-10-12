@@ -17,6 +17,7 @@ import {
 import { estimateOffset, CONFIDENT } from "./align";
 import { saveProject, loadProject, allMediaIds, deleteMedia } from "./db";
 import { planDance, energyChangeScore } from "./autoplan";
+import { errText } from "./storage";
 
 export const proj = () => st().project;
 const ids = (p: Project = proj()) => p.dancers.map((d) => d.id);
@@ -364,7 +365,7 @@ export async function replaceVideo(id: string, file: File) {
       { kind: r.aligned && !r.confident ? "warn" : "info", undo: true },
     );
   } catch (e) {
-    st().notify(`Không đọc được video: ${(e as Error).message}`, { kind: "error" });
+    st().notify(errText(e, "Không đọc được video"), { kind: "error" });
   } finally {
     st().setUI({ busy: null });
     clock.resync();
@@ -442,7 +443,7 @@ export async function importFiles(files: File[]) {
     else if (msgs.length) st().notify(`Đã nạp ${msgs.join(", ")}`);
     if (c.unknown.length) st().notify(`Bỏ qua ${c.unknown.length} tệp không nhận ra: ${c.unknown.map((f) => f.name).join(", ")}`, { kind: "warn" });
   } catch (e) {
-    st().notify(`Lỗi khi nạp tệp: ${(e as Error).message}`, { kind: "error" });
+    st().notify(errText(e, "Lỗi khi nạp tệp"), { kind: "error" });
   } finally {
     st().setUI({ busy: null });
     clock.resync();
@@ -461,8 +462,8 @@ export function startAutosave() {
     clearTimeout(saveTimer);
     saveTimer = window.setTimeout(() => {
       saveProject(st().project)
-        .then(() => st().setUI({ saveState: "saved" }))
-        .catch(() => st().setUI({ saveState: "error" }));
+        .then(() => st().setUI({ saveState: "saved", saveError: null }))
+        .catch((e) => st().setUI({ saveState: "error", saveError: errText(e, "Trình duyệt báo lỗi") }));
     }, 400);
   });
 }

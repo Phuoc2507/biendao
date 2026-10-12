@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { type Project, emptyProject } from "./model";
 import { canMerge, pruneSelection } from "./history";
 import { type Toast, pushToast, toastMs } from "./toasts";
+import { savedSide, startSideOpen } from "./layout";
 
 export type { Toast };
 
@@ -12,6 +13,7 @@ export type Tab = "dancers" | "formations" | "warnings";
 
 export interface UI {
   view: View;
+  sideOpen: boolean; // cột trái (điện thoại: ngăn kéo đè lên)
   tab: Tab;
   selected: string[];
   selectedBlock: string | null;
@@ -22,6 +24,7 @@ export interface UI {
   presenting: boolean;
   pxPerSec: number;
   saveState: "saved" | "saving" | "error";
+  saveError: string | null; // lời báo khi không lưu được
   help: boolean;
   busy: { msg: string; progress: number } | null;
   camReset: number; // tăng để đưa camera khán giả về chỗ cũ
@@ -62,6 +65,7 @@ export const useStore = create<State>((set, get) => ({
   project: emptyProject(),
   ui: {
     view: typeof window !== "undefined" && window.innerWidth >= 1280 ? "split" : "plan",
+    sideOpen: typeof window === "undefined" || startSideOpen(savedSide(), window.innerWidth, window.innerHeight),
     tab: "dancers",
     selected: [],
     selectedBlock: null,
@@ -72,6 +76,7 @@ export const useStore = create<State>((set, get) => ({
     presenting: false,
     pxPerSec: 40,
     saveState: "saved",
+    saveError: null,
     help: false,
     busy: null,
     camReset: 0,
