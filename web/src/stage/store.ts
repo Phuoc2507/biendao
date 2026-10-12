@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { type Project, emptyProject } from "./model";
+import { makeBatcher } from "./history";
 
 export type View = "plan" | "split" | "audience";
 export type Tab = "dancers" | "formations" | "warnings";
@@ -26,7 +27,7 @@ export interface UI {
   pxPerSec: number;
   saveState: "saved" | "saving" | "error";
   help: boolean;
-  busy: { msg: string; progress: number } | null;
+  busy: { msg: string; progress: number; cancel?: boolean } | null; // cancel: hiện nút Dừng
   camReset: number; // tăng để đưa camera khán giả về chỗ cũ
   loaded: boolean;
 }
@@ -128,3 +129,8 @@ export const useStore = create<State>((set, get) => ({
 export const st = () => useStore.getState();
 export const useProject = () => useStore((s) => s.project);
 export const useUI = () => useStore((s) => s.ui);
+
+// Gộp mọi commit bên trong (kể cả hàm async, lồng nhau) thành MỘT bước hoàn tác.
+const batcher = makeBatcher<Project>(() => useStore.getState(), (s) => useStore.setState(s));
+export const batch = batcher.batch;
+export const inBatch = batcher.active;

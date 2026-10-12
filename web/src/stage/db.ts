@@ -11,13 +11,14 @@ export interface MediaRec {
   name: string;
   type: string;
   blob: Blob;
+  key?: string; // tên|cỡ|ngày sửa của tệp gốc, để nhận ra tệp thả lại
 }
 
 let dbp: Promise<IDBDatabase> | null = null;
 
 function open(): Promise<IDBDatabase> {
   if (dbp) return dbp;
-  dbp = new Promise((resolve, reject) => {
+  dbp = new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open(DB, VER);
     req.onupgradeneeded = () => {
       const db = req.result;
@@ -26,6 +27,9 @@ function open(): Promise<IDBDatabase> {
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
+  }).catch((e) => {
+    dbp = null; // lần sau thử mở lại
+    throw e;
   });
   return dbp;
 }
@@ -36,15 +40,27 @@ function run<T>(store: string, mode: IDBTransactionMode, fn: (s: IDBObjectStore)
       new Promise<T>((resolve, reject) => {
         const tx = db.transaction(store, mode);
         const req = fn(tx.objectStore(store));
-        req.onsuccess = () => resolve(req.result as T);
-        req.onerror = () => reject(req.error);
+        // ghi: chỉ coi là xong khi cả giao dịch xong (lỗi đầy bộ nhớ báo ở bước này)
+        if (mode === "readwrite") {
+          tx.oncomplete = () => resolve(req.result as T);
+          tx.onabort = tx.onerror = () => reject(tx.error ?? req.error ?? new Error("Ghi IndexedDB thất bại"));
+        } else {
+          req.onsuccess = () => resolve(req.result as T);
+          req.onerror = () => reject(req.error);
+        }
       }),
   );
 }
+
+export const isQuotaError = (e: unknown): boolean =>
+  !!e && typeof e === "object" && /quota/i.test(`${(e as Error).name} ${(e as Error).message}`);
 
 export const putMedia = (m: MediaRec) => run<IDBValidKey>("media", "readwrite", (s) => s.put(m));
 export const getMedia = (id: string) => run<MediaRec | undefined>("media", "readonly", (s) => s.get(id));
 export const deleteMedia = (id: string) => run<undefined>("media", "readwrite", (s) => s.delete(id));
 export const allMediaIds = () => run<IDBValidKey[]>("media", "readonly", (s) => s.getAllKeys());
 export const saveProject = (p: Project) => run<IDBValidKey>("project", "readwrite", (s) => s.put(p, "current"));
-export const loadProject = () => run<Project | undefined>("project", "readonly", (s) => s.get("current"));
+/** Dữ liệu thô đã lưu (chưa kiểm), phải kiểm trước khi dùng. */
+export const loadProject = () => run<unknown>("project", "readonly", (s) => s.get("current"));
+export const saveKey = (key: string, v: unknown) => run<IDBValidKey>("project", "readwrite", (s) => s.put(v, key));
+export const loadKey = (key: string) => run<unknown>("project", "readonly", (s) => s.get(key));

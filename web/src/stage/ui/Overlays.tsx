@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { st, useStore, useUI } from "../store";
-import { importFiles } from "../actions";
+import { importFiles, cancelBusy } from "../actions";
 import { Icon } from "./icons";
 
 export function ToastView() {
@@ -32,6 +32,7 @@ export function Busy() {
         <div className={`bar${indet ? " indet" : ""}`}>
           <i style={{ width: `${Math.round(Math.max(0, Math.min(1, b.progress)) * 100)}%` }} />
         </div>
+        {b.cancel && <button className="btn sm" style={{ marginTop: 10 }} onClick={cancelBusy}>Dừng</button>}
       </div>
     </div>
   );

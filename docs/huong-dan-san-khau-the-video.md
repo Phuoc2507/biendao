@@ -98,6 +98,11 @@ Sau này muốn làm bài khác thì **Tệp ▸ Bài mới**.
 
 Kéo thả **cả thư mục `the/` và tệp nhạc** vào cửa sổ app (thả thư mục hay chọn nhiều tệp đều được) (hoặc **Tệp ▸ Nạp video và nhạc…**). App tự đọc `.card.json` để lấy tên, độ lệch và biết thẻ đã xoá phông. Video gốc chưa qua công cụ cũng thả vào được.
 
+* Cả lượt thả là **một bước hoàn tác** (Ctrl Z bỏ hết), xong app báo một dòng tổng kết.
+* Thả lại đúng tệp đã nạp thì app bỏ qua, không lưu lần hai. Tệp lạ (`.json` không phải thẻ hay dự án, ảnh…) bị bỏ qua kèm thông báo.
+* Một video hỏng không chặn các video khác; video đó không được lưu.
+* Đang nạp nhiều tệp, bấm **Dừng** trong hộp tiến độ để dừng sau tệp đang làm.
+
 ### Nhịp
 
 Ở thẻ *Vũ công*, mục Nhạc:
@@ -112,6 +117,10 @@ Từ đó thanh trên đếm 1 tới 8, dòng thời gian có vạch phách, và
 Chọn một vũ công trong danh sách:
 
 * **Tự khớp**: app nghe tiếng trong video và tìm chỗ khớp với nhạc.
+* **Khớp tất cả** (cạnh tiêu đề danh sách vũ công): khớp lại những người còn dấu ⚠; không ai có dấu ⚠ thì khớp lại hết. Bản nhân bản cùng video giữ nguyên khoảng lệch canon.
+* Thẻ có `.card.json` dùng luôn độ lệch trong đó, không phải nghe lại. Thay video bằng đúng tệp cũ thì giữ độ lệch đã căn.
+* Đổi bài nhạc: app tự khớp lại những người chưa chắc; người đã căn tay hoặc đã khớp chắc thì giữ.
+* Video quá lớn (trên 400 MB) hoặc không có tiếng thì app không tự khớp, hãy căn tay.
 * Nút **−0.1, −0.01, +0.01, +0.1** chỉnh độ lệch bằng tay. Mẹo: bật Trình chiếu, nhìn bước chân rơi đúng phách.
 * Ô **Video đã xoá phông** phải được tích cho thẻ ra từ công cụ (app tự tích khi có `.card.json`).
 * **Cao thẻ** chỉnh chiều cao người trên sân khấu; chấm màu đổi màu nhận diện.
@@ -146,7 +155,9 @@ Bấm **Trình chiếu** (F): toàn màn hình góc khán giả, có tên đội
 
 ### Lưu
 
-* App **tự lưu** trong trình duyệt (góc trên ghi "Đã lưu").
+* App **tự lưu** trong trình duyệt (góc trên ghi "Đã lưu"), lưu ngay cả khi đóng hay chuyển thẻ.
+* Chỉ **một thẻ trình duyệt** được tự lưu. Mở bài ở thẻ thứ hai thì thẻ đó báo và ngừng lưu; bấm **Dùng thẻ này** để chuyển quyền lưu sang, hoặc **Tải lại** để xem bản mới nhất.
+* Bộ nhớ trình duyệt đầy thì app báo đỏ: xoá bớt video không dùng, hoặc **Lưu ra tệp** để giữ bài.
 * **Ctrl S** hoặc **Tệp ▸ Lưu ra tệp** xuất `ten-bai.choreo.json` để chép sang máy khác. Tệp này chỉ chứa đội hình và thông tin, **không chứa video**: sang máy mới thì **Tệp ▸ Mở tệp dự án** rồi thả lại thư mục thẻ và nhạc, app tự gắn theo tên tệp.
 
 ## 5. Phím tắt
@@ -178,4 +189,7 @@ Bấm **Trình chiếu** (F): toàn màn hình góc khán giả, có tên đội
 * **Thẻ hiện cả nền:** video chưa qua xoá phông, hoặc chưa tích ô "Video đã xoá phông".
 * **Thẻ có viền xám nửa dưới:** ngược lại, đang tích ô đó cho một video thường; bỏ tích.
 * **Video lệch nhạc:** bấm Tự khớp; nếu vẫn lệch thì chỉnh tay bằng nút ±0.1 / ±0.01.
+* **"Không mở được … (trình duyệt không giải mã được)" hoặc "không có hình":** video quay bằng HEVC (iPhone mặc định). Đổi sang H.264 bằng `python -m choreo.videocard`, hoặc trên iPhone chọn **Cài đặt › Camera › Định dạng › Tương thích nhất** rồi quay lại.
+* **Mở app thấy "Video/nhạc đã lưu không mở được":** trình duyệt đã xoá bớt dữ liệu. Thả lại các tệp đó, app tự gắn theo tên.
+* **Báo "Không đọc được bài đã lưu":** app ngừng tự lưu để khỏi ghi đè. Bấm **Tải bản cũ về máy** để giữ bản cũ, rồi **Tải lại**; vẫn lỗi thì chọn **Vẫn tự lưu** và làm bài mới.
 * **Công cụ báo thiếu ffmpeg, onnxruntime hoặc mô hình:** làm đúng câu lệnh nó in ra (mục 2).

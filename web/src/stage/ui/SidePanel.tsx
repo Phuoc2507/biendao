@@ -9,7 +9,7 @@ import { st, useProject, useUI } from "../store";
 import * as clock from "../clock";
 import { useTime } from "../clock";
 import {
-  addDancer, duplicateDancer, canonOffsets, updateDancer, removeDancer, moveDancerOrder, realign, replaceVideo,
+  addDancer, duplicateDancer, canonOffsets, updateDancer, removeDancer, moveDancerOrder, realign, realignAll, replaceVideo,
   importFiles, applyShape, mirrorSelected, distributeSelected, sendToWings,
   addFormation, removeFormation, renameBlock, setStage, setBpm,
 } from "../actions";
@@ -293,6 +293,9 @@ function DancersTab() {
       <div className="section" style={{ paddingBottom: 4 }}>
         <h4>
           Vũ công <span className="grow" />
+          {p.musicId && p.dancers.some((d) => d.mediaId) && (
+            <button className="btn sm" onClick={() => realignAll()} title="Tự khớp lại video với nhạc (người chưa chắc; không ai chưa chắc thì khớp hết)">Khớp tất cả</button>
+          )}
           <button className="btn sm" onClick={() => st().setUI({ selected: [addDancer()] })} title="Thêm người giữ chỗ (chưa có video)">
             <Icon name="userPlus" /> Thêm
           </button>

@@ -2,14 +2,15 @@
 // quay về phía máy quay. Vị trí đọc thẳng từ store và đồng hồ mỗi khung hình
 // (không render lại React), nên phát mượt với nhiều thẻ.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { type VDancer, type Vec2, WING, poseAt, lineup, snapPos, clampToStage } from "../model";
 import { st, useProject, useUI } from "../store";
 import * as clock from "../clock";
-import { getVideo, getDancerVideo } from "../media";
+import { getVideo, getDancerVideo, holdVideos } from "../media";
+import { copyFrame, frameReady, frameTexture, holdFrame } from "./frameTex";
 import { setPositionsNow } from "../actions";
 import { useMediaVersion } from "./hooks";
 import { Icon } from "./icons";
@@ -103,69 +104,80 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
   const group = useRef<THREE.Group>(null);
   const plane = useRef<THREE.Mesh>(null);
   const ring = useRef<THREE.Mesh>(null);
-  const mv = useMediaVersion();
+  useMediaVersion(); // vẽ lại khi kho video đổi (video vừa nạp xong)
   const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
   const dragRef = useRef<{ base: Record<string, Vec2>; hit: THREE.Vector3; moved: boolean } | null>(null);
 
   const v = getVideo(d.mediaId);
-  // <video> riêng của người này (bản nhân bản chung tệp vẫn có element riêng)
-  const el = v ? getDancerVideo(d.id, d.mediaId) : undefined;
-  const { tex, mode } = useMemo(() => {
-    if (v && el) {
-      // Chép khung video qua một canvas 2D rồi mới đẩy lên GPU (xem useFrame).
-      // Đẩy thẳng <video> lên WebGL có lúc ra khung rỗng (video tách khỏi trang,
-      // cửa sổ bị che), còn drawImage thì luôn có hình.
-      const cv = document.createElement("canvas");
-      cv.width = el.videoWidth || 2;
-      cv.height = el.videoHeight || 2;
-      const t = new THREE.Texture(cv);
-      t.colorSpace = THREE.NoColorSpace;
-      t.minFilter = THREE.LinearFilter;
-      t.magFilter = THREE.LinearFilter;
-      t.generateMipmaps = false;
-      return { tex: t as THREE.Texture, mode: d.stacked ? 1 : 2 };
-    }
-    return { tex: placeholderTexture(d) as THREE.Texture, mode: 0 };
+  // <video> theo tệp@độ lệch: bản nhân bản cùng độ lệch dùng chung element và
+  // texture; khung được chép qua canvas 2D (xem frameTex.ts)
+  const el = v ? getDancerVideo(d.id, d.mediaId, d.offsetSec, d.durationSec) : undefined;
+  useLayoutEffect(() => holdVideos(), []);
+  // element cũ được giữ thêm tới khi element mới có khung, khỏi chớp trắng
+  const prev = useRef<{ el: HTMLVideoElement; release: () => void } | null>(null);
+  useLayoutEffect(() => {
+    if (!el) return;
+    const release = holdFrame(el);
+    return () => {
+      prev.current?.release();
+      prev.current = { el, release };
+    };
+  }, [el]);
+  useEffect(() => () => {
+    prev.current?.release();
+    prev.current = null;
+  }, []);
+  const ph = useMemo(
+    () => (v ? null : placeholderTexture(d)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [v, el, d.stacked, mv, v ? "" : d.name + d.color]);
-  useEffect(() => () => tex.dispose(), [tex]);
+    [!!v, d.name, d.color],
+  );
+  useEffect(() => () => ph?.dispose(), [ph]);
 
   const mat = useMemo(
     () =>
       new THREE.ShaderMaterial({
         vertexShader: VERT,
         fragmentShader: FRAG,
-        uniforms: { map: { value: tex }, mode: { value: mode }, opacity: { value: 1 }, lift: { value: 0 } },
+        uniforms: { map: { value: null }, mode: { value: 0 }, opacity: { value: 1 }, lift: { value: 0 } },
         transparent: true,
         depthWrite: true,
         side: THREE.DoubleSide,
       }),
-    [tex, mode],
+    [],
   );
   useEffect(() => () => mat.dispose(), [mat]);
 
   const h = d.cardHeight;
   const w = h * (d.aspect || 0.45);
 
-  const uploaded = useRef(-1);
-  useEffect(() => {
-    uploaded.current = -1;
-  }, [tex]);
-
   useFrame(({ camera }) => {
     const g = group.current;
     if (!g) return;
-    if (el && el.readyState >= 2 && el.currentTime !== uploaded.current) {
-      uploaded.current = el.currentTime;
-      const cv = tex.image as HTMLCanvasElement;
-      if (cv.width !== el.videoWidth || cv.height !== el.videoHeight) {
-        cv.width = el.videoWidth;
-        cv.height = el.videoHeight;
-        tex.dispose(); // đổi cỡ thì phải cấp lại bộ nhớ texture
-      }
-      cv.getContext("2d")?.drawImage(el, 0, 0);
-      tex.needsUpdate = true;
+    let src: HTMLVideoElement | undefined;
+    if (el) {
+      copyFrame(el, d.stacked);
+      const pv = prev.current;
+      if (frameReady(el)) {
+        src = el;
+        if (pv && pv.el !== el) {
+          pv.release();
+          prev.current = null;
+        }
+      } else if (pv && frameReady(pv.el)) src = pv.el;
+    } else if (prev.current) {
+      prev.current.release();
+      prev.current = null;
     }
+    const u = mat.uniforms;
+    let shown = true;
+    if (src) {
+      u.map.value = frameTexture(src);
+      u.mode.value = d.stacked ? 1 : 2;
+    } else if (ph) {
+      u.map.value = ph;
+      u.mode.value = 0;
+    } else shown = false; // video chưa có khung đầu
     const p = st().project;
     const t = clock.now();
     const q = poseAt(p.formations, d.id, t) ?? lineup(p.dancers.map((x) => x.id), p.stage)[d.id] ?? [0, 0];
@@ -178,9 +190,9 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
     let op = Math.abs(q[0]) > p.stage.width / 2 + 0.05 ? 0.3 : 1;
     if (v) {
       const vt = t - d.offsetSec;
-      if (vt < 0 || vt > (d.durationSec || v.duration)) op = Math.min(op, 0.35);
+      if (vt < 0 || vt > (d.durationSec || v.duration || Infinity)) op = Math.min(op, 0.35);
     }
-    mat.uniforms.opacity.value = op;
+    mat.uniforms.opacity.value = shown ? op : 0;
     mat.uniforms.lift.value = selected ? 0.06 : 0;
   });
 

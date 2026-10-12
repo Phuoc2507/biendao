@@ -14,6 +14,7 @@ import { Present } from "./ui/Present";
 import { Busy, DropZone, Help, ToastView } from "./ui/Overlays";
 import { useShortcuts } from "./ui/shortcuts";
 import { Icon } from "./ui/icons";
+import { SaveGuard } from "./ui/SaveGuard";
 
 function SelectionHud() {
   const ui = useUI();
@@ -68,7 +69,7 @@ export function App() {
     clock.resync();
   }, [p.dancers]);
 
-  if (!ui.loaded) return <div className="empty"><div className="dim">Đang mở…</div></div>;
+  if (!ui.loaded) return <div className="empty"><div className="dim">{ui.busy?.msg ?? "Đang mở…"}</div></div>;
 
   const empty = p.dancers.length === 0;
   return (
@@ -91,6 +92,7 @@ export function App() {
       <Busy />
       <Help />
       <ToastView />
+      <SaveGuard />
     </>
   );
 }
