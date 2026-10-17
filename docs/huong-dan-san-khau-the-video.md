@@ -158,6 +158,10 @@ Mỗi đội hình là một **khối** trên dòng thời gian: trong khối m�
 
 Bấm **Trình chiếu** (F): toàn màn hình góc khán giả, có tên đội hình và đếm phách cỡ lớn. Chiếu lên tivi hoặc máy chiếu cho cả đội nhìn theo. Space phát, dừng; mũi tên hoặc PageUp, PageDown nhảy đội hình; Esc thoát.
 
+### Học động tác từ video cả đội
+
+Bấm **Học động tác** (thanh trên, hoặc ở màn hình trống), mở hoặc kéo thả video cả đội múa quay từ phía trước. **Gương** (M, bật sẵn) lật trái phải để bạn làm theo như đứng sau lưng người múa; xem 0,25× tới 1× vẫn giữ cao độ nhạc; **Đặt A**, **Đặt B** ([ ]) để lặp một đoạn; **5-6-7-8** đếm vào theo BPM (gõ nhịp được) rồi mới phát; , . bước từng khung, ← → lùi tới 2 giây. **Bám theo tôi**: dừng lúc bạn đổi chỗ, kéo một khung quanh mình, app phóng to và dời theo, tự nối giữa các khung. App nhớ video và các khung cho lần sau. Nhìn thật từ sau lưng (thấy lưng người múa) cần dựng lại tư thế 3D, app chưa làm được.
+
 * **Chiếu lên tivi, máy chiếu:** cắm máy, chọn *Mở rộng* (Win P ▸ Extend). Kéo cửa sổ Chrome sang màn hình tivi (hoặc bấm **Win Shift →**) **rồi mới bấm F**, vì toàn màn hình mở trên màn hình đang chứa cửa sổ.
 * **Đếm vào 5 · 6 · 7 · 8:** nút **5-6-7-8** (bật sẵn). Bấm phát thì app đếm bốn số theo nhịp bài (chưa đặt nhịp thì 0,6 s một số) rồi mới chạy nhạc. Space hoặc Esc để huỷ.
 * **Khoá sửa:** lúc trình chiếu không kéo được người, góc dưới trái ghi *Khoá sửa*. Góc nhìn cũng khoá; nút ổ khoá mở cho xoay bằng chuột. Nút máy ảnh hoặc phím **C** đặt lại góc nhìn vừa khít sân.

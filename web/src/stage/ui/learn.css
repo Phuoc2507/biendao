@@ -1,0 +1,133 @@
+/* Học động tác: lớp phủ toàn màn, video ở giữa, điều khiển ở dưới */
+.learn {
+  position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column;
+  background: var(--bg); color: var(--text); overflow: hidden;
+}
+.learn button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.lv-top {
+  display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+  background: var(--panel); border-bottom: 1px solid var(--line); min-width: 0; flex: none;
+}
+.lv-title { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; }
+.lv-title svg { width: 18px; height: 18px; color: var(--accent); flex: none; }
+.lv-title b { white-space: nowrap; }
+.lv-name { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.lv-grow { flex: 1; }
+
+/* khung nhìn video */
+.lv-view { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #000; }
+.lv-zoom { position: absolute; inset: 0; transform-origin: 0 0; will-change: transform; }
+.lv-zoom.ease { transition: transform .4s ease; }
+.lv-flip { position: absolute; inset: 0; }
+.lv-flip.on { transform: scaleX(-1); }
+.lv-flip video { width: 100%; height: 100%; object-fit: contain; display: block; background: #000; }
+.lv-view.drawing { cursor: crosshair; }
+
+.lv-draw { position: absolute; inset: 0; cursor: crosshair; touch-action: none; background: rgba(0, 0, 0, .18); }
+.lv-draw-tip {
+  position: absolute; left: 50%; top: 12px; transform: translateX(-50%); max-width: calc(100% - 32px);
+  padding: 6px 12px; border-radius: 6px; background: rgba(15, 17, 21, .85); border: 1px solid var(--line2);
+  pointer-events: none; text-align: center;
+}
+.lv-box { position: absolute; border: 2px solid var(--accent); border-radius: 4px; background: rgba(255, 159, 67, .12); pointer-events: none; }
+.lv-box.old { border-style: dashed; border-color: var(--blue); background: transparent; }
+
+.lv-countin {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; pointer-events: none; background: rgba(0, 0, 0, .35); text-shadow: 0 2px 12px #000;
+}
+.lv-countin b { font-size: min(32vh, 200px); line-height: 1; font-weight: 800; color: #fff; animation: lv-pop .25s ease-out; font-variant-numeric: tabular-nums; }
+.lv-countin span { color: #cfd6e2; }
+@keyframes lv-pop { from { transform: scale(1.35); opacity: .3; } to { transform: scale(1); opacity: 1; } }
+
+.lv-hint {
+  position: absolute; left: 16px; right: 16px; bottom: 12px; margin: 0 auto; max-width: 640px;
+  display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border-radius: var(--radius);
+  background: rgba(22, 26, 33, .94); border: 1px solid var(--line2); line-height: 1.5;
+}
+.lv-hint b { color: var(--accent2); }
+.lv-hint .btn { flex: none; }
+
+.lv-empty { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; background: var(--bg); }
+.lv-card {
+  max-width: 460px; padding: 24px; text-align: center; border-radius: 12px;
+  background: var(--panel); border: 1px dashed var(--line2);
+}
+.lv-card h2 { margin: 0 0 8px; font-size: 18px; }
+.lv-card p { margin: 0 0 16px; color: var(--muted); line-height: 1.5; }
+.lv-or { margin-top: 10px; font-size: 12px; }
+
+.lv-drop {
+  position: absolute; inset: 12px; display: grid; place-items: center; border-radius: 12px;
+  border: 2px dashed var(--accent); background: rgba(255, 159, 67, .12); font-size: 18px; font-weight: 600;
+  pointer-events: none;
+}
+
+/* thanh tua */
+.lv-bar {
+  display: flex; align-items: center; gap: 12px; padding: 8px 16px 2px;
+  background: var(--panel); border-top: 1px solid var(--line); flex: none;
+}
+.lv-seek { position: relative; flex: 1; height: 28px; cursor: pointer; touch-action: none; min-width: 0; }
+.lv-track { position: absolute; left: 0; right: 0; top: 11px; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.lv-track i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); }
+.lv-band { position: absolute; top: 0; bottom: 0; background: rgba(79, 157, 255, .45); }
+.lv-head {
+  position: absolute; top: 7px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%;
+  background: var(--accent2); box-shadow: 0 0 0 2px var(--panel); pointer-events: none;
+}
+.lv-mark {
+  position: absolute; top: -2px; transform: translateX(-50%); font-size: 10px; font-weight: 700; line-height: 1;
+  padding: 1px 3px; border-radius: 3px; background: var(--blue); color: #0b1220; pointer-events: none;
+}
+.lv-tick { position: absolute; bottom: 0; width: 2px; height: 6px; margin-left: -1px; background: var(--muted); pointer-events: none; }
+.lv-time { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.lv-time small { color: var(--dim); font-weight: 400; }
+
+/* điều khiển */
+.lv-ctl {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 8px 16px 12px;
+  background: var(--panel); flex: none; max-height: 40vh; overflow-y: auto;
+}
+.lv-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.lv-ctl .play:disabled { opacity: .4; cursor: default; }
+.lv-bpm { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+.lv-bpm input {
+  width: 56px; height: 28px; padding: 0 6px; color: var(--text);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+}
+.lv-bpm input:focus { outline: none; border-color: var(--accent); }
+.lv-follow { flex-basis: 100%; }
+.lv-chip { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.lv-chip button {
+  height: 24px; padding: 0 8px; border: 0; background: var(--panel2); color: var(--text); cursor: pointer;
+  font-variant-numeric: tabular-nums; display: inline-flex; align-items: center;
+}
+.lv-chip button + button { padding: 0 6px; border-left: 1px solid var(--line); color: var(--muted); }
+.lv-chip button:hover { background: #242b36; color: var(--text); }
+
+@media (max-height: 500px) {
+  .lv-ctl { max-height: 32vh; }
+  .lv-top { padding-top: 4px; padding-bottom: 4px; }
+}
+
+/* điện thoại: nút to dễ bấm, lề 16px, không cuộn ngang */
+@media (max-width: 600px) {
+  .lv-top { gap: 6px; }
+  .lv-lbl { display: none; }
+  .lv-name { display: none; }
+  .learn .btn { height: 40px; }
+  .learn .btn.icon { width: 40px; }
+  .learn .btn.sm { height: 36px; padding: 0 10px; font-size: 13px; }
+  .learn .seg button { height: 40px; padding: 0 10px; }
+  .learn .play { width: 44px; height: 44px; }
+  .lv-bpm input { height: 40px; }
+  .lv-chip button { height: 36px; }
+  .lv-ctl { gap: 8px; }
+  .lv-group { gap: 6px; }
+  .lv-speed { display: flex; width: 100%; }
+  .lv-speed button { flex: 1; }
+  .lv-hint { flex-direction: column; font-size: 12px; }
+  .lv-time small { display: none; }
+}

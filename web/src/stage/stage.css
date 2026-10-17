@@ -516,7 +516,7 @@ kbd {
   .app.phone .top { row-gap: 2px; justify-content: space-between; }
   .app.phone .brand { flex-basis: 60px; max-width: none; }
   .app.phone .top-brk { display: block; order: 1; flex-basis: 100%; height: 0; }
-  .app.phone .top :is(.grow, .transport, .clock, .count, .snap-btn, .seg, .present-btn) { order: 2; }
+  .app.phone .top :is(.grow, .transport, .clock, .count, .snap-btn, .seg, .learn-btn, .present-btn) { order: 2; }
   .keys { grid-template-columns: 1fr; }
   .modal { padding: 16px; }
 }

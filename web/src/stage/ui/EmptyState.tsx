@@ -7,6 +7,7 @@ import { startWith } from "../actions";
 import { canMakeDemo, makeDemoProject } from "../demo";
 import { pickAnyFiles } from "./SidePanel";
 import { Icon } from "./icons";
+import { openLearn } from "./Learn";
 
 export async function loadDemo(n = 6) {
   clock.pause();
@@ -86,6 +87,14 @@ export function EmptyState() {
               <button className="btn primary" onClick={() => startWith(n)} style={{ marginLeft: 6 }}>Bắt đầu với {n} người</button>
             </div>
           </div>
+        </div>
+        <div className="demo-row">
+          <span className="muted">
+            Chỉ cần học phần của mình? Mở video cả đội múa (quay từ phía trước) để soi gương, xem chậm, lặp đoạn và phóng to theo bạn.
+          </span>
+          <button className="btn" onClick={openLearn}>
+            <Icon name="learn" /> Học động tác
+          </button>
         </div>
         <div className="demo-row">
           <span className="muted">

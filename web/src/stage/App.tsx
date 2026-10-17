@@ -13,6 +13,7 @@ import { PlanView } from "./ui/PlanView";
 import { AudienceView } from "./ui/AudienceView";
 import { EmptyState } from "./ui/EmptyState";
 import { Present } from "./ui/Present";
+import { Learn } from "./ui/Learn";
 import { Busy, DropZone, Help, ToastView } from "./ui/Overlays";
 import { useShortcuts } from "./ui/shortcuts";
 import { closeSide, usePhone, useSplitDir } from "./ui/useLayout";
@@ -113,7 +114,9 @@ export function App() {
   const cls = phone ? `app phone${ui.sideOpen ? " drawer" : ""}` : `app${ui.sideOpen ? "" : " noside"}`;
   return (
     <>
-      {ui.presenting && !empty ? (
+      {ui.learning ? (
+        <Learn />
+      ) : ui.presenting && !empty ? (
         <Present />
       ) : (
         <div className={cls}>

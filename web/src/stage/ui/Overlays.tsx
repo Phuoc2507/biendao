@@ -80,7 +80,9 @@ export function DropZone() {
   const [over, setOver] = useState(false);
   useEffect(() => {
     let depth = 0;
-    const hasFiles = (e: DragEvent) => !!e.dataTransfer && Array.from(e.dataTransfer.types).includes("Files");
+    // đang Học động tác thì chế độ đó tự nhận video thả vào, không nạp vào bài
+    const hasFiles = (e: DragEvent) =>
+      !st().ui.learning && !!e.dataTransfer && Array.from(e.dataTransfer.types).includes("Files");
     const enter = (e: DragEvent) => {
       if (!hasFiles(e)) return;
       e.preventDefault();
@@ -173,6 +175,14 @@ const KEYS: [string, [string, string][]][] = [
     ["Về đầu / về cuối", "Home / End"],
     ["Thoát trình chiếu", "Esc / F"],
   ]],
+  ["Khi học động tác", [
+    ["Phát / dừng (có đếm 5 6 7 8)", "Space"],
+    ["Lùi / tới 2 giây", "← →"],
+    ["Lùi / tới một khung hình", ",  ."],
+    ["Đặt A / đặt B (lặp đoạn)", "[  ]"],
+    ["Bật tắt gương", "M"],
+    ["Thoát", "Esc"],
+  ]],
 ];
 
 export function Help() {
@@ -214,6 +224,7 @@ function HelpDialog() {
           <li>Bấm <kbd>Enter</kbd> để thêm đội hình kế tiếp, kéo người sang chỗ mới. Khoảng giữa hai khối là lúc mọi người trượt.</li>
           <li>Kéo khối trên dòng thời gian để dời, kéo mép để đổi độ dài. Xem thẻ <b>Cảnh báo</b> nếu có người va nhau.</li>
           <li>Bấm <b>Trình chiếu</b> để chiếu lên máy chiếu khi tập.</li>
+          <li>Đã có video cả đội múa? Bấm <b>Học động tác</b> để xem chậm, lặp đoạn, soi gương và phóng to theo bạn.</li>
         </ol>
         <div className="keys">
           {KEYS.map(([h, rows]) => (
