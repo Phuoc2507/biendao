@@ -88,3 +88,27 @@ def test_tach_ra_sau_khi_chong_len_nhan_theo_mau_ao():
     out = f(_frame([d2, x2]), _rgb([(d2, den), (x2, trang)]))
     assert out[60, 175] == 1.0
     assert out[60, 135] == 0.0
+
+
+def test_mang_dinh_co_lai_khong_hoc_nham_nguoi_xem():
+    # tái hiện IMG_5116 ~28-31 s: vũ công dính nhóm người xem (áo trắng, quần
+    # đen), mảng dính co về ~1.2 lần rồi tách; vũ công lùi xa nên mảng nhỏ đi
+    den, trang = (20, 20, 20), (240, 240, 240)
+
+    def nhom(x0, x1):  # người xem: nửa trên áo trắng, nửa dưới quần đen
+        return [((x0, 10, x1, 60), trang), ((x0, 60, x1, 110), den)]
+
+    f = MainPersonFilter()
+    d = (40, 10, 80, 110)
+    f(_frame([d]), _rgb([(d, den)]))
+    # dính: một mảng gấp đôi; phía xa của nhóm người xem bị cắt bớt
+    out = f(_frame([(60, 10, 140, 110)]), _rgb([((60, 10, 100, 110), den)] + nhom(100, 140)))
+    assert out[60, 70] == 1.0
+    assert out[60, 130] == 0.0
+    # mảng dính co về 1.2 lần: vẫn coi là đang dính, không học theo
+    f(_frame([(70, 10, 118, 110)]), _rgb([((70, 10, 110, 110), den)] + nhom(110, 118)))
+    # tách: vũ công lùi sang trái và nhỏ đi, nhóm người xem ở chỗ mảng dính cũ
+    d2 = (40, 33, 70, 110)
+    out = f(_frame([d2, (100, 10, 150, 110)]), _rgb([(d2, den)] + nhom(100, 150)))
+    assert out[60, 55] == 1.0
+    assert out[60, 125] == 0.0
