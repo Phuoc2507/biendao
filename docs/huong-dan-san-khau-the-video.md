@@ -94,7 +94,7 @@ Sau này muốn làm bài khác thì **Tệp ▸ Bài mới**.
 
 * **Thanh trên:** nút ẩn hiện cột trái, tên bài, ô lưu, menu Tệp, hoàn tác và làm lại, nút phát, đồng hồ và đếm phách (phách / lượt 8), nút bám lưới, chọn chế độ xem, Trình chiếu, Trợ giúp. Cửa sổ hẹp thì chữ trên nút tự ẩn, chỉ còn biểu tượng (rê chuột để xem tên); xoá trắng tên bài thì app trả lại tên cũ.
 * **Cột trái:** thẻ *Vũ công* (nhạc, nhịp, danh sách người) và thẻ *Đội hình*. Bấm nút ở góc trái thanh trên để ẩn hoặc hiện; app nhớ lựa chọn cho lần mở sau.
-* **Giữa:** sân khấu. *Sơ đồ* là nhìn từ trên xuống; *Khán giả* là nhìn từ hàng ghế khán giả; *Cả hai* là hai khung cạnh nhau, vùng giữa cao mà hẹp (ví dụ cửa sổ chia đôi màn hình) thì tự xếp trên dưới. Khán giả luôn ở phía dưới sơ đồ.
+* **Giữa:** sân khấu. *Sơ đồ* là nhìn từ trên xuống; *Khán giả* là nhìn từ hàng ghế khán giả; *Cả hai* là hai khung cạnh nhau, vùng giữa cao mà hẹp (ví dụ cửa sổ chia đôi màn hình) thì tự xếp trên dưới. Khán giả ở phía dưới sơ đồ; nút **Từ sân khấu** (phím **O**) xoay sơ đồ để khán giả ở trên, trái phải đúng như người múa đứng trên sân nhìn ra.
 * **Điện thoại:** thanh trên tách hai hàng (tên bài và tệp ở trên, phát và chế độ xem ở dưới); cột trái thành ngăn kéo, bấm nút góc trái để mở, chạm ra ngoài để đóng. Menu hiện từ đáy màn hình cho dễ bấm.
 * **Dưới:** dòng thời gian với sóng nhạc, vạch phách và các khối đội hình.
 
@@ -137,7 +137,9 @@ Một video có thể dùng cho nhiều người trên sân (ví dụ chỉ quay
 * Nút **nhân bản** (biểu tượng hai tờ giấy) ở dòng vũ công thêm một bản sao; **Shift bấm** để hỏi số người. Trong khung chi tiết vũ công có ô **Nhân bản thêm [n] người**.
 * Bản sao đứng **cạnh** bản gốc (cách ít nhất 0.8 m) ở mọi đội hình còn chỗ trên sân; bản gốc đang ở cánh gà hoặc sân đã kín thì bản sao vào cánh gà.
 * Mỗi bản sao phát video **riêng**, nên chỉnh độ lệch từng người được.
-* **Lệch canon**: chọn nhiều người (Shift bấm trong danh sách), ở khung *N người đang chọn* nhập số giây mỗi người (mặc định 1 phách nếu đã đặt nhịp, không thì 0,5 s), bấm **Lệch canon**. Theo thứ tự danh sách, người sau vào trễ hơn người trước đúng khoảng đó, người đầu giữ nguyên độ lệch. Hoàn tác được (Ctrl+Z).
+* **Canon theo đoạn:** chọn nhiều người (Shift bấm trong danh sách). Ở khung *N người đang chọn: tổ hợp* đặt đoạn **Từ … tới …** (nút **Lấy đoạn hiện tại** lấy vùng lặp nếu có, không thì khối đội hình đang đứng ở vạch phát), chọn **Thứ tự** (trái sang phải, phải sang trái, giữa trước rồi hai bên, hàng đầu trước, theo danh sách) và **Mỗi lượt trễ** (1 phách, 2 phách hoặc tự nhập giây), bấm **Canon đoạn này**. Trong đoạn đó lượt sau đứng chờ rồi múa đúng động tác của mình trễ hơn lượt trước; hết đoạn cả nhóm khớp lại đồng loạt. Người đứng gần như cùng chỗ theo tiêu chí (ví dụ hai bạn đối xứng khi chọn *giữa trước*) vào cùng một lượt. Trên dòng thời gian mỗi đoạn canon có vạch *canon +… s*, phần gạch chéo là lúc đứng chờ. **Bỏ canon** trả đoạn đó về đồng loạt. Dùng được cả với người khác video.
+* **Đối xứng hai bên (tổ hợp 3 người):** chọn nhóm rồi bấm **Đối xứng hai bên**: người bên phải giữa nhóm (khán giả nhìn) lật gương, người giữa và bên trái giữ nguyên. Ba bản nhân bản từ một video thành một tổ hợp soi gương; kết hợp canon *giữa trước* thì người giữa vào trước, hai bên vào sau cùng lúc. Từng người cũng có ô **Lật gương** trong khung chi tiết.
+* **Canon cả bài:** trong mục gấp *Canon cả bài (lệch video)*, người sau lệch video trễ hơn người trước suốt cả bài (cách cũ). Hoàn tác được tất cả (Ctrl+Z).
 
 ### Đội hình
 
@@ -158,10 +160,6 @@ Mỗi đội hình là một **khối** trên dòng thời gian: trong khối m�
 
 Bấm **Trình chiếu** (F): toàn màn hình góc khán giả, có tên đội hình và đếm phách cỡ lớn. Chiếu lên tivi hoặc máy chiếu cho cả đội nhìn theo. Space phát, dừng; mũi tên hoặc PageUp, PageDown nhảy đội hình; Esc thoát.
 
-### Học động tác từ video cả đội
-
-Bấm **Học động tác** (thanh trên, hoặc ở màn hình trống), mở hoặc kéo thả video cả đội múa quay từ phía trước. **Gương** (M, bật sẵn) lật trái phải để bạn làm theo như đứng sau lưng người múa; xem 0,25× tới 1× vẫn giữ cao độ nhạc; **Đặt A**, **Đặt B** ([ ]) để lặp một đoạn; **5-6-7-8** đếm vào theo BPM (gõ nhịp được) rồi mới phát; , . bước từng khung, ← → lùi tới 2 giây. **Bám theo tôi**: dừng lúc bạn đổi chỗ, kéo một khung quanh mình, app phóng to và dời theo, tự nối giữa các khung. App nhớ video và các khung cho lần sau. Nhìn thật từ sau lưng (thấy lưng người múa) cần dựng lại tư thế 3D, app chưa làm được.
-
 * **Chiếu lên tivi, máy chiếu:** cắm máy, chọn *Mở rộng* (Win P ▸ Extend). Kéo cửa sổ Chrome sang màn hình tivi (hoặc bấm **Win Shift →**) **rồi mới bấm F**, vì toàn màn hình mở trên màn hình đang chứa cửa sổ.
 * **Đếm vào 5 · 6 · 7 · 8:** nút **5-6-7-8** (bật sẵn). Bấm phát thì app đếm bốn số theo nhịp bài (chưa đặt nhịp thì 0,6 s một số) rồi mới chạy nhạc. Space hoặc Esc để huỷ.
 * **Khoá sửa:** lúc trình chiếu không kéo được người, góc dưới trái ghi *Khoá sửa*. Góc nhìn cũng khoá; nút ổ khoá mở cho xoay bằng chuột. Nút máy ảnh hoặc phím **C** đặt lại góc nhìn vừa khít sân.
@@ -169,6 +167,10 @@ Bấm **Học động tác** (thanh trên, hoặc ở màn hình trống), mở 
 * **Sáng:** sân sáng hơn, dễ nhìn trên máy chiếu yếu.
 * **Tôi là ai:** chọn tên mình; người khác mờ đi, có vòng trắng dưới chân mình và dòng nhắc "bạn đứng ở đâu, còn bao lâu thì đi tới đâu".
 * Dòng **Tiếp** đếm theo lượt 8 và phách (ví dụ *còn 1×8 + 4*); chưa đặt nhịp thì theo giây.
+
+### Học động tác từ video cả đội
+
+Bấm **Học động tác** (thanh trên, hoặc ở màn hình trống), mở hoặc kéo thả video cả đội múa quay từ phía trước. **Gương** (M, bật sẵn) lật trái phải để bạn làm theo như đứng sau lưng người múa; xem 0,25× tới 1× vẫn giữ cao độ nhạc; **Đặt A**, **Đặt B** ([ ]) để lặp một đoạn; **5-6-7-8** đếm vào theo BPM (gõ nhịp được) rồi mới phát; , . bước từng khung, ← → lùi tới 2 giây. **Bám theo tôi**: dừng lúc bạn đổi chỗ, kéo một khung quanh mình, app phóng to và dời theo, tự nối giữa các khung. App nhớ video và các khung cho lần sau. Nhìn thật từ sau lưng (thấy lưng người múa) cần dựng lại tư thế 3D, app chưa làm được.
 
 ### Xem và tập trên sơ đồ
 
@@ -178,7 +180,7 @@ Góc trên phải sơ đồ có ba nút:
 * **Bóng đội hình kế:** hiện mờ chỗ đứng ở đội hình sau, có mũi tên.
 * **Cảnh báo:** danh sách ai va nhau (dưới 0,5 m), chồng lên nhau, hay phải chạy quá 1,5 m/s. Bấm một dòng để tua tới đó. Chỗ va nhau hiện dấu × đỏ, đoạn chạy quá nhanh tô đỏ trên sơ đồ.
 
-Trong khung khán giả: nút **Đặt lại** đưa góc nhìn về vừa khít sân; kéo thẻ giữ **Alt** để đặt tự do không bám lưới.
+Khung 3D có các góc **Khán giả**, **Chéo**, **Trên cao** và **Sau lưng** (đứng sau đội nhìn ra khán giả, hình lật như soi gương để trái phải giống người múa, dễ tập theo). Nút **Đặt lại** đưa góc nhìn về vừa khít sân; kéo thẻ giữ **Alt** để đặt tự do không bám lưới.
 
 ### Lưu
 
@@ -206,6 +208,7 @@ Trong khung khán giả: nút **Đặt lại** đưa góc nhìn về vừa khít
 | Ctrl A | Chọn tất cả |
 | M | Lật trái phải người đang chọn |
 | N | Bật, tắt bám lưới và phách |
+| O | Sơ đồ nhìn từ khán giả hoặc từ sân khấu |
 | L | Lặp đoạn chuyển vào đội hình đang chọn (tập đi tập lại một chỗ di chuyển) |
 | V | Đổi chế độ xem |
 | Shift Z | Vừa khung dòng thời gian |
