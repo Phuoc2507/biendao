@@ -10,6 +10,47 @@ export function videoTarget(
   return { time: Math.min(last, Math.max(0, raw)), inRange };
 }
 
+// ---------- canon theo đoạn ----------
+
+/** Trong đoạn nhạc [start, end) người này vào trễ lag giây so với cả nhóm. */
+export interface CanonSeg { start: number; end: number; lag: number }
+
+/** Trễ thật dùng được: luôn chừa ít nhất 0,1 s múa trong đoạn. */
+const lagIn = (s: CanonSeg) => Math.max(0, Math.min(s.lag, s.end - s.start - 0.1));
+
+/**
+ * Thời điểm nhạc mà video người này "đang múa" khi nhạc ở t. Trong đoạn canon:
+ * lag giây đầu đứng yên ở khung đầu đoạn (hold), sau đó múa trễ lag giây; hết
+ * đoạn thì nhảy về đồng loạt với cả nhóm (bỏ qua phần cuối đoạn bị trễ).
+ */
+export function canonTime(t: number, segs?: readonly CanonSeg[] | null): { t: number; hold: boolean } {
+  if (segs) for (const s of segs) {
+    if (t < s.start || t >= s.end) continue;
+    const L = lagIn(s);
+    if (L <= 0) break;
+    if (t < s.start + L) return { t: s.start, hold: true };
+    return { t: t - L, hold: false };
+  }
+  return { t, hold: false };
+}
+
+const r3 = (x: number) => Math.round(x * 1000) / 1000;
+
+/** Đặt (lag > 0) hoặc xoá (lag 0) canon trong [start, end): đoạn cũ chồng lên bị bỏ. */
+export function putCanon(segs: readonly CanonSeg[] | null | undefined, seg: CanonSeg): CanonSeg[] {
+  const a = r3(Math.min(seg.start, seg.end));
+  const b = r3(Math.max(seg.start, seg.end));
+  const out = (segs ?? []).filter((s) => s.end <= a || s.start >= b);
+  if (seg.lag > 0 && b - a > 0.1) out.push({ start: a, end: b, lag: r3(Math.min(seg.lag, b - a - 0.1)) });
+  return out.sort((x, y) => x.start - y.start);
+}
+
+/** Chuỗi nhận diện canon (khoá element video: canon khác nhau thì element riêng). */
+export const canonSig = (segs?: readonly CanonSeg[] | null): string =>
+  segs && segs.length
+    ? "~" + segs.map((s) => [s.start, s.end, s.lag].map((x) => Math.round(x * 1000)).join(":")).join(",")
+    : "";
+
 export const beatLen = (bpm: number): number => 60 / bpm;
 
 /** Bắt dính t vào phách (hoặc nửa phách) nếu có BPM, không thì vào bước step giây. */

@@ -16,6 +16,7 @@ import { dancerLegs, dancerStops, stopLabel } from "../rehearse";
 import { describePos, useWarnings } from "./hooks";
 import { Icon } from "./icons";
 import { MePicker } from "./MePicker";
+import { rememberPlanFromStage } from "../layout";
 import "./rehearse.css";
 
 const R = 0.3; // bán kính chấm người (m)
@@ -39,13 +40,21 @@ interface Drag {
 }
 
 export function PlanView({
-  readOnly = false, compact = false, mirror = false,
-}: { readOnly?: boolean; compact?: boolean; mirror?: boolean }) {
+  readOnly = false, compact = false, mirror = false, fromStage,
+}: {
+  readOnly?: boolean; compact?: boolean; mirror?: boolean;
+  /** nhìn từ sân khấu ra khán giả (xoay 180°); mặc định theo lựa chọn ở sơ đồ chính */
+  fromStage?: boolean;
+}) {
   const p = useProject();
   const ui = useUI();
   const t = useTime();
   const issues = useWarnings();
-  const X = (x: number) => (mirror ? -x : x); // soi gương: lật trái phải
+  // nhìn từ sân khấu: khán giả ở trên, trái phải theo người múa (xoay 180°);
+  // soi gương: lật trái phải. Cả hai đều tự nghịch đảo nên toM dùng lại được
+  const flip = fromStage ?? (!readOnly && ui.planFromStage);
+  const X = (x: number) => (mirror !== flip ? -x : x);
+  const Z = (z: number) => (flip ? -z : z);
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<Drag | null>(null);
   const [box, setBox] = useState<[Vec2, Vec2] | null>(null);
@@ -56,7 +65,8 @@ export function PlanView({
   const hx = W / 2 + WING;
   const pad = compact ? 0.3 : 0.7;
   const padTop = compact ? 0.3 : 1.2; // chừa chỗ cho chip trạng thái phía trên
-  const vb = { x: -hx - pad, y: -D / 2 - padTop, w: 2 * (hx + pad), h: D + padTop + (compact ? 0.9 : 1.6) };
+  const padBot = compact ? 0.9 : 1.6; // phía khán giả: chữ KHÁN GIẢ và thước số
+  const vb = { x: -hx - pad, y: flip ? -D / 2 - padBot : -D / 2 - padTop, w: 2 * (hx + pad), h: D + padTop + padBot };
 
   const ids = useMemo(() => p.dancers.map((d) => d.id), [p.dancers]);
   const poses = posesAt(p.formations, ids, t, p.stage);
@@ -81,7 +91,7 @@ export function PlanView({
     pt.x = e.clientX;
     pt.y = e.clientY;
     const q = pt.matrixTransform(svg.getScreenCTM()!.inverse());
-    return [X(q.x), q.y];
+    return [X(q.x), Z(q.y)];
   };
 
   const onDancerDown = (e: React.PointerEvent, id: string) => {
@@ -138,7 +148,7 @@ export function PlanView({
       const r = svgRef.current!.getBoundingClientRect();
       const q = moves[lead];
       const more = Object.keys(d.base).length > 1 ? ` (+${Object.keys(d.base).length - 1})` : "";
-      setTip({ x: e.clientX - r.left, y: e.clientY - r.top, text: describePos(q[0], q[1], W, D) + more });
+      setTip({ x: e.clientX - r.left, y: e.clientY - r.top, text: describePos(flip ? -q[0] : q[0], q[1], W, D) + more });
     }
   };
 
@@ -198,7 +208,7 @@ export function PlanView({
   if (!compact)
     for (let k = -Math.floor(W / 2); k <= Math.floor(W / 2); k++)
       nums.push(
-        <text key={`n${k}`} x={k} y={D / 2 + 0.38} fontSize={0.26} textAnchor="middle" fill={k === 0 ? "#ffb86b" : "#6b768a"}>
+        <text key={`n${k}`} x={k} y={Z(D / 2 + 0.38) + (flip ? 0.09 : 0)} fontSize={0.26} textAnchor="middle" fill={k === 0 ? "#ffb86b" : "#6b768a"}>
           {Math.abs(k)}
         </text>,
       );
@@ -208,7 +218,7 @@ export function PlanView({
     for (const d of vis) {
       const q = prev.pos[d.id];
       if (!q) continue;
-      ghosts.push(<circle key={`g${d.id}`} cx={X(q[0])} cy={q[1]} r={R * 0.85} fill={d.color} opacity={0.14} />);
+      ghosts.push(<circle key={`g${d.id}`} cx={X(q[0])} cy={Z(q[1])} r={R * 0.85} fill={d.color} opacity={0.14} />);
     }
   const targets: JSX.Element[] = [];
   const paths: JSX.Element[] = [];
@@ -223,12 +233,12 @@ export function PlanView({
       if (a && dist(a, b) >= 0.05) {
         const [s, e] = shorten(a, b, R + 0.05);
         paths.push(
-          <line key={`np${d.id}`} x1={X(s[0])} y1={s[1]} x2={X(e[0])} y2={e[1]} stroke={d.color} strokeOpacity={0.6}
+          <line key={`np${d.id}`} x1={X(s[0])} y1={Z(s[1])} x2={X(e[0])} y2={Z(e[1])} stroke={d.color} strokeOpacity={0.6}
             strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeDasharray="5 3" markerEnd="url(#rhArrG)" />,
         );
       }
       targets.push(
-        <g key={`nt${d.id}`} transform={`translate(${X(b[0])} ${b[1]})`} opacity={0.3}>
+        <g key={`nt${d.id}`} transform={`translate(${X(b[0])} ${Z(b[1])})`} opacity={0.3}>
           <circle r={R} fill={d.color} />
           <text y={0.09} fontSize={0.24} textAnchor="middle" fill="#111" fontWeight={800}>{initials(d.name)}</text>
         </g>,
@@ -241,11 +251,11 @@ export function PlanView({
       if (!a || !b || dist(a, b) < 0.05) continue;
       if (ui.showPaths)
         paths.push(
-          <line key={`p${d.id}`} x1={X(a[0])} y1={a[1]} x2={X(b[0])} y2={b[1]} stroke={d.color} strokeOpacity={0.55}
+          <line key={`p${d.id}`} x1={X(a[0])} y1={Z(a[1])} x2={X(b[0])} y2={Z(b[1])} stroke={d.color} strokeOpacity={0.55}
             strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeDasharray="4 3" markerEnd="url(#arr)" />,
         );
       targets.push(
-        <circle key={`t${d.id}`} cx={X(b[0])} cy={b[1]} r={R * 0.85} fill="none" stroke={d.color} strokeOpacity={0.5}
+        <circle key={`t${d.id}`} cx={X(b[0])} cy={Z(b[1])} r={R * 0.85} fill="none" stroke={d.color} strokeOpacity={0.5}
           strokeWidth={1.2} vectorEffect="non-scaling-stroke" strokeDasharray="3 3" />,
       );
     }
@@ -259,14 +269,14 @@ export function PlanView({
     for (const l of dancerLegs(p.formations, meD.id)) {
       const [s, e] = shorten(l.a, l.b, 0.2);
       meLayer.push(
-        <line key={`ml${l.k}`} x1={X(s[0])} y1={s[1]} x2={X(e[0])} y2={e[1]} stroke="#fff" strokeOpacity={0.85}
+        <line key={`ml${l.k}`} x1={X(s[0])} y1={Z(s[1])} x2={X(e[0])} y2={Z(e[1])} stroke="#fff" strokeOpacity={0.85}
           strokeWidth={2} vectorEffect="non-scaling-stroke" markerEnd="url(#rhArrMe)" />,
       );
     }
     dancerStops(p.formations, meD.id).forEach((s, i) => {
       const cur = s.ks.includes(curK);
       meLayer.push(
-        <g key={`ms${i}`} transform={`translate(${X(s.pos[0])} ${s.pos[1]})`}>
+        <g key={`ms${i}`} transform={`translate(${X(s.pos[0])} ${Z(s.pos[1])})`}>
           <circle r={0.16} fill={cur ? meD.color : "#0b0d10"} stroke="#fff" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
           {!compact && (
             <text x={0.22} y={-0.2} fontSize={0.22} fill="#fff" fontWeight={700} stroke="#0b0d10" strokeWidth={0.06} paintOrder="stroke">
@@ -287,12 +297,12 @@ export function PlanView({
       if (w.kind === "collide") {
         w.paths.forEach(([a, b], j) =>
           issueLayer.push(
-            <line key={`ip${i}-${j}`} x1={X(a[0])} y1={a[1]} x2={X(b[0])} y2={b[1]} stroke="#ff5d6c" strokeOpacity={0.8}
+            <line key={`ip${i}-${j}`} x1={X(a[0])} y1={Z(a[1])} x2={X(b[0])} y2={Z(b[1])} stroke="#ff5d6c" strokeOpacity={0.8}
               strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeDasharray="3 3" />,
           ),
         );
         issueLayer.push(
-          <g key={`ic${i}`} transform={`translate(${X(w.at[0])} ${w.at[1]})`}>
+          <g key={`ic${i}`} transform={`translate(${X(w.at[0])} ${Z(w.at[1])})`}>
             <circle r={0.2} fill="#ff5d6c" stroke="#0b0d10" strokeWidth={1} vectorEffect="non-scaling-stroke" />
             <text y={0.08} fontSize={0.24} textAnchor="middle" fill="#fff" fontWeight={800}>×</text>
           </g>,
@@ -300,12 +310,12 @@ export function PlanView({
       } else if (w.kind === "fast") {
         w.paths.forEach(([a, b], j) =>
           issueLayer.push(
-            <line key={`ip${i}-${j}`} x1={X(a[0])} y1={a[1]} x2={X(b[0])} y2={b[1]} stroke="#ff5d6c" strokeOpacity={0.75}
+            <line key={`ip${i}-${j}`} x1={X(a[0])} y1={Z(a[1])} x2={X(b[0])} y2={Z(b[1])} stroke="#ff5d6c" strokeOpacity={0.75}
               strokeWidth={4} vectorEffect="non-scaling-stroke" strokeLinecap="round" />,
           ),
         );
         issueLayer.push(
-          <text key={`iv${i}`} x={X(w.at[0])} y={w.at[1] - 0.18} fontSize={0.22} textAnchor="middle" fill="#ff8a95" fontWeight={700}
+          <text key={`iv${i}`} x={X(w.at[0])} y={Z(w.at[1]) - 0.18} fontSize={0.22} textAnchor="middle" fill="#ff8a95" fontWeight={700}
             stroke="#0b0d10" strokeWidth={0.06} paintOrder="stroke">
             {Number.isFinite(w.value) ? `${w.value.toFixed(1).replace(".", ",")} m/s` : "dịch ngay"}
           </text>,
@@ -348,26 +358,27 @@ export function PlanView({
         <rect x={W / 2} y={-D / 2} width={WING} height={D} fill="url(#hatch)" stroke="#2a313d" strokeWidth={1} vectorEffect="non-scaling-stroke" />
         {!compact && (
           <>
-            <text x={-W / 2 - WING / 2} y={-D / 2 - 0.15} fontSize={0.22} textAnchor="middle" fill="#5d6778">CÁNH GÀ</text>
-            <text x={W / 2 + WING / 2} y={-D / 2 - 0.15} fontSize={0.22} textAnchor="middle" fill="#5d6778">CÁNH GÀ</text>
+            <text x={-W / 2 - WING / 2} y={Z(-D / 2 - 0.15) + (flip ? 0.08 : 0)} fontSize={0.22} textAnchor="middle" fill="#5d6778">CÁNH GÀ</text>
+            <text x={W / 2 + WING / 2} y={Z(-D / 2 - 0.15) + (flip ? 0.08 : 0)} fontSize={0.22} textAnchor="middle" fill="#5d6778">CÁNH GÀ</text>
           </>
         )}
         {/* sàn diễn */}
         <rect x={-W / 2} y={-D / 2} width={W} height={D} fill="url(#floor)" />
         {grid}
         <rect x={-W / 2} y={-D / 2} width={W} height={D} fill="none" stroke="#3c4658" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-        <line x1={-W / 2} y1={D / 2} x2={W / 2} y2={D / 2} stroke="#ff9f43" strokeWidth={3} vectorEffect="non-scaling-stroke" />
+        <line x1={-W / 2} y1={Z(D / 2)} x2={W / 2} y2={Z(D / 2)} stroke="#ff9f43" strokeWidth={3} vectorEffect="non-scaling-stroke" />
         {!compact && (
-          <text x={0} y={-D / 2 - 0.15} fontSize={0.22} textAnchor="middle" fill="#5d6778">PHÔNG NỀN (CUỐI SÂN)</text>
+          <text x={0} y={Z(-D / 2 - 0.15) + (flip ? 0.08 : 0)} fontSize={0.22} textAnchor="middle" fill="#5d6778">PHÔNG NỀN (CUỐI SÂN)</text>
         )}
         {nums}
-        <text x={0} y={D / 2 + (compact ? 0.55 : 1.05)} fontSize={compact ? 0.32 : 0.34} textAnchor="middle" fill="#ffb86b" fontWeight={700} letterSpacing={0.08}>
-          ▼ KHÁN GIẢ ▼
+        <text x={0} y={Z(D / 2 + (compact ? 0.55 : 1.05)) + (flip ? 0.12 : 0)} fontSize={compact ? 0.32 : 0.34} textAnchor="middle" fill="#ffb86b" fontWeight={700} letterSpacing={0.08}>
+          {flip ? "▲ KHÁN GIẢ ▲" : "▼ KHÁN GIẢ ▼"}
         </text>
         {!compact && (
           <>
-            <text x={-W / 2} y={D / 2 + 1.05} fontSize={0.26} fill="#6b768a">◀ TRÁI</text>
-            <text x={W / 2} y={D / 2 + 1.05} fontSize={0.26} fill="#6b768a" textAnchor="end">PHẢI ▶</text>
+            {/* trái phải theo người đang nhìn: khán giả (bình thường) hay người múa (nhìn từ sân khấu) */}
+            <text x={-W / 2} y={Z(D / 2 + 1.05) + (flip ? 0.09 : 0)} fontSize={0.26} fill="#6b768a">{flip ? "◀ TRÁI người múa" : "◀ TRÁI"}</text>
+            <text x={W / 2} y={Z(D / 2 + 1.05) + (flip ? 0.09 : 0)} fontSize={0.26} fill="#6b768a" textAnchor="end">{flip ? "PHẢI người múa ▶" : "PHẢI ▶"}</text>
           </>
         )}
 
@@ -387,7 +398,7 @@ export function PlanView({
             <g
               key={d.id}
               className="dancer"
-              transform={`translate(${X(q[0])} ${q[1]})`}
+              transform={`translate(${X(q[0])} ${Z(q[1])})`}
               opacity={d.hidden ? 0.3 : meD && meD.id !== d.id ? 0.35 : 1}
               onPointerDown={(e) => onDancerDown(e, d.id)}
             >
@@ -415,7 +426,7 @@ export function PlanView({
 
         {box && (
           <rect
-            x={Math.min(X(box[0][0]), X(box[1][0]))} y={Math.min(box[0][1], box[1][1])}
+            x={Math.min(X(box[0][0]), X(box[1][0]))} y={Math.min(Z(box[0][1]), Z(box[1][1]))}
             width={Math.abs(box[1][0] - box[0][0])} height={Math.abs(box[1][1] - box[0][1])}
             fill="rgba(79,157,255,.12)" stroke="#4f9dff" strokeWidth={1} vectorEffect="non-scaling-stroke" strokeDasharray="4 3"
           />
@@ -429,6 +440,13 @@ export function PlanView({
 }
 
 type Issues = ReturnType<typeof useWarnings>;
+
+/** Đổi góc sơ đồ: từ khán giả (khán giả ở dưới) hay từ sân khấu (người múa quay mặt ra khán giả ở trên). */
+export function togglePlanFrom() {
+  const on = !st().ui.planFromStage;
+  rememberPlanFromStage(on);
+  st().setUI({ planFromStage: on });
+}
 
 /** Thanh nhỏ góc phải sơ đồ: Tôi là ai, bóng đội hình kế, danh sách cảnh báo. */
 function PlanTools({ issues }: { issues: Issues }) {
@@ -463,6 +481,16 @@ function PlanTools({ issues }: { issues: Issues }) {
   return (
     <div className="rh-plan-tools" ref={ref} onPointerDown={(e) => e.stopPropagation()}>
       <MePicker small />
+      <button
+        className={`btn sm${ui.planFromStage ? " on" : ""}`}
+        title={ui.planFromStage
+          ? "Đang nhìn từ sân khấu ra khán giả (trái phải theo người múa). Bấm để về góc khán giả (O)"
+          : "Xoay sơ đồ: nhìn từ sân khấu ra khán giả, trái phải theo người múa (O)"}
+        aria-pressed={ui.planFromStage}
+        onClick={togglePlanFrom}
+      >
+        <Icon name="turn" /> {ui.planFromStage ? "Từ sân khấu" : "Từ khán giả"}
+      </button>
       <button
         className={`btn sm${ui.showNext ? " on" : ""}`}
         title="Hiện mờ chỗ đứng của đội hình kế tiếp"

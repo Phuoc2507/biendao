@@ -75,6 +75,14 @@ export function normalizeProject(raw: unknown): Project | null {
     x.cardHeight = num(d.cardHeight, def.cardHeight, 0.01) || def.cardHeight;
     if (typeof x.mediaName !== "string") x.mediaName = "";
     if (x.mediaId !== null && typeof x.mediaId !== "string") x.mediaId = null;
+    if (typeof x.flip !== "boolean") delete x.flip;
+    const segs = Array.isArray(d.canon)
+      ? d.canon.filter((s) => s && fin(s.start) && fin(s.end) && fin(s.lag) && s.end > s.start && s.lag > 0)
+          .map((s) => ({ start: s.start, end: s.end, lag: s.lag }))
+          .sort((a, b) => a.start - b.start)
+      : [];
+    if (segs.length) x.canon = segs;
+    else delete x.canon;
     dancers.push(x);
   }
   return {

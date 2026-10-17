@@ -61,3 +61,22 @@ export function rememberSide(open: boolean): void {
     // bộ nhớ bị chặn (cửa sổ ẩn danh...): lần sau mở lại như mặc định
   }
 }
+
+export const PLAN_FROM_KEY = "stage.planFrom";
+
+/** Sơ đồ lần trước nhìn từ sân khấu ra (xoay 180°) hay không. */
+export function savedPlanFromStage(): boolean {
+  try {
+    return typeof localStorage !== "undefined" && localStorage.getItem(PLAN_FROM_KEY) === "stage";
+  } catch {
+    return false;
+  }
+}
+
+export function rememberPlanFromStage(on: boolean): void {
+  try {
+    localStorage.setItem(PLAN_FROM_KEY, on ? "stage" : "audience");
+  } catch {
+    // bộ nhớ bị chặn: lần sau về mặc định nhìn từ khán giả
+  }
+}

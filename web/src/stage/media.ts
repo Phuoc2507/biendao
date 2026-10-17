@@ -11,6 +11,7 @@ import {
   type CardMeta, type Problem, fileKind, parseCardMeta, looksLikeProject, stripName, mediaKey, JSON_MAX,
 } from "./intake";
 import { type PlayerDancer, playerKey, wantPlayers, planPlayers } from "./players";
+import type { CanonSeg } from "./timing";
 
 export { stripName, type CardMeta } from "./intake";
 
@@ -159,6 +160,7 @@ export interface Player {
   mediaId: string;
   offsetSec: number;
   durationSec: number;
+  canon?: CanonSeg[];
   el: HTMLVideoElement;
 }
 const players = new Map<string, Player>();
@@ -171,18 +173,19 @@ export function subscribePlayerReady(f: (el: HTMLVideoElement) => void): () => v
   return () => readyListeners.delete(f);
 }
 
-function makePlayer(key: string, v: VideoEntry, offsetSec: number, durationSec: number): Player {
+function makePlayer(key: string, v: VideoEntry, offsetSec: number, durationSec: number, canon?: CanonSeg[]): Player {
   const el = makeVideoEl(v.url);
   el.addEventListener("loadeddata", () => readyListeners.forEach((f) => f(el)), { once: true });
-  const p: Player = { key, mediaId: v.id, offsetSec, durationSec, el };
+  const p: Player = { key, mediaId: v.id, offsetSec, durationSec, canon, el };
   players.set(key, p);
   return p;
 }
 
-function rekey(p: Player, key: string, offsetSec: number) {
+function rekey(p: Player, key: string, offsetSec: number, canon?: CanonSeg[]) {
   players.delete(p.key);
   p.key = key;
   p.offsetSec = offsetSec;
+  p.canon = canon;
   players.set(key, p);
 }
 
@@ -230,14 +233,14 @@ export function syncPlayers(ds: PlayerDancer[]): void {
   }
   const w = wantPlayers(ds, (id) => videos.has(id));
   const plan = planPlayers(w.byKey, w.assign, assign, players.keys());
-  for (const [from, to] of plan.renames) rekey(players.get(from)!, to, w.byKey.get(to)!.offsetSec);
+  for (const [from, to] of plan.renames) rekey(players.get(from)!, to, w.byKey.get(to)!.offsetSec, w.byKey.get(to)!.canon);
   for (const k of plan.drops) {
     dropEl(players.get(k)!.el);
     players.delete(k);
   }
   for (const k of plan.creates) {
     const x = w.byKey.get(k)!;
-    makePlayer(k, videos.get(x.mediaId)!, x.offsetSec, x.durationSec);
+    makePlayer(k, videos.get(x.mediaId)!, x.offsetSec, x.durationSec, x.canon);
   }
   for (const [k, x] of w.byKey) players.get(k)!.durationSec = x.durationSec;
   assign = w.assign;
@@ -249,7 +252,7 @@ export function syncPlayers(ds: PlayerDancer[]): void {
  * không emit. Không có video: undefined.
  */
 export function getDancerVideo(
-  dancerId: string, mediaId: string | null | undefined, offsetSec?: number, durationSec = 0,
+  dancerId: string, mediaId: string | null | undefined, offsetSec?: number, durationSec = 0, canon?: CanonSeg[],
 ): HTMLVideoElement | undefined {
   const v = getVideo(mediaId);
   if (!v) return undefined;
@@ -259,14 +262,14 @@ export function getDancerVideo(
     if (cur && cur.mediaId === v.id) return cur.el;
     offsetSec = 0;
   }
-  const k = playerKey(v.id, offsetSec);
+  const k = playerKey(v.id, offsetSec, canon);
   let p = players.get(k);
   if (!p) {
     const shared = !!cur && [...assign].some(([did, kk]) => kk === curKey && did !== dancerId);
     if (cur && cur.mediaId === v.id && !shared) {
-      rekey(cur, k, offsetSec);
+      rekey(cur, k, offsetSec, canon);
       p = cur;
-    } else p = makePlayer(k, v, offsetSec, durationSec);
+    } else p = makePlayer(k, v, offsetSec, durationSec, canon);
     playersDirty = true;
   }
   if (curKey !== k) playersDirty = true;

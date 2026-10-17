@@ -1,6 +1,8 @@
 // Kế hoạch <video> phát (thuần, test bằng node --test). Mỗi element gắn với một
-// khoá mediaId@offset: các vũ công cùng tệp và cùng độ lệch (bản nhân bản chưa
-// canon) dùng chung MỘT element + một texture; lệch khác nhau thì element riêng.
+// khoá mediaId@offset~canon: các vũ công cùng tệp, cùng độ lệch và cùng canon
+// theo đoạn dùng chung MỘT element + một texture; khác nhau thì element riêng.
+
+import { type CanonSeg, canonSig } from "./timing.ts";
 
 export interface PlayerDancer {
   id: string;
@@ -8,17 +10,20 @@ export interface PlayerDancer {
   offsetSec: number;
   durationSec: number;
   hidden: boolean;
+  canon?: CanonSeg[];
 }
 
 const ms = (x: number) => Math.round((Number.isFinite(x) ? x : 0) * 1000);
 
-export const playerKey = (mediaId: string, offsetSec: number): string => `${mediaId}@${ms(offsetSec)}`;
+export const playerKey = (mediaId: string, offsetSec: number, canon?: CanonSeg[] | null): string =>
+  `${mediaId}@${ms(offsetSec)}${canonSig(canon)}`;
 export const keyMedia = (key: string): string => key.slice(0, key.lastIndexOf("@"));
 
 export interface Want {
   mediaId: string;
   offsetSec: number;
   durationSec: number;
+  canon?: CanonSeg[];
 }
 
 /** Element cần có: vũ công đang hiện, video đã nạp. Trả khoá theo vũ công và theo element. */
@@ -30,10 +35,10 @@ export function wantPlayers(ds: PlayerDancer[], hasMedia: (id: string) => boolea
   const assign = new Map<string, string>();
   for (const d of ds) {
     if (d.hidden || !d.mediaId || !hasMedia(d.mediaId)) continue;
-    const k = playerKey(d.mediaId, d.offsetSec);
+    const k = playerKey(d.mediaId, d.offsetSec, d.canon);
     assign.set(d.id, k);
     const w = byKey.get(k);
-    if (!w) byKey.set(k, { mediaId: d.mediaId, offsetSec: d.offsetSec, durationSec: d.durationSec });
+    if (!w) byKey.set(k, { mediaId: d.mediaId, offsetSec: d.offsetSec, durationSec: d.durationSec, canon: d.canon });
     else if (d.durationSec > w.durationSec) w.durationSec = d.durationSec;
   }
   return { byKey, assign };

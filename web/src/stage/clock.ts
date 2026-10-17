@@ -4,7 +4,7 @@
 
 import { useSyncExternalStore } from "react";
 import { getVideo, listPlayers, syncPlayers, subscribeMedia, subscribePlayerReady, music } from "./media";
-import { videoTarget } from "./timing";
+import { type CanonSeg, canonTime, videoTarget } from "./timing";
 
 export interface SyncDancer {
   id: string;
@@ -12,6 +12,7 @@ export interface SyncDancer {
   offsetSec: number;
   durationSec: number;
   hidden: boolean;
+  canon?: CanonSeg[];
 }
 
 const DRIFT = 0.08;
@@ -60,8 +61,10 @@ function syncVideos(hard: boolean, only?: HTMLVideoElement) {
     if (!v) continue;
     // thời lượng chưa rõ (0) thì coi như không giới hạn
     const dur = p.durationSec || v.duration || Infinity;
-    const tg = videoTarget(t, p.offsetSec, dur);
-    if (playing && tg.inRange) {
+    // canon theo đoạn: người vào sau đứng yên ở khung đầu đoạn rồi múa trễ
+    const c = canonTime(t, p.canon);
+    const tg = videoTarget(c.t, p.offsetSec, dur);
+    if (playing && tg.inRange && !c.hold) {
       if (el.playbackRate !== speed) el.playbackRate = speed;
       if (Math.abs(el.currentTime - tg.time) > DRIFT || hard) el.currentTime = tg.time;
       if (el.paused) el.play().catch(() => {});

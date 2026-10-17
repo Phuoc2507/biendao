@@ -496,6 +496,16 @@ function VidLane({ d, pps, xToT }: { d: import("../model").VDancer; pps: number;
       >
         {d.name} {fmtSigned(d.offsetSec)} s{!d.alignConfident && " ⚠ chưa chắc"}
       </div>
+      {d.canon?.map((c) => (
+        <div
+          key={c.start} className="canonmark" aria-hidden="true"
+          style={{ left: c.start * pps, width: Math.max(4, (c.end - c.start) * pps) }}
+          title={`${d.name}: canon, vào trễ ${fmtSigned(c.lag)} s trong đoạn này`}
+        >
+          <i style={{ width: Math.min(c.lag, c.end - c.start) * pps }} />
+          canon {fmtSigned(c.lag)} s
+        </div>
+      ))}
     </div>
   );
 }

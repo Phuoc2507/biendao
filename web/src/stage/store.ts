@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { type Project, emptyProject } from "./model";
 import { canMerge, makeBatcher, pruneSelection } from "./history";
 import { type Toast, pushToast, toastMs } from "./toasts";
-import { savedSide, startSideOpen } from "./layout";
+import { savedPlanFromStage, savedSide, startSideOpen } from "./layout";
 
 export type { Toast };
 
@@ -21,6 +21,7 @@ export interface UI {
   showPaths: boolean;
   showGhosts: boolean;
   showNames: boolean;
+  planFromStage: boolean; // sơ đồ nhìn từ sân khấu ra (xoay 180°), nhớ theo máy
   presenting: boolean;
   // trình chiếu & tập (không lưu vào dự án)
   me: string | null; countIn: boolean; orbitFree: boolean; mirror: boolean; bright: boolean; showNext: boolean;
@@ -75,6 +76,7 @@ export const useStore = create<State>((set, get) => ({
     showPaths: true,
     showGhosts: true,
     showNames: true,
+    planFromStage: savedPlanFromStage(),
     presenting: false,
     me: null, countIn: true, orbitFree: false, mirror: false, bright: false, showNext: false,
     pxPerSec: 40,

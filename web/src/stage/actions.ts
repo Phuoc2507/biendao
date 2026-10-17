@@ -6,8 +6,9 @@ import {
   addFormationAfter, deleteFormation, addDancerToAll, removeDancerFromAll,
   arrangeShape, mirrorPositions, distributeX, holdIndexAt, segmentAt,
   snapPos, emptyProject, renameFormation, wingSpot, placeClones, canonOffsets as canonPatch, SHAPE_LABEL,
+  type CanonOrder, canonRanks, rightSide,
 } from "./model";
-import { defaultLens, snapTime } from "./timing";
+import { defaultLens, snapTime, putCanon, fmtTime } from "./timing";
 import { st, useStore, batch } from "./store";
 import * as clock from "./clock";
 import {
@@ -147,6 +148,88 @@ export function canonOffsets(sel: string[], step: number) {
       (skipped > 0 ? ` — giữ nguyên ${skipped} người dùng video khác` : ""),
     { undo: true },
   );
+}
+
+/**
+ * Canon theo đoạn: trong [start, end) người vào lượt k trễ k·step giây so với
+ * cả nhóm (đứng yên chờ rồi múa đúng động tác của mình), hết đoạn thì khớp lại
+ * đồng loạt. Áp cho mọi người đang chọn, kể cả khác video: mỗi người trễ so
+ * với chính video đã khớp nhạc của mình.
+ */
+export function canonSection(sel: string[], start: number, end: number, step: number, how: CanonOrder) {
+  const p = proj();
+  const ids = p.dancers.filter((d) => sel.includes(d.id)).map((d) => d.id);
+  const a = Math.min(start, end);
+  const b = Math.max(start, end);
+  if (ids.length < 2) return st().notify("Chọn ít nhất 2 người để múa canon");
+  if (b - a < 0.5) return st().notify("Đoạn canon quá ngắn: chọn đoạn dài hơn nửa giây");
+  if (!(step > 0)) return st().notify("Khoảng trễ mỗi người phải lớn hơn 0");
+  const ranks = canonRanks(ids, p.dancers, posesAt(p.formations, ids, a, p.stage), how);
+  const last = Math.max(...Object.values(ranks));
+  st().commit((q) => ({
+    ...q,
+    dancers: q.dancers.map((d) => {
+      if (!(d.id in ranks)) return d;
+      const canon = putCanon(d.canon, { start: a, end: b, lag: ranks[d.id] * step });
+      const { canon: _old, ...rest } = d;
+      return canon.length ? { ...rest, canon } : rest;
+    }),
+  }));
+  clock.resync();
+  const over = last * step >= b - a - 0.1;
+  st().notify(
+    `Canon ${ids.length} người (${last + 1} lượt) từ ${fmtTime(a)} tới ${fmtTime(b)}, mỗi lượt trễ ${step.toFixed(2)} s` +
+      (over ? ". Người vào cuối gần như hết đoạn: nên kéo dài đoạn hoặc giảm khoảng trễ" : ""),
+    { undo: true, kind: over ? "warn" : undefined },
+  );
+}
+
+/** Bỏ canon trong [start, end) của những người đang chọn (không chọn ai: cả đội). */
+export function clearCanonSection(sel: string[], start: number, end: number) {
+  const p = proj();
+  const ids = new Set(sel.length ? sel : p.dancers.map((d) => d.id));
+  const a = Math.min(start, end);
+  const b = Math.max(start, end);
+  const hit = p.dancers.filter((d) => ids.has(d.id) && d.canon?.some((s) => s.end > a && s.start < b));
+  if (!hit.length) return st().notify("Đoạn này không có canon");
+  st().commit((q) => ({
+    ...q,
+    dancers: q.dancers.map((d) => {
+      if (!hit.some((h) => h.id === d.id)) return d;
+      const canon = putCanon(d.canon, { start: a, end: b, lag: 0 });
+      const { canon: _old, ...rest } = d;
+      return canon.length ? { ...rest, canon } : rest;
+    }),
+  }));
+  clock.resync();
+  st().notify(`Bỏ canon của ${hit.length} người trong đoạn này`, { undo: true });
+}
+
+/** Lật gương thẻ: on undefined thì đảo theo người đầu. */
+export function setFlip(sel: string[], on?: boolean) {
+  const p = proj();
+  const ds = p.dancers.filter((d) => sel.includes(d.id));
+  if (!ds.length) return;
+  const v = on ?? !ds[0].flip;
+  st().commit((q) => ({ ...q, dancers: q.dancers.map((d) => (sel.includes(d.id) ? { ...d, flip: v } : d)) }));
+}
+
+/**
+ * Tổ hợp đối xứng: người bên phải giữa nhóm (khán giả nhìn, ở đội hình hiện
+ * tại) lật gương, người bên trái và người giữa giữ nguyên. Ba người cùng một
+ * video thành một cặp soi gương hai bên người giữa.
+ */
+export function mirrorGroup(sel: string[]) {
+  const p = proj();
+  const ids = p.dancers.filter((d) => sel.includes(d.id)).map((d) => d.id);
+  if (ids.length < 2) return st().notify("Chọn ít nhất 2 người để múa đối xứng");
+  const right = new Set(rightSide(ids, currentPoses()));
+  if (!right.size) return st().notify("Mọi người đang đứng cùng một hàng dọc: dàn ra hai bên rồi bấm lại");
+  st().commit((q) => ({
+    ...q,
+    dancers: q.dancers.map((d) => (ids.includes(d.id) ? { ...d, flip: right.has(d.id) } : d)),
+  }));
+  st().notify(`Đối xứng: lật gương ${right.size} người bên phải, ${ids.length - right.size} người giữ nguyên`, { undo: true });
 }
 
 export function updateDancer(id: string, patch: Partial<VDancer>) {

@@ -113,6 +113,8 @@ export function fitAlong(box: Box, lens: Lens, safe: Safe, dir: V3, target: V3):
   return at(minDist((s) => inside(pts, at(s), lens, safe), 1));
 }
 
-/** Hướng máy "Trên cao" và "Chéo" (từ điểm nhìn ra máy). */
+/** Hướng máy "Trên cao", "Chéo" và "Sau lưng" (từ điểm nhìn ra máy). "Sau lưng"
+ *  đứng phía phông nền nhìn ra khán giả, như người tập đứng sau biên đạo. */
+export const BACK_DIR: V3 = [0, Math.sin(16 * DEG), -Math.cos(16 * DEG)];
 export const TOP_DIR: V3 = [0, 1, 0.42];
 export const SIDE_DIR: V3 = [Math.sin(40 * DEG) * Math.cos(14 * DEG), Math.sin(14 * DEG), Math.cos(40 * DEG) * Math.cos(14 * DEG)];

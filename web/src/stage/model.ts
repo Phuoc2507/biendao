@@ -1,5 +1,5 @@
 // Lõi THUẦN của sân khấu thẻ video: kiểu dữ liệu và các hàm đội hình.
-// Không import gì để chạy được cả trong Vite lẫn `node --test`.
+// Chỉ import kiểu (bị xoá khi chạy) để chạy được cả trong Vite lẫn `node --test`.
 //
 // Quy ước sân khấu (giữ như app 3D cũ): khán giả ở phía +Z, x dương là bên
 // PHẢI khi nhìn từ khán giả. Gốc (0, 0) ở tâm sàn diễn. Mép trước ở z = +depth/2.
@@ -7,6 +7,8 @@
 //
 // Một đội hình là một KHỐI ĐỨNG [start, end] trên dải thời gian; khoảng trống
 // giữa hai khối là lúc mọi người TRƯỢT sang đội hình sau (smoothstep).
+
+import type { CanonSeg } from "./timing.ts";
 
 export type Vec2 = [number, number];
 
@@ -23,6 +25,10 @@ export interface VDancer {
   cardHeight: number; // mét
   hidden: boolean;
   alignConfident: boolean;
+  /** lật ngang thẻ (đối xứng gương), ví dụ người bên phải của tổ hợp ba người */
+  flip?: boolean;
+  /** canon theo đoạn: trong mỗi đoạn nhạc người này vào trễ lag giây */
+  canon?: CanonSeg[];
 }
 
 export interface Formation {
@@ -440,6 +446,61 @@ export function canonOffsets(dancers: VDancer[], ids: string[], step: number): R
     .filter((d) => (d.mediaId ?? null) === (lead.mediaId ?? null))
     .forEach((d, k) => { out[d.id] = Math.round((base + k * step) * 1000) / 1000; });
   return out;
+}
+
+// ---------- canon theo đoạn ----------
+
+export type CanonOrder = "list" | "ltr" | "rtl" | "center" | "front";
+export const CANON_ORDER_LABEL: Record<CanonOrder, string> = {
+  list: "Theo danh sách",
+  ltr: "Trái sang phải",
+  rtl: "Phải sang trái",
+  center: "Giữa trước, hai bên sau",
+  front: "Hàng đầu trước",
+};
+
+/**
+ * Lượt vào canon của từng người (0 vào trước). pos là chỗ đứng lúc bắt đầu
+ * đoạn; trái phải tính theo khán giả nhìn. Những người gần như cùng chỗ theo
+ * tiêu chí (lệch dưới tol mét, ví dụ hai người đối xứng khi "giữa trước") vào
+ * cùng một lượt.
+ */
+export function canonRanks(
+  ids: string[], dancers: VDancer[], pos: Record<string, Vec2>, how: CanonOrder, tol = 0.3,
+): Record<string, number> {
+  const order = dancers.filter((d) => ids.includes(d.id)).map((d) => d.id);
+  const out: Record<string, number> = {};
+  if (how === "list") {
+    order.forEach((id, k) => { out[id] = k; });
+    return out;
+  }
+  const at = (id: string) => pos[id] ?? [0, 0];
+  const cx = order.reduce((s, id) => s + at(id)[0], 0) / Math.max(1, order.length);
+  const key = (id: string) => {
+    const q = at(id);
+    if (how === "ltr") return q[0];
+    if (how === "rtl") return -q[0];
+    if (how === "center") return Math.abs(q[0] - cx);
+    return -q[1]; // front: gần khán giả (z lớn) vào trước
+  };
+  const sorted = order.map((id, i) => ({ id, i, k: key(id) })).sort((a, b) => a.k - b.k || a.i - b.i);
+  let rank = -1;
+  let head = -Infinity;
+  for (const s of sorted) {
+    if (s.k - head > tol) {
+      rank++;
+      head = s.k;
+    }
+    out[s.id] = rank;
+  }
+  return out;
+}
+
+/** Ai nằm bên phải khán giả so với giữa nhóm (để lật gương thành cặp đối xứng). */
+export function rightSide(ids: string[], pos: Record<string, Vec2>, tol = 0.15): string[] {
+  const xs = ids.map((id) => pos[id]?.[0] ?? 0);
+  const cx = xs.reduce((s, x) => s + x, 0) / Math.max(1, xs.length);
+  return ids.filter((_, k) => xs[k] > cx + tol);
 }
 
 export function addDancerToAll(fs: Formation[], id: string, stage: StageSize): Formation[] {

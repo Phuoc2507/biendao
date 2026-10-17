@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import {
-  type Project, type ShapeKind, type VDancer, SHAPE_LABEL, shapePoints, initials, PALETTE,
+  type Project, type ShapeKind, type VDancer, type CanonOrder, SHAPE_LABEL, CANON_ORDER_LABEL, shapePoints, initials, PALETTE,
+  segmentAt,
 } from "../model";
 import { fmtCounts, fmtTime, tapTempo } from "../timing";
 import { st, useProject, useUI } from "../store";
@@ -11,6 +12,7 @@ import {
   addDancer, duplicateDancer, canonOffsets, updateDancer, removeDancer, moveDancerOrder, realign, realignAll, replaceVideo,
   importFiles, applyShape, mirrorSelected, distributeSelected, sendToWings,
   addFormation, removeFormation, renameBlock, setStage, setBpm,
+  canonSection, clearCanonSection, mirrorGroup, setFlip,
 } from "../actions";
 import { rowKeys, useHoldIndex, useWarnings } from "./hooks";
 import { AutoPlanSection } from "./AutoPlanSection";
@@ -252,6 +254,15 @@ function DancerInspector({ d }: { d: VDancer }) {
             <input type="checkbox" checked={d.stacked} onChange={(e) => updateDancer(d.id, { stacked: e.target.checked })} />
             Thẻ đã tách nền (tệp .card.mp4)
           </label>
+          <label className="field" style={{ marginTop: 4 }} title="Lật ngang hình như soi gương: người múa đối xứng với bản gốc (tay trái thành tay phải)">
+            <input type="checkbox" checked={!!d.flip} onChange={(e) => updateDancer(d.id, { flip: e.target.checked })} />
+            Lật gương (múa đối xứng)
+          </label>
+          {!!d.canon?.length && (
+            <div className="dim" style={{ marginTop: 4 }}>
+              Canon: {d.canon.map((s) => `${fmtTime(s.start)} tới ${fmtTime(s.end)} trễ ${fmtNum(s.lag)} s`).join("; ")}
+            </div>
+          )}
         </>
       )}
       <div className="row" style={{ marginTop: 8 }}>
@@ -297,35 +308,110 @@ function DancerInspector({ d }: { d: VDancer }) {
   );
 }
 
-/** Chọn nhiều người: lệch video lần lượt (múa canon). */
+/** Đoạn mặc định cho canon: vùng lặp, không thì khối đội hình đang đứng, không thì 2×8 từ đây. */
+function defaultRange(p: Project): [number, number] {
+  const loop = clock.getLoop();
+  if (loop) return [loop.a, loop.b];
+  const t = clock.now();
+  const s = segmentAt(p.formations, t);
+  if (s.kind === "hold") return [p.formations[s.k].start, p.formations[s.k].end];
+  const len = p.bpm ? (16 * 60) / p.bpm : 8;
+  return [t, t + len];
+}
+
+const r2 = (x: number) => Math.round(x * 100) / 100;
+
+/** Chọn nhiều người: canon theo đoạn, đối xứng gương, canon cả bài. */
 function CanonSection({ sel }: { sel: string[] }) {
   const p = useProject();
   const beat = p.bpm ? Math.round((60 / p.bpm) * 1000) / 1000 : 0.5;
   const [step, setStep] = useState<number | null>(null);
+  const [range, setRange] = useState<[number, number]>(() => defaultRange(p));
+  const [how, setHow] = useState<CanonOrder>("ltr");
   const v = step ?? beat;
   const order = p.dancers.filter((d) => sel.includes(d.id));
+  const anyFlip = order.some((d) => d.flip);
+  const nCanon = order.filter((d) => d.canon?.some((s) => s.end > range[0] && s.start < range[1])).length;
+  const stepTitle = p.bpm ? `1 phách = ${fmtNum(beat)} s` : "Chưa đặt nhịp: mặc định 0,5 s";
   return (
     <div className="section">
-      <h4>{order.length} người đang chọn</h4>
+      <h4>{order.length} người đang chọn: tổ hợp</h4>
       <div className="dim" style={{ marginBottom: 6 }}>
-        Múa canon: theo thứ tự danh sách, mỗi người sau vào trễ hơn người trước một khoảng
-        (giữ lệch của {order[0]?.name ?? "người đầu"}).
+        Canon theo đoạn: trong đoạn nhạc này từng lượt vào trễ dần (người sau đứng chờ rồi múa
+        đúng động tác), hết đoạn cả nhóm khớp lại đồng loạt.
       </div>
-      <div className="row">
-        <label className="field" title={p.bpm ? `1 phách = ${fmtNum(beat)} s` : "Chưa đặt nhịp: mặc định 0,5 s"}>
-          Mỗi người
+      <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
+        <label className="field">
+          Từ
+          <NumField value={r2(range[0])} min={0} max={36000} quantum={0.01} step={0.1} style={{ width: 58 }} aria-label="Canon bắt đầu (giây)"
+            onCommit={(x) => x !== null && setRange([x, range[1]])} /> s
+        </label>
+        <label className="field">
+          tới
+          <NumField value={r2(range[1])} min={0} max={36000} quantum={0.01} step={0.1} style={{ width: 58 }} aria-label="Canon kết thúc (giây)"
+            onCommit={(x) => x !== null && setRange([range[0], x])} /> s
+        </label>
+        <button className="btn sm" onClick={() => setRange(defaultRange(st().project))}
+          title="Lấy vùng lặp A B nếu có, không thì khối đội hình đang đứng ở vạch phát">
+          Lấy đoạn hiện tại
+        </button>
+      </div>
+      <div className="row" style={{ marginTop: 6, flexWrap: "wrap", gap: 6 }}>
+        <label className="field">
+          Thứ tự
+          <select value={how} onChange={(e) => setHow(e.target.value as CanonOrder)} aria-label="Thứ tự vào canon">
+            {(Object.keys(CANON_ORDER_LABEL) as CanonOrder[]).map((k) => (
+              <option key={k} value={k}>{CANON_ORDER_LABEL[k]}</option>
+            ))}
+          </select>
+        </label>
+        <label className="field" title={stepTitle}>
+          Mỗi lượt trễ
           <NumField
-            value={v} min={-10} max={10} quantum={0.001} step={0.05} style={{ width: 64 }} aria-label="Mỗi người trễ hơn (giây)"
+            value={v} min={0.05} max={10} quantum={0.001} step={0.05} style={{ width: 58 }} aria-label="Mỗi lượt trễ hơn (giây)"
             onCommit={(x) => setStep(x ?? beat)}
           /> s
         </label>
         {p.bpm && (
-          <button className="btn sm" title="Đặt bằng 1 phách" onClick={() => setStep(beat)}>1 phách</button>
+          <>
+            <button className="btn sm" title={stepTitle} onClick={() => setStep(beat)}>1 phách</button>
+            <button className="btn sm" title="Đặt bằng 2 phách" onClick={() => setStep(Math.round(beat * 2000) / 1000)}>2 phách</button>
+          </>
         )}
-        <button className="btn sm primary" onClick={() => canonOffsets(sel, v)} title="Đặt lệch nhạc lần lượt cho những người đang chọn">
-          Lệch canon
-        </button>
       </div>
+      <div className="row" style={{ marginTop: 6, flexWrap: "wrap", gap: 6 }}>
+        <button className="btn sm primary" onClick={() => canonSection(sel, range[0], range[1], v, how)}
+          title="Đặt canon cho những người đang chọn trong đoạn này">
+          Canon đoạn này
+        </button>
+        {nCanon > 0 && (
+          <button className="btn sm" onClick={() => clearCanonSection(sel, range[0], range[1])}
+            title="Những người đang chọn múa đồng loạt lại trong đoạn này">
+            Bỏ canon ({nCanon})
+          </button>
+        )}
+      </div>
+      <div className="row" style={{ marginTop: 10, flexWrap: "wrap", gap: 6 }}>
+        <button className="btn sm" onClick={() => mirrorGroup(sel)}
+          title="Người bên phải giữa nhóm (khán giả nhìn) lật gương: một video thành cặp múa đối xứng">
+          Đối xứng hai bên
+        </button>
+        {anyFlip && (
+          <button className="btn sm" onClick={() => setFlip(sel, false)} title="Thôi lật gương những người đang chọn">
+            Bỏ lật gương
+          </button>
+        )}
+      </div>
+      <details style={{ marginTop: 10 }}>
+        <summary className="dim">Canon cả bài (lệch video)</summary>
+        <div className="dim" style={{ margin: "6px 0" }}>
+          Theo thứ tự danh sách, người sau lệch video trễ hơn người trước suốt cả bài
+          (chỉ những người dùng chung video với {order[0]?.name ?? "người đầu"}).
+        </div>
+        <button className="btn sm" onClick={() => canonOffsets(sel, v)} title="Đặt lệch nhạc lần lượt cho những người đang chọn">
+          Lệch cả bài {fmtNum(v)} s mỗi người
+        </button>
+      </details>
     </div>
   );
 }

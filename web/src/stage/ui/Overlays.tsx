@@ -162,6 +162,7 @@ const KEYS: [string, [string, string][]][] = [
     ["Lưu ra tệp", "Ctrl S"],
     ["Đổi chế độ xem", "V"],
     ["Bám lưới bật/tắt", "N"],
+    ["Sơ đồ nhìn từ khán giả / từ sân khấu", "O"],
     ["Trình chiếu", "F"],
     ["Vừa khung dòng thời gian", "Shift Z"],
     ["Bảng này", "?"],

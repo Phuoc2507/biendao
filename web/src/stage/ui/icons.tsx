@@ -52,6 +52,7 @@ const P: Record<string, string> = {
   sidebar: "M3 4h18v16H3zM9 4v16",
   lock: "M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4",
   unlock: "M6 11h12v10H6zM8 11V7a4 4 0 0 1 7.5-2",
+  turn: "M4 12a8 8 0 1 0 2.3-5.7L4 8.5M4 3v5.5h5.5",
   sun: "M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4",
 };
 

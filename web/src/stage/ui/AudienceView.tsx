@@ -7,12 +7,13 @@ import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber"
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { type VDancer, type Vec2, WING, poseAt, lineup, snapPos, clampToStage } from "../model";
+import { canonTime } from "../timing";
 import { st, useProject, useUI } from "../store";
 import * as clock from "../clock";
 import { getVideo, getDancerVideo, holdVideos } from "../media";
 import { copyFrame, frameReady, frameTexture, holdFrame } from "./frameTex";
 import { setPositionsNow } from "../actions";
-import { type View as CamView, SIDE_DIR, TOP_DIR, fitAlong, fitFront } from "../framing";
+import { type View as CamView, BACK_DIR, SIDE_DIR, TOP_DIR, fitAlong, fitFront } from "../framing";
 import { useMediaVersion } from "./hooks";
 import { Icon } from "./icons";
 
@@ -31,10 +32,13 @@ uniform sampler2D map;
 uniform int mode;
 uniform float opacity;
 uniform float lift;
+uniform float flipX;
 varying vec2 vUv;
 void main() {
   vec3 c;
   float a;
+  // lật ngang: vũ công đối xứng, hoặc máy đứng sau lưng (thấy trái phải như từ phía sau)
+  vec2 vUv = vec2(flipX > 0.5 ? 1.0 - vUv.x : vUv.x, vUv.y);
   if (mode == 1) {
     c = texture2D(map, vec2(vUv.x, 0.5 + vUv.y * 0.5)).rgb;
     a = texture2D(map, vec2(vUv.x, vUv.y * 0.5)).r;
@@ -112,7 +116,7 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
   const v = getVideo(d.mediaId);
   // <video> theo tệp@độ lệch: bản nhân bản cùng độ lệch dùng chung element và
   // texture; khung được chép qua canvas 2D (xem frameTex.ts)
-  const el = v ? getDancerVideo(d.id, d.mediaId, d.offsetSec, d.durationSec) : undefined;
+  const el = v ? getDancerVideo(d.id, d.mediaId, d.offsetSec, d.durationSec, d.canon) : undefined;
   useLayoutEffect(() => holdVideos(), []);
   // element cũ được giữ thêm tới khi element mới có khung, khỏi chớp trắng
   const prev = useRef<{ el: HTMLVideoElement; release: () => void } | null>(null);
@@ -140,7 +144,7 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
       new THREE.ShaderMaterial({
         vertexShader: VERT,
         fragmentShader: FRAG,
-        uniforms: { map: { value: null }, mode: { value: 0 }, opacity: { value: 1 }, lift: { value: 0 } },
+        uniforms: { map: { value: null }, mode: { value: 0 }, opacity: { value: 1 }, lift: { value: 0 }, flipX: { value: 0 } },
         transparent: true,
         depthWrite: true,
         side: THREE.DoubleSide,
@@ -184,13 +188,17 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
     const q = poseAt(p.formations, d.id, t) ?? lineup(p.dancers.map((x) => x.id), p.stage)[d.id] ?? [0, 0];
     g.position.set(q[0], 0, q[1]);
     if (plane.current) plane.current.rotation.y = Math.atan2(camera.position.x - q[0], camera.position.z - q[1]);
+    // thẻ luôn quay về máy; máy ở sau lưng người múa (phía phông nền) thì lật
+    // ngang để trái phải đúng như nhìn từ phía sau, dễ tập theo
+    const behind = camera.position.z < q[1];
+    mat.uniforms.flipX.value = behind !== !!d.flip ? 1 : 0;
     const selected = st().ui.selected.includes(d.id);
     if (ring.current) ring.current.visible = selected;
     // ngoài khoảng video: làm mờ thẻ để biết người này chưa có hình
     // đứng trong cánh gà: khán giả không thấy, vẽ mờ
     let op = Math.abs(q[0]) > p.stage.width / 2 + 0.05 ? 0.3 : 1;
     if (v) {
-      const vt = t - d.offsetSec;
+      const vt = canonTime(t, d.canon).t - d.offsetSec;
       if (vt < 0 || vt > (d.durationSec || v.duration || Infinity)) op = Math.min(op, 0.35);
     }
     mat.uniforms.opacity.value = shown ? op : 0;
@@ -356,7 +364,7 @@ function StageSet({ bright = false }: { bright?: boolean }) {
   );
 }
 
-type Preset = "front" | "top" | "side";
+export type Preset = "front" | "top" | "side" | "back";
 /** Lề an toàn (px) cho chữ và nút phủ lên khung. */
 export interface SafePx { top: number; bottom: number; side: number }
 const SAFE: SafePx = { top: 40, bottom: 44, side: 10 };
@@ -391,6 +399,7 @@ function CameraRig({ preset, stamp, safe }: { preset: Preset; stamp: number; saf
     const v: CamView =
       preset === "front" ? fitFront(box, lens, s)
       : preset === "top" ? fitAlong(box, lens, s, TOP_DIR, [0, 0, 0.3])
+      : preset === "back" ? fitAlong(box, lens, s, BACK_DIR, [0, H / 3, 0])
       : fitAlong(box, lens, s, SIDE_DIR, [0, H / 3, 0]);
     camera.position.set(...v.pos);
     if (controls) {
@@ -416,6 +425,8 @@ export function AudienceView({
   orbit = true,
   bright = false,
   safe = SAFE,
+  preset: presetProp,
+  label = false,
 }: {
   interactive?: boolean;
   showTools?: boolean;
@@ -424,10 +435,15 @@ export function AudienceView({
   /** sân sáng cho máy chiếu */
   bright?: boolean;
   safe?: SafePx;
+  /** góc máy do nơi khác điều khiển (trình chiếu); không có thì tự chọn bằng nút */
+  preset?: Preset;
+  /** hiện nhãn khung theo góc đang xem */
+  label?: boolean;
 }) {
   const p = useProject();
   const camReset = useUI().camReset;
-  const [preset, setPreset] = useState<Preset>("front");
+  const [own, setPreset] = useState<Preset>("front");
+  const preset = presetProp ?? own;
   const [stamp, setStamp] = useState(0);
   const pick = (pr: Preset) => {
     setPreset(pr);
@@ -436,6 +452,11 @@ export function AudienceView({
   const W = p.stage.width, D = p.stage.depth;
   return (
     <div style={{ position: "absolute", inset: 0 }}>
+      {label && (
+        <div className="pane-label">
+          {preset === "back" ? "Sau lưng vũ công (như soi gương)" : preset === "top" ? "Nhìn từ trên" : "Khán giả thấy"}
+        </div>
+      )}
       <Canvas
         dpr={[1, 2]}
         gl={{ antialias: true, powerPreference: "high-performance" }}
@@ -460,6 +481,7 @@ export function AudienceView({
             <button className={preset === "front" ? "on" : ""} onClick={() => pick("front")} title="Góc khán giả">Khán giả</button>
             <button className={preset === "side" ? "on" : ""} onClick={() => pick("side")} title="Góc chéo">Chéo</button>
             <button className={preset === "top" ? "on" : ""} onClick={() => pick("top")} title="Nhìn từ trên">Trên cao</button>
+            <button className={preset === "back" ? "on" : ""} onClick={() => pick("back")} title="Đứng sau lưng người múa nhìn ra khán giả: trái phải như người múa, dễ tập theo">Sau lưng</button>
           </div>
           <button className="btn sm" title="Đặt lại góc nhìn" onClick={() => pick(preset)}>
             <Icon name="camera" /> Đặt lại

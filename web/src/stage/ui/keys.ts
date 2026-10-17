@@ -80,7 +80,8 @@ export type Action =
   | { type: "exit" }
   | { type: "mirror" }
   | { type: "loop" }
-  | { type: "fit" };
+  | { type: "fit" }
+  | { type: "planFrom" };
 
 export interface KeyIn {
   key: string;
@@ -103,7 +104,7 @@ export interface KeyCtx {
 // giữ phím thì chỉ lặp các phím di chuyển; còn lại một lần bấm một lần chạy
 const ONCE = new Set<Action["type"]>([
   "save", "selectAll", "toggle", "clear", "add", "delete", "deleteHint", "help",
-  "snap", "view", "present", "exit", "mirror", "loop", "fit",
+  "snap", "view", "present", "exit", "mirror", "loop", "fit", "planFrom",
 ]);
 
 export function resolveShortcut(k: KeyIn, c: KeyCtx): Action | null {
@@ -170,6 +171,7 @@ function resolve(k: KeyIn, c: KeyCtx): Action | null {
     case "f": return c.hasDancers ? { type: "present" } : null;
     case "m": return { type: "mirror" };
     case "l": return { type: "loop" };
+    case "o": return { type: "planFrom" };
     case "z": return k.shift ? { type: "fit" } : null;
   }
   return null;

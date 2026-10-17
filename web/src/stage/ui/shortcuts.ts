@@ -10,6 +10,7 @@ import {
 import { focusByPointer } from "./hooks";
 import { type Action, resolveShortcut, routeKey, targetKind } from "./keys";
 import { toggleLoop } from "./Timeline";
+import { togglePlanFrom } from "./PlanView";
 
 const VIEWS: View[] = ["plan", "split", "audience"];
 
@@ -38,6 +39,7 @@ function run(a: Action, focusedFormation: string | null) {
     case "deleteHint": s.notify(DELETE_HINT); break;
     case "help": s.setUI({ help: a.open }); break;
     case "snap": s.setUI({ snap: !ui.snap }); break;
+    case "planFrom": togglePlanFrom(); break;
     case "view": s.setUI({ view: VIEWS[(VIEWS.indexOf(ui.view) + 1) % VIEWS.length] }); break;
     case "present": s.setUI({ presenting: true }); break;
     case "exit":
