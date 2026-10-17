@@ -15,6 +15,7 @@ import { errText, storageInfo } from "../storage";
 import { pickAnyFiles } from "./SidePanel";
 import { Icon } from "./icons";
 import { toggleSide } from "./useLayout";
+import { openLearn } from "./Learn";
 
 function Clock() {
   const t = useTime();
@@ -267,6 +268,9 @@ export function TopBar({ phone = false }: { phone?: boolean }) {
           </button>
         ))}
       </div>
+      <button className="btn learn-btn" onClick={openLearn} title="Học động tác từ video cả đội: soi gương, xem chậm, lặp đoạn">
+        <Icon name="learn" /> <span className="lbl">Học động tác</span>
+      </button>
       <button className="btn primary present-btn" onClick={() => st().setUI({ presenting: true })} disabled={!p.dancers.length} title="Trình chiếu toàn màn hình để tập (F)">
         <Icon name="present" /> <span className="lbl">Trình chiếu</span>
       </button>

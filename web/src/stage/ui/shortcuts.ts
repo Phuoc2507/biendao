@@ -58,6 +58,8 @@ export function useShortcuts() {
       const el = e.target instanceof Element ? (e.target as HTMLElement) : null;
       const kind = targetKind(el);
       const ctrl = e.ctrlKey || e.metaKey;
+      // đang Học động tác: chế độ đó tự lo phím (Learn.tsx), ở đây chỉ còn Ctrl S
+      if (st().ui.learning && !(ctrl && !e.altKey && e.key.toLowerCase() === "s")) return;
       if (kind === "text") {
         // đang gõ chữ: chỉ nhận Ctrl S, chốt ô đang gõ rồi mới lưu
         if (ctrl && !e.altKey && e.key.toLowerCase() === "s") {
