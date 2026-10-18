@@ -13,6 +13,8 @@ export interface PlanGeom {
   stage: StageSize;
   head: number; // chiều cao dải chữ phía trên
   u?: number; // cỡ chữ riêng (ảnh gửi điện thoại); bỏ trống thì theo độ cao khung
+  ox?: number; // góc trên trái của khung trên canvas (ảnh nhiều sơ đồ); bỏ trống là 0
+  oy?: number;
 }
 
 /** Đặt sân (kể cả cánh gà) vừa khung, chừa dải chữ trên và dòng KHÁN GIẢ dưới. */
@@ -127,10 +129,11 @@ export function drawPlanFrame(ctx: Ctx2D, g: PlanGeom, f: PlanFrame) {
   const { w, h, s } = g;
   const W = g.stage.width, D = g.stage.depth;
   const u = g.u ?? h / 720; // cỡ chữ theo độ cao khung
+  const ox = g.ox ?? 0, oy = g.oy ?? 0;
   ctx.globalAlpha = 1;
   ctx.setLineDash([]);
   ctx.fillStyle = "#0f1115";
-  ctx.fillRect(0, 0, w, h);
+  ctx.fillRect(ox, oy, w, h);
 
   const [x0, y0] = toPx(g, -W / 2, -D / 2);
   const [x1, y1] = toPx(g, W / 2, D / 2);
@@ -264,21 +267,21 @@ export function drawPlanFrame(ctx: Ctx2D, g: PlanGeom, f: PlanFrame) {
 
   // dải chữ trên
   ctx.textBaseline = "middle";
-  const my = g.head / 2 + 4 * u;
+  const my = oy + g.head / 2 + 4 * u;
   ctx.textAlign = "left";
   ctx.fillStyle = "#e8ecf2";
   ctx.font = `700 ${Math.round(24 * u)}px ${FONT}`;
-  ctx.fillText(f.title, 32 * u, my - 10 * u);
+  ctx.fillText(f.title, ox + 32 * u, my - 10 * u);
   ctx.fillStyle = "#8b95a7";
   ctx.font = `${Math.round(16 * u)}px ${FONT}`;
-  ctx.fillText(f.sub, 32 * u, my + 16 * u);
+  ctx.fillText(f.sub, ox + 32 * u, my + 16 * u);
   ctx.textAlign = "right";
   ctx.fillStyle = "#e8ecf2";
   ctx.font = `600 ${Math.round(24 * u)}px ${FONT}`;
-  ctx.fillText(f.time, w - 32 * u, my - 10 * u);
+  ctx.fillText(f.time, ox + w - 32 * u, my - 10 * u);
   if (f.count) {
     ctx.fillStyle = "#ff9f43";
     ctx.font = `${Math.round(16 * u)}px ${FONT}`;
-    ctx.fillText(f.count, w - 32 * u, my + 16 * u);
+    ctx.fillText(f.count, ox + w - 32 * u, my + 16 * u);
   }
 }

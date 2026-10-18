@@ -6,6 +6,7 @@ import * as clock from "../clock";
 import type { Project } from "../model";
 import type { Ctx2D } from "./planRender";
 import { imageLayout, drawImage, formationIndexAt, imageFileName, imagesZipName, canShareImage, canCopyImage } from "./imageSheet";
+import { personSheets, personLayout, drawPersonSheet, personZipName, type PersonSheet } from "./personSheet";
 import { makeZip } from "./zip";
 import { download } from "./save";
 
@@ -54,6 +55,72 @@ export async function exportAllImages() {
     const name = imagesZipName(p);
     download(await makeZip(items), name);
     st().notify(`Đã xuất ${items.length} ảnh trong ${name} (xem trong thư mục Tải xuống).`);
+  } catch (e) {
+    st().notify(`Không xuất được ảnh: ${(e as Error).message}`, { kind: "error" });
+  }
+}
+
+/** Ảnh trang page của người trong sheet. */
+function renderPersonPng(p: Project, sh: PersonSheet, page: number): Promise<Blob> {
+  const L = personLayout(p, sh.id, sh.pages, page);
+  const c = document.createElement("canvas");
+  c.width = L.w;
+  c.height = L.h;
+  const ctx = c.getContext("2d");
+  if (!ctx) return Promise.reject(new Error("Trình duyệt không vẽ được canvas."));
+  drawPersonSheet(ctx as unknown as Ctx2D, p, sh.id, L);
+  return new Promise((ok, fail) =>
+    c.toBlob((b) => (b ? ok(b) : fail(new Error("Không tạo được ảnh PNG."))), "image/png"),
+  );
+}
+
+async function personItems(p: Project, sheets: PersonSheet[]) {
+  const items = [];
+  for (const sh of sheets) for (let j = 0; j < sh.files.length; j++) items.push({ name: sh.files[j], data: await renderPersonPng(p, sh, j) });
+  return items;
+}
+
+/** Người duy nhất đang chọn (không ẩn) thì trả về người đó, để hiện mục ảnh vị trí riêng. */
+export function selectedPerson(): { id: string; name: string } | null {
+  const sel = st().ui.selected;
+  if (sel.length !== 1) return null;
+  const d = st().project.dancers.find((x) => x.id === sel[0]);
+  return d && !d.hidden ? { id: d.id, name: d.name.trim() || "?" } : null;
+}
+
+/** Mỗi người (không ẩn) một hoặc vài ảnh vị trí, gói chung một tệp .zip. */
+export async function exportPersonImages() {
+  if (noFormation()) return;
+  const p = st().project;
+  const sheets = personSheets(p);
+  if (!sheets.length) {
+    st().notify("Chưa có người nào trên sân để xuất ảnh vị trí.", { kind: "warn" });
+    return;
+  }
+  try {
+    await document.fonts?.ready;
+    const items = await personItems(p, sheets);
+    const name = personZipName(p);
+    download(await makeZip(items), name);
+    st().notify(`Đã xuất ${items.length} ảnh vị trí của ${sheets.length} người trong ${name} (xem trong thư mục Tải xuống).`);
+  } catch (e) {
+    st().notify(`Không xuất được ảnh: ${(e as Error).message}`, { kind: "error" });
+  }
+}
+
+/** Ảnh vị trí của một người: một trang thì tải .png, nhiều trang thì gói .zip. */
+export async function exportPersonImage(id: string) {
+  if (noFormation()) return;
+  const p = st().project;
+  const sh = personSheets(p, [id])[0];
+  if (!sh) return;
+  try {
+    await document.fonts?.ready;
+    const items = await personItems(p, [sh]);
+    const one = items.length === 1;
+    const name = one ? items[0].name : personZipName(p, sh);
+    download(one ? items[0].data : await makeZip(items), name);
+    st().notify(`Đã xuất ${one ? "ảnh" : `${items.length} ảnh trong`} ${name} (xem trong thư mục Tải xuống).`);
   } catch (e) {
     st().notify(`Không xuất được ảnh: ${(e as Error).message}`, { kind: "error" });
   }
