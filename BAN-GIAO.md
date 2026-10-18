@@ -27,7 +27,7 @@ cd web && npm install
 ```
 
 * Chạy app: `npm run dev` trong `web/` rồi mở http://localhost:5173/ (cấu hình sẵn ở `.claude/launch.json`, tên `web`). `index.html` vào app sân khấu `src/stage/main.tsx`.
-* Test: `npm test` trong `web/` (node:test, hiện **209 test xanh**).
+* Test: `npm test` trong `web/` (node:test, hiện **219 test xanh**).
 * Kiểm kiểu (máy ít RAM, phải nâng heap): `node --max-old-space-size=2500 node_modules/typescript/bin/tsc -p .` trong `web/`.
 * Tệp được test import trực tiếp phải import có đuôi `.ts` (ví dụ `from "./timing.ts"`), `model.ts` chỉ được `import type` từ `timing.ts`.
 * Trong trình duyệt có tay cầm DEV `window.__stage.st()` để đọc và gọi store (`setUI`, `commit`, `project`…).
@@ -67,7 +67,14 @@ Quy ước sân: khán giả ở phía **+Z**, x dương là bên **phải khán
 
 ## 5. Đã xong gần nhất
 
-Đợt 2026-10-19 (commit 0a9c461 tới 94d387d):
+Đợt 2026-10-19, phần sau (commit ebfdbf1 tới f7e831f):
+
+* **Thông báo có nút hành động:** sau Xếp nhanh, Lật, Dàn đều, Xoay, Giãn, Thu, Cánh gà, Nhân bản mà sinh thêm cảnh báo thì thông báo kèm nút Sửa tất cả (`hintWarn` trong `actions.ts`; Đổi chỗ và Dán chỉ báo số, không kèm nút).
+* **Ctrl C / Ctrl V:** chép chỗ đứng của người đang chọn (hoặc cả đội) sang đội hình khác. Đang bôi đen chữ thì Ctrl C chép chữ như thường.
+* **Ghi chú đội hình** (`Formation.note`): gõ trong thẻ Đội hình; hiện lúc Trình chiếu (khối chữ góc trên trái, `.rh-head`), trong bản in, trong video sơ đồ xuất ra, dấu ✎ trên khối dòng thời gian và trong danh sách đội hình.
+* **Đổi chỗ** hai người (phím X), **Xoay** một phần tư vòng quanh tâm nhóm (phím R, Shift R ngược; `rotateGroup` tự thu và dời cho vừa sân), **Giãn / Thu** 15% quanh tâm (`scaleGroup`: dừng ở mép sân, không để ai sát dưới 0,5 m). Thanh chọn nổi dưới sơ đồ có thêm Đổi chỗ và Xoay; trên điện thoại các nút chỉ còn biểu tượng.
+
+Đợt 2026-10-19, phần đầu (commit 0a9c461 tới 94d387d):
 
 * **Sửa nhanh cảnh báo** (`fixes.ts`): Đổi chỗ cho gần (Hungarian quanh một đội hình), Đổi vai từ đây (khi đổi riêng làm đoạn sau xấu đi thì đổi vai cho mọi đội hình về sau), Nới khoảng chuyển (rời sớm, bắt về phách, không nới nếu thêm va), Sửa tất cả (có ở ngăn Cảnh báo và ô Cảnh báo trên sơ đồ). Test ngẫu nhiên 300 bài: không bao giờ tăng cảnh báo, giữ lúc tới, khối không chồng.
 * **Trình chiếu:** góc Sau lưng (phím B); nhãn Khoá sửa tự nhấc lên khi bị thanh điều khiển đè; bố cục riêng cho điện thoại dựng đứng (sơ đồ nhỏ nằm trên thanh điều khiển, mặc định tắt) và nằm ngang (sơ đồ nhỏ bên phải).
