@@ -220,6 +220,7 @@ kbd {
 }
 .field input:focus { outline: none; border-color: var(--accent); }
 .field.note-field { align-items: flex-start; margin-top: 6px; }
+.bnote { opacity: 0.75; }
 .field.note-field textarea {
   flex: 1; min-width: 0; resize: vertical; min-height: 40px; padding: 4px 6px; font: inherit; font-size: 12px; line-height: 1.4;
   background: var(--bg); border: 1px solid var(--line); border-radius: 5px; color: var(--text);

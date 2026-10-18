@@ -431,7 +431,7 @@ function FormLane(props: {
               e.stopPropagation();
               setRenaming(f.id);
             }}
-            title={`${f.name} · bấm đúp để đổi tên`}
+            title={`${f.name}${f.note ? `\nGhi chú: ${f.note}` : ""}\nBấm đúp để đổi tên`}
           >
             {renaming === f.id ? (
               <input
@@ -452,7 +452,7 @@ function FormLane(props: {
             ) : (
               w > 30 && (
                 <>
-                  <span className="bn">{f.name}</span>
+                  <span className="bn">{f.note && <span className="bnote" aria-label="có ghi chú">✎ </span>}{f.name}</span>
                   {w > 110 && <span className="bd">{commaDec(fmtCounts(f.end - f.start, props.bpm))}</span>}
                 </>
               )
