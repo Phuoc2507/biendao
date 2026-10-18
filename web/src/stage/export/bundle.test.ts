@@ -5,7 +5,7 @@ import {
   mimeFromName, readmeText, pickProjectEntry, PROJECT_ENTRY, README_ENTRY,
 } from "./bundle.ts";
 import { makeZip, listZip, readEntry, crc32 } from "./zip.ts";
-import { type Project, emptyProject, newDancer } from "../model.ts";
+import { type Project, checkInvariants, emptyProject, newDancer } from "../model.ts";
 
 const enc = new TextEncoder();
 const bytes = async (b: Blob) => new Uint8Array(await b.arrayBuffer());
@@ -179,4 +179,17 @@ test("kiểm tra dự án: từ chối tệp lạ, điền trường thiếu", a
   // CRC trong mục lục khớp nội dung
   const z = await makeZip([{ name: "a.txt", data: "Hà Nội" }]);
   assert.equal((await listZip(z))[0].crc, crc32(enc.encode("Hà Nội")));
+});
+
+test("kiểm tra dự án khi mở tệp: dọn như lúc nạp lại từ trình duyệt (đội hình hỏng, nhịp âm, tên số)", () => {
+  const p = checkProject(JSON.parse(`{"version":1,"bpm":-1,"stage":{"width":1e999,"depth":6},
+    "dancers":[{"id":"a","name":3},{"id":"a","name":"Trùng"}],
+    "formations":[null,{"id":"f1","name":"Một","start":2,"end":1,"pos":{"a":[0,0]}},{"id":"f2","name":"Hai","start":1.5,"end":3,"pos":{}}],
+    "bundle":{"media":[]}}`));
+  assert.equal(p.bpm, null);
+  assert.ok(Number.isFinite(p.stage.width));
+  assert.deepEqual(p.dancers.map((d) => [d.id, d.name]), [["a", "a"]]);
+  assert.deepEqual(p.formations.map((f) => f.id), ["f1", "f2"]);
+  assert.deepEqual(checkInvariants(p), []);
+  assert.equal("bundle" in p, false);
 });

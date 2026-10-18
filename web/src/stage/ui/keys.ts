@@ -107,6 +107,16 @@ export interface KeyCtx {
   textSelected?: boolean;
   /** Đang mở hộp thoại che bài (Xuất video, Đang xử lý...): chỉ còn Ctrl S, hộp tự lo Esc. */
   modal?: boolean;
+  /** Đang mở menu hay khung bật ra (Lưu bài, Tệp, công cụ sơ đồ): Esc để menu tự đóng. */
+  popup?: boolean;
+}
+
+/** Các menu bật ra trong trang; menu tự đóng bằng Esc nên phím tắt chung không được bỏ chọn theo. */
+export const POPUP_SELECTOR = ".menu .pop, .rh-pop";
+
+/** Có menu bật ra nào đang hiện không (root là document, để rời ra cho dễ kiểm thử). */
+export function popupOpen(root: { querySelector(s: string): unknown } | null | undefined): boolean {
+  return !!root?.querySelector(POPUP_SELECTOR);
 }
 
 /** Có hộp thoại che bài đang mở không. Hướng dẫn và Học động tác có xử lý phím riêng nên không tính ở đây. */
@@ -133,6 +143,8 @@ function resolve(k: KeyIn, c: KeyCtx): Action | null {
   if (c.help) return key === "Escape" || key === "?" ? { type: "help", open: false } : null;
   // hộp thoại đang mở: không sửa bài, không dời vạch phát phía sau hộp (Esc do hộp tự đóng)
   if (c.modal) return null;
+  // menu bật ra tự đóng bằng Esc; Esc không được bỏ chọn người múa phía sau nữa
+  if (c.popup && key === "Escape") return null;
   // "?" cần Shift (hoặc AltGr ở vài bàn phím) nên không xét phím bổ trợ
   if (key === "?") return c.presenting ? null : { type: "help", open: true };
   if (k.ctrl) {

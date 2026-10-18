@@ -139,6 +139,24 @@ export function clampToStage(p: Vec2, stage: StageSize): Vec2 {
   return [Math.min(hx, Math.max(-hx, p[0])), Math.min(hz, Math.max(-hz, p[1]))];
 }
 
+/** Kéo mọi chỗ đứng vào sân + cánh gà (sau khi thu nhỏ sân). Khối không đổi thì giữ đúng đối tượng cũ. */
+export function fitFormationsToStage(fs: Formation[], stage: StageSize): Formation[] {
+  let changed = false;
+  const out = fs.map((f) => {
+    let pos: Record<string, Vec2> | null = null;
+    for (const [id, q] of Object.entries(f.pos)) {
+      const c = clampToStage(q, stage);
+      if (c[0] === q[0] && c[1] === q[1]) continue;
+      pos ??= { ...f.pos };
+      pos[id] = c;
+    }
+    if (!pos) return f;
+    changed = true;
+    return { ...f, pos };
+  });
+  return changed ? out : fs;
+}
+
 export function snapPos(p: Vec2, step: number): Vec2 {
   const r = (v: number) => Math.round(v / step) * step + 0; // +0 bỏ -0
   return [r(p[0]), r(p[1])];
@@ -152,7 +170,8 @@ export function inWings(p: Vec2, stage: StageSize): boolean {
 export function lineup(ids: string[], stage: StageSize): Record<string, Vec2> {
   const out: Record<string, Vec2> = {};
   const n = ids.length;
-  const gap = n > 1 ? Math.min(1, (stage.width - 1) / (n - 1)) : 0;
+  // sân hẹp hơn 1 m thì đứng dồn một chỗ, không để khoảng cách âm đảo thứ tự
+  const gap = n > 1 ? Math.max(0, Math.min(1, (stage.width - 1) / (n - 1))) : 0;
   const z = Math.max(0, stage.depth / 2 - 1.5);
   ids.forEach((id, i) => {
     out[id] = [(i - (n - 1) / 2) * gap, z];
@@ -253,11 +272,14 @@ export function ensureFormationAt(
   const k = holdIndexAt(fs, t);
   if (k >= 0) return { formations: fs, id: fs[k].id, created: false };
   const after = fs.find((f) => f.start > t);
+  // khối trước (nếu có) kết thúc trước t: khối mới không được lùi vào nó
+  const lo = fs.reduce((m, f) => (f.end <= t ? Math.max(m, f.end) : m), 0);
   let start = Math.max(0, t);
   let end = start + holdLen;
   if (after) {
     end = Math.min(end, after.start);
-    if (end - start < MIN_BLOCK) start = Math.max(0, end - MIN_BLOCK);
+    // khoảng trống ngắn hơn MIN_BLOCK thì khối mới lấp vừa khoảng đó, chịu ngắn hơn
+    if (end - start < MIN_BLOCK) start = Math.max(lo, end - MIN_BLOCK);
   }
   const pos: Record<string, Vec2> = {};
   const now = posesAt(fs, ids, t, stage);

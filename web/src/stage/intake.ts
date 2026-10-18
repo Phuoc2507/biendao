@@ -1,7 +1,10 @@
 // Logic thuần của khâu nhập tệp: phân loại, đọc card.json, kiểm dự án, chọn
 // cách lấy độ lệch nhạc và soạn thông báo tổng kết (test bằng node --test).
 
-import { type Project, type VDancer, type SavedShape, type Vec2, emptyProject, newDancer } from "./model.ts";
+import {
+  type Project, type VDancer, type SavedShape, type Vec2, type Formation, type StageSize,
+  clampToStage, emptyProject, newDancer, wingSpot,
+} from "./model.ts";
 
 export const stripName = (name: string): string =>
   name.replace(/\.[^.]+$/, "").replace(/\.card$/i, "");
@@ -65,10 +68,16 @@ export function normalizeProject(raw: unknown): Project | null {
   const base = emptyProject();
   const num = (x: unknown, d: number, min = -Infinity) => (fin(x) && x >= min ? x : d);
   const dancers: VDancer[] = [];
+  const seen = new Set<string>();
   for (const d of j.dancers as Partial<VDancer>[]) {
-    if (!d || typeof d !== "object" || typeof d.id !== "string") continue;
+    // id trùng thì giữ người đầu: hai người cùng id sẽ chung một chỗ trong mọi đội hình
+    if (!d || typeof d !== "object" || typeof d.id !== "string" || seen.has(d.id)) continue;
+    seen.add(d.id);
     const def = newDancer(d.id, typeof d.name === "string" ? d.name : d.id, typeof d.color === "string" ? d.color : "#8fa3c0");
     const x = { ...def, ...d } as VDancer;
+    x.name = def.name;
+    x.color = def.color;
+    for (const k of ["stacked", "hidden", "alignConfident"] as const) if (typeof x[k] !== "boolean") x[k] = def[k];
     x.offsetSec = num(d.offsetSec, 0);
     x.durationSec = num(d.durationSec, 0, 0);
     x.aspect = num(d.aspect, def.aspect, 0.01) || def.aspect;
@@ -85,17 +94,77 @@ export function normalizeProject(raw: unknown): Project | null {
     else delete x.canon;
     dancers.push(x);
   }
+  const stage = cleanStage(j.stage, base.stage);
   const out = {
     ...base, ...j,
     version: 1,
+    title: typeof j.title === "string" ? j.title : base.title,
+    stage,
+    musicId: typeof j.musicId === "string" ? j.musicId : null,
+    musicName: typeof j.musicName === "string" ? j.musicName : "",
     musicDuration: num(j.musicDuration, 0, 0),
+    // nhịp 0 hay âm làm chia cho 0 ở lưới phách: coi như chưa có nhịp
+    bpm: fin(j.bpm) && j.bpm > 0 ? Math.min(BPM_MAX, Math.max(BPM_MIN, j.bpm)) : null,
     downbeat: num(j.downbeat, 0),
     dancers,
-    formations: Array.isArray(j.formations) ? j.formations.map(cleanNote) : [],
+    formations: cleanFormations(j.formations, dancers.map((d) => d.id), stage),
   } as Project;
   const shapes = normalizeShapes(j.myShapes);
   if (shapes.length) out.myShapes = shapes;
   else delete out.myShapes;
+  return out;
+}
+
+const BPM_MIN = 20, BPM_MAX = 400;
+/** Sân đọc từ tệp: kích thước hỏng thì lấy mặc định; kẹp lại vì sân khổng lồ làm dò chỗ trống chạy mãi. */
+const STAGE_MIN = 1, STAGE_MAX = 60;
+function cleanStage(raw: unknown, def: StageSize): StageSize {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Partial<StageSize>;
+  const side = (x: unknown, d: number) => (fin(x) && x > 0 ? Math.min(STAGE_MAX, Math.max(STAGE_MIN, x)) : d);
+  return { width: side(r.width, def.width), depth: side(r.depth, def.depth) };
+}
+
+/**
+ * Đội hình đọc từ tệp, dọn cho đúng bất biến của checkInvariants: bỏ khối hỏng
+ * (không phải object, id không phải chữ, trùng id, không có giờ nào), thiếu một
+ * đầu thì lấy đầu kia, ngược thì đảo, xếp theo giờ rồi đẩy khối đè sang sau;
+ * chỗ đứng chỉ giữ của người có trong danh sách, kẹp vào sân, ai thiếu thì đứng
+ * trong cánh gà như khi thêm người mới.
+ */
+function cleanFormations(raw: unknown, ids: string[], stage: StageSize): Formation[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: Formation[] = [];
+  raw.forEach((r0, k) => {
+    if (!r0 || typeof r0 !== "object" || Array.isArray(r0)) return;
+    const r = r0 as Partial<Formation>;
+    if (typeof r.id !== "string" || seen.has(r.id)) return;
+    let s = fin(r.start) ? r.start : null, e = fin(r.end) ? r.end : null;
+    if (s === null && e === null) return;
+    seen.add(r.id);
+    s ??= e!;
+    e ??= s;
+    if (e < s) [s, e] = [e, s];
+    s = Math.max(0, s);
+    e = Math.max(s, e);
+    const src = (r.pos && typeof r.pos === "object" ? r.pos : {}) as Record<string, unknown>;
+    const pos: Record<string, Vec2> = {};
+    for (const id of ids) {
+      const q = Object.prototype.hasOwnProperty.call(src, id) ? src[id] : undefined;
+      if (Array.isArray(q) && q.length === 2 && typeof q[0] === "number" && typeof q[1] === "number" && !isNaN(q[0]) && !isNaN(q[1]))
+        pos[id] = clampToStage([q[0], q[1]], stage);
+    }
+    for (const id of ids) if (!pos[id]) pos[id] = wingSpot(Object.values(pos), stage);
+    out.push(cleanNote({ ...r, id: r.id, name: typeof r.name === "string" ? r.name : `Đội hình ${k + 1}`, start: s, end: e, pos } as Formation));
+  });
+  out.sort((a, b) => a.start - b.start);
+  for (let k = 1; k < out.length; k++) {
+    const prev = out[k - 1], f = out[k];
+    if (f.start < prev.end) {
+      const start = prev.end;
+      out[k] = { ...f, start, end: Math.max(f.end, start) };
+    }
+  }
   return out;
 }
 
