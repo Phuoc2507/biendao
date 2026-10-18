@@ -6,7 +6,8 @@
 // CRC của từng media. Khi mở, tìm tệp theo đường dẫn, rồi theo cỡ + CRC (tên bị
 // trình nén khác làm hỏng vẫn khớp), cuối cùng theo tên tệp.
 
-import { type Project, emptyProject, newDancer } from "../model.ts";
+import { type Project } from "../model.ts";
+import { normalizeProject } from "../intake.ts";
 import { type ZipEntry, type ZipInput, makeZip, listZip, readEntry, crc32Blob, checkZipLimits } from "./zip.ts";
 
 export const PROJECT_ENTRY = "project.choreo.json";
@@ -80,22 +81,13 @@ const keyOf = (s: string) => s.normalize("NFC").toLowerCase();
 
 // ---------- dự án ----------
 
-/** Kiểm tra và chuẩn hoá JSON dự án (điền trường thiếu, bỏ mục "bundle"). */
+/** Kiểm tra và chuẩn hoá JSON dự án (điền trường thiếu, dọn số hỏng, bỏ mục "bundle").
+ *  Dùng chung normalizeProject với lúc nạp lại từ trình duyệt để tệp mở ra cũng đúng bất biến. */
 export function checkProject(j: unknown): Project {
-  const o = j as (Partial<Project> & { bundle?: unknown }) | null;
-  if (!o || typeof o !== "object" || o.version !== 1 || !Array.isArray(o.dancers)) {
-    throw new Error("Không phải tệp dự án sân khấu");
-  }
-  const { bundle: _bundle, ...rest } = o;
-  const full: Project = {
-    ...emptyProject(), ...rest,
-    dancers: o.dancers
-      .filter((d) => d && typeof d === "object" && typeof d.id === "string")
-      .map((d) => ({ ...newDancer(d.id, d.name, d.color), ...d })),
-  } as Project;
-  if (!Array.isArray(full.formations)) full.formations = [];
-  if (!full.stage || !(full.stage.width > 0) || !(full.stage.depth > 0)) full.stage = emptyProject().stage;
-  return full;
+  const p = normalizeProject(j);
+  if (!p) throw new Error("Không phải tệp dự án sân khấu");
+  delete (p as Project & { bundle?: unknown }).bundle;
+  return p;
 }
 
 interface MediaRef {

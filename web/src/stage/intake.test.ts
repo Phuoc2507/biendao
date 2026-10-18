@@ -4,6 +4,7 @@ import {
   fileKind, isJunk, parseCardMeta, looksLikeProject, normalizeProject, mediaKey, normalizeShapes,
   offsetPlan, importSummary, emptyReport, fitSize, stripName, ALIGN_MAX_BYTES, HINT, QUOTA_MSG,
 } from "./intake.ts";
+import { checkInvariants, initials } from "./model.ts";
 
 test("fileKind phân loại theo đuôi và type", () => {
   assert.equal(fileKind("a.card.json"), "card");
@@ -163,4 +164,57 @@ test("normalizeShapes: bỏ điểm xa vô lý (cộng hai số khổng lồ tr�
   const s = normalizeShapes([{ id: "h", name: "x", pts: [[1e308, 0], [1.7e308, 0], [0, 0], [1, 1]] }]);
   assert.deepEqual(s, [{ id: "h", name: "x", pts: [[0, 0], [1, 1]] }]);
   assert.deepEqual(normalizeShapes([{ id: "k", pts: [[1e308, 0], [1.7e308, 0]] }]), []);
+});
+
+test("normalizeProject: số hỏng trong tệp (1e999 thành Infinity, nhịp 0 hay âm, sân 0) về mặc định", () => {
+  const p = normalizeProject(JSON.parse(
+    '{"version":1,"title":5,"stage":{"width":0,"depth":1e999},"bpm":-120,"downbeat":1e999,"musicId":7,"musicName":null,"dancers":[]}',
+  ))!;
+  assert.deepEqual(p.stage, { width: 10, depth: 6 });
+  assert.equal(p.bpm, null);
+  assert.equal(p.downbeat, 0);
+  assert.equal(p.title, "Bài múa mới");
+  assert.equal(p.musicId, null);
+  assert.equal(p.musicName, "");
+  assert.equal(normalizeProject({ version: 1, dancers: [], bpm: 0 })!.bpm, null);
+  assert.equal(normalizeProject({ version: 1, dancers: [], bpm: 128 })!.bpm, 128);
+  // sân khổng lồ làm dò chỗ trống (spotNear) chạy mãi: kẹp lại
+  const big = normalizeProject({ version: 1, dancers: [], stage: { width: 1e6, depth: 0.001 } })!;
+  assert.ok(big.stage.width <= 60 && big.stage.depth >= 1);
+});
+
+test("normalizeProject: vũ công trùng id thì giữ người đầu, tên và màu không phải chữ thì lấy mặc định", () => {
+  const p = normalizeProject({
+    version: 1,
+    dancers: [{ id: "a", name: 3, color: null, hidden: "x" }, { id: "a", name: "Trùng" }, { id: "b", name: "B", hidden: true }],
+  })!;
+  assert.deepEqual(p.dancers.map((d) => d.id), ["a", "b"]);
+  assert.equal(p.dancers[0].name, "a");
+  assert.equal(typeof p.dancers[0].color, "string");
+  assert.equal(p.dancers[0].hidden, false);
+  assert.equal(p.dancers[1].hidden, true);
+  assert.doesNotThrow(() => p.dancers.map((d) => initials(d.name)));
+});
+
+test("normalizeProject: đội hình hỏng, trùng id, chồng giờ, thiếu người đều được dọn cho đúng bất biến", () => {
+  const p = normalizeProject(JSON.parse(`{"version":1,"stage":{"width":10,"depth":6},
+    "dancers":[{"id":"a","name":"A"},{"id":"b","name":"B"}],
+    "formations":[null, 3, {"name":"không id"},
+      {"id":"f2","name":"Hai","start":4,"end":6,"pos":{"a":[1e999,0],"b":[1,"x"],"ma":[0,0]}},
+      {"id":"f1","name":"Một","start":0,"end":5,"pos":{"a":[0,0],"b":[1,0]}},
+      {"id":"f1","name":"Trùng","start":8,"end":9,"pos":{}},
+      {"id":"f3","name":7,"start":10,"end":9,"pos":null},
+      {"id":"f4","name":"Không giờ","start":"x","pos":{}}
+    ]}`))!;
+  assert.deepEqual(p.formations.map((f) => f.id), ["f1", "f2", "f3"]);
+  assert.deepEqual(checkInvariants(p), []);
+  const [f1, f2, f3] = p.formations;
+  assert.equal(f1.name, "Một");
+  assert.ok(f2.start >= f1.end, "không chồng giờ");
+  assert.ok(f3.start <= f3.end);
+  assert.equal(typeof f3.name, "string");
+  assert.equal(f2.pos.a[0], 5 + 1.5, "Infinity kẹp vào mép cánh gà");
+  assert.ok(Number.isFinite(f2.pos.b[0]) && Number.isFinite(f2.pos.b[1]), "chỗ hỏng thay bằng chỗ trong cánh gà");
+  assert.equal("ma" in f2.pos, false, "bỏ chỗ của người không có trong danh sách");
+  assert.ok(f3.pos.a && f3.pos.b);
 });
