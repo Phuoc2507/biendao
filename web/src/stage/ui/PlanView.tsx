@@ -2,7 +2,7 @@
 // hướng xuống màn hình), nên trái/phải trên màn hình đúng là trái/phải của
 // khán giả. Kéo người để sửa vị trí ở đội hình đang đứng; kéo nền để chọn vùng.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   type Vec2, WING, initials, posesAt, prevFormation, nextFormation, segmentAt, snapPos,
   clampToStage, NEAR_M, dist,
@@ -39,6 +39,20 @@ interface Drag {
   id?: string;
 }
 
+/** Thêm bao nhiêu mét vào lề trên để chữ sát mép sân (cao `label` m) nằm dưới các nút phía trên. */
+export function topExtra(
+  o: { w: number; h: number; top: number }, vbw: number, D: number, pads: number, sideTop: number, label: number,
+): number {
+  if (o.top <= 0 || o.w <= 0 || o.h <= 0) return 0;
+  for (let e = 0; e <= 6; e += 0.1) {
+    const h = D + pads + e;
+    const k = Math.min(o.w / vbw, o.h / h);
+    const y = (o.h - h * k) / 2 + (sideTop + e - label) * k;
+    if (y >= o.top + 4) return e;
+  }
+  return 6;
+}
+
 export function PlanView({
   readOnly = false, compact = false, mirror = false, fromStage,
 }: {
@@ -64,9 +78,36 @@ export function PlanView({
   const { width: W, depth: D } = p.stage;
   const hx = W / 2 + WING;
   const pad = compact ? 0.3 : 0.7;
-  const padTop = compact ? 0.3 : 1.2; // chừa chỗ cho chip trạng thái phía trên
   const padBot = compact ? 0.9 : 1.6; // phía khán giả: chữ KHÁN GIẢ và thước số
-  const vb = { x: -hx - pad, y: flip ? -D / 2 - padBot : -D / 2 - padTop, w: 2 * (hx + pad), h: D + padTop + padBot };
+  // phía trên: chừa đủ chỗ cho nhãn khung, chip trạng thái và nút (đo bằng px thật)
+  const topBase = compact ? 0.3 : 1.2;
+  const [over, setOver] = useState<{ w: number; h: number; top: number } | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root || compact) return;
+    const measure = () => {
+      const r = root.getBoundingClientRect();
+      let top = 0;
+      const els = [...root.querySelectorAll(".rh-plan-tools, .state-chip"), ...(root.parentElement?.querySelectorAll(":scope > .pane-label") ?? [])];
+      for (const el of els) {
+        const b = el.getBoundingClientRect();
+        if (b.height && b.bottom - r.top < r.height / 2) top = Math.max(top, b.bottom - r.top);
+      }
+      setOver((o) => (o && o.w === r.width && o.h === r.height && o.top === top ? o : { w: r.width, h: r.height, top }));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(root);
+    root.querySelectorAll(".rh-plan-tools, .state-chip").forEach((el) => ro.observe(el));
+    return () => ro.disconnect();
+  }, [compact, flip]);
+  const sideTop = flip ? padBot : topBase; // lề đang nằm phía trên màn hình
+  const vbw = 2 * (hx + pad);
+  const extra = over ? topExtra(over, vbw, D, topBase + padBot, sideTop, flip ? 1.3 : 0.45) : 0;
+  const padTop = topBase + (flip ? 0 : extra);
+  const padBotV = padBot + (flip ? extra : 0);
+  const vb = { x: -hx - pad, y: flip ? -D / 2 - padBotV : -D / 2 - padTop, w: vbw, h: D + padTop + padBotV };
 
   const ids = useMemo(() => p.dancers.map((d) => d.id), [p.dancers]);
   const poses = posesAt(p.formations, ids, t, p.stage);
@@ -324,7 +365,7 @@ export function PlanView({
     });
 
   return (
-    <div style={{ position: "absolute", inset: 0 }}>
+    <div style={{ position: "absolute", inset: 0 }} ref={rootRef}>
       <svg
         ref={svgRef}
         className={`plan-svg${dragging ? " dragging" : ""}`}

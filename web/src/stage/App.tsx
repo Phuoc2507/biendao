@@ -51,7 +51,7 @@ function Main({ phone }: { phone: boolean }) {
     <main className={`main${showPlan && showAud && dir === "col" ? " stack" : ""}`} ref={ref}>
       {showPlan && (
         <div className="pane">
-          <div className="pane-label">{ui.planFromStage ? "Sơ đồ (nhìn từ trên, quay về khán giả)" : "Sơ đồ (nhìn từ trên)"}</div>
+          <div className="pane-label">{ui.planFromStage ? "Sơ đồ (từ sân khấu)" : "Sơ đồ (nhìn từ trên)"}</div>
           <PlanView />
         </div>
       )}
