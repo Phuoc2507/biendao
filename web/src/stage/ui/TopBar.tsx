@@ -8,7 +8,7 @@ import { usePlaying, useTime } from "../clock";
 import { createPortal } from "react-dom";
 import { saveAs, saveBundle, saveTargetName, forgetSaveTarget, watchMusic, openBundleFile, isBlankProject } from "../export/save";
 import { printFormations } from "../export/print";
-import { exportCurrentImage, exportAllImages } from "../export/image";
+import { exportCurrentImage, exportAllImages, shareCurrentImage, copyCurrentImage, shareSupported, copySupported } from "../export/image";
 import { ExportDialog } from "./ExportDialog";
 import { exportProject, newProject, openProjectFile, setTitle, stepBeat, projectEnd } from "../actions";
 import { saveProject } from "../db";
@@ -116,6 +116,16 @@ function FileMenu() {
           <button onClick={run(exportCurrentImage)} title="Ảnh PNG dọc của đội hình tại vạch phát, để gửi Zalo, Messenger">
             <Icon name="image" size={16} /> Xuất ảnh đội hình này (.png)
           </button>
+          {shareSupported() && (
+            <button onClick={run(shareCurrentImage)} title="Gửi ảnh đội hình tại vạch phát qua Zalo, Messenger trên máy này">
+              <Icon name="image" size={16} /> Chia sẻ ảnh đội hình này…
+            </button>
+          )}
+          {copySupported() && (
+            <button onClick={run(copyCurrentImage)} title="Chép ảnh đội hình tại vạch phát, rồi dán vào Zalo, Messenger bằng Ctrl V">
+              <Icon name="copy" size={16} /> Chép ảnh đội hình này
+            </button>
+          )}
           <button onClick={run(exportAllImages)} title="Mỗi đội hình một ảnh PNG, gói trong một tệp .zip">
             <Icon name="image" size={16} /> Xuất ảnh tất cả đội hình (.zip)
           </button>

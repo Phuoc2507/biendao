@@ -5,11 +5,11 @@ import { st } from "../store";
 import * as clock from "../clock";
 import type { Project } from "../model";
 import type { Ctx2D } from "./planRender";
-import { imageLayout, drawImage, formationIndexAt, imageFileName, imagesZipName } from "./imageSheet";
+import { imageLayout, drawImage, formationIndexAt, imageFileName, imagesZipName, canShareImage, canCopyImage } from "./imageSheet";
 import { makeZip } from "./zip";
 import { download } from "./save";
 
-function renderPng(p: Project, k: number): Promise<Blob> {
+export function renderPng(p: Project, k: number): Promise<Blob> {
   const L = imageLayout(p, k);
   const c = document.createElement("canvas");
   c.width = L.w;
@@ -56,5 +56,60 @@ export async function exportAllImages() {
     st().notify(`Đã xuất ${items.length} ảnh trong ${name} (xem trong thư mục Tải xuống).`);
   } catch (e) {
     st().notify(`Không xuất được ảnh: ${(e as Error).message}`, { kind: "error" });
+  }
+}
+
+const pngProbe = () => [new File([new Uint8Array(1)], "thu.png", { type: "image/png" })];
+
+/** Trình duyệt này chia sẻ được ảnh PNG (điện thoại) thì hiện mục Chia sẻ. */
+export const shareSupported = () =>
+  typeof navigator !== "undefined" && typeof File !== "undefined" && canShareImage(navigator, pngProbe());
+
+/** Trình duyệt này chép được ảnh vào bộ nhớ tạm thì hiện mục Chép ảnh. */
+export const copySupported = () =>
+  typeof navigator !== "undefined" && canCopyImage(navigator, (globalThis as { ClipboardItem?: unknown }).ClipboardItem);
+
+/** Chia sẻ ảnh đội hình tại vạch phát qua bảng chia sẻ của máy (Zalo, Messenger...). */
+export async function shareCurrentImage() {
+  if (noFormation()) return;
+  const p = st().project;
+  const k = formationIndexAt(p, clock.now());
+  const name = imageFileName(p, k);
+  let blob: Blob;
+  try {
+    await document.fonts?.ready;
+    blob = await renderPng(p, k);
+  } catch (e) {
+    st().notify(`Không tạo được ảnh: ${(e as Error).message}`, { kind: "error" });
+    return;
+  }
+  const files = [new File([blob], name, { type: "image/png" })];
+  try {
+    if (!canShareImage(navigator, files)) throw Object.assign(new Error("không hỗ trợ"), { name: "NotAllowedError" });
+    await navigator.share({ files, title: p.formations[k].name || p.title || "Đội hình" });
+  } catch (e) {
+    const err = e as Error;
+    if (err.name === "AbortError") return; // người dùng đóng bảng chia sẻ
+    // máy từ chối (hết lượt bấm, không nhận tệp): tải ảnh xuống thay vì mất ảnh
+    download(blob, name);
+    st().notify(`Không mở được bảng chia sẻ, đã tải ảnh ${name} xuống thay.`, { kind: "warn" });
+  }
+}
+
+/** Chép ảnh đội hình tại vạch phát vào bộ nhớ tạm, để dán thẳng vào Zalo, Messenger. */
+export async function copyCurrentImage() {
+  if (noFormation()) return;
+  const p = st().project;
+  const k = formationIndexAt(p, clock.now());
+  try {
+    // đưa Promise vào ClipboardItem ngay trong lượt bấm (Safari đòi vậy), vẽ xong sau
+    const png = (async () => {
+      await document.fonts?.ready;
+      return renderPng(p, k);
+    })();
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
+    st().notify("Đã chép ảnh, dán vào Zalo bằng Ctrl V.");
+  } catch (e) {
+    st().notify(`Không chép được ảnh: ${(e as Error).message}`, { kind: "error" });
   }
 }
