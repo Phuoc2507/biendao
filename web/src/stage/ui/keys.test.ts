@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { type KeyCtx, type KeyIn, modalOpen, nativeKey, resolveShortcut, routeKey, targetKind } from "./keys.ts";
+import { type KeyCtx, type KeyIn, modalOpen, nativeKey, popupOpen, resolveShortcut, routeKey, targetKind } from "./keys.ts";
 
 const ctx = (o: Partial<KeyCtx> = {}): KeyCtx => ({
   presenting: false, help: false, hasSelection: false, hasDancers: true, hasBlock: false, formationFocused: false, ...o,
@@ -172,6 +172,26 @@ test("hộp thoại đang mở: phím tắt không sửa bài phía sau, chỉ c
   assert.equal(resolveShortcut(key("z", { ctrl: true, shift: true }), m), null, "Ctrl Shift Z");
   // hướng dẫn vẫn tự đóng bằng Esc như cũ
   assert.deepEqual(resolveShortcut(key("Escape"), ctx({ modal: true, help: true })), { type: "help", open: false });
+});
+
+test("menu bật ra đang mở (Lưu bài, Tệp, công cụ sơ đồ): Esc chỉ đóng menu, không bỏ chọn phía sau", () => {
+  const p = ctx({ popup: true, hasSelection: true, hasBlock: true });
+  assert.equal(resolveShortcut(key("Escape"), p), null);
+  // phím khác vẫn chạy như thường
+  assert.deepEqual(resolveShortcut(key("s", { ctrl: true }), p), { type: "save" });
+  assert.deepEqual(resolveShortcut(key(" "), p), { type: "toggle" });
+  // không có menu thì Esc vẫn bỏ chọn
+  assert.deepEqual(resolveShortcut(key("Escape"), ctx({ hasSelection: true })), { type: "clear" });
+});
+
+test("popupOpen: dò menu bật ra trong trang", () => {
+  const seen: string[] = [];
+  const root = (hit: boolean) => ({ querySelector: (s: string) => (seen.push(s), hit ? {} : null) });
+  assert.equal(popupOpen(root(true)), true);
+  assert.equal(popupOpen(root(false)), false);
+  assert.equal(popupOpen(null), false);
+  assert.match(seen[0], /\.pop/);
+  assert.match(seen[0], /\.rh-pop/);
 });
 
 test("modalOpen: hộp Xuất video hoặc lớp Đang xử lý là đang có hộp thoại", () => {

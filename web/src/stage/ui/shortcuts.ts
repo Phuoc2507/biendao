@@ -8,7 +8,7 @@ import {
   stepBeat, exportProject, projectEnd, copyPositions, pastePositions, swapSelected, rotateSelected,
 } from "../actions";
 import { focusByPointer } from "./hooks";
-import { type Action, modalOpen, resolveShortcut, routeKey, targetKind } from "./keys";
+import { type Action, modalOpen, popupOpen, resolveShortcut, routeKey, targetKind } from "./keys";
 import { toggleLoop } from "./Timeline";
 import { togglePlanFrom } from "./PlanView";
 
@@ -58,6 +58,12 @@ function run(a: Action, focusedFormation: string | null) {
 
 export function useShortcuts() {
   useEffect(() => {
+    // dò menu bật ra ở pha bắt (trước mọi trình nghe pha nổi): menu Lưu bài tự đóng bằng Esc
+    // ở pha nổi, nếu dò muộn thì menu có thể đã gỡ khỏi trang và Esc lại bỏ chọn phía sau
+    let popup = false;
+    const peek = () => {
+      popup = popupOpen(document);
+    };
     const down = (e: KeyboardEvent) => {
       // ô hoặc dòng đã tự xử lý phím (Enter ở dòng danh sách, Esc ở ô số...)
       if (e.defaultPrevented || e.isComposing) return;
@@ -89,6 +95,7 @@ export function useShortcuts() {
           formationFocused: !!fEl,
           textSelected: !!window.getSelection()?.toString(),
           modal: modalOpen(ui),
+          popup,
         },
       );
       if (!a) return;
@@ -99,7 +106,11 @@ export function useShortcuts() {
       if (route === "steal") el?.blur();
       run(a, fEl?.dataset.formation ?? null);
     };
+    window.addEventListener("keydown", peek, true);
     window.addEventListener("keydown", down);
-    return () => window.removeEventListener("keydown", down);
+    return () => {
+      window.removeEventListener("keydown", peek, true);
+      window.removeEventListener("keydown", down);
+    };
   }, []);
 }
