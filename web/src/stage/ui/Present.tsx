@@ -22,6 +22,17 @@ const play = () => {
   const p = st().project;
   playWithCountIn({ on: st().ui.countIn, bpm: p.bpm, downbeat: p.downbeat, end: projectEnd(p) });
 };
+/** điện thoại: "tall" dựng đứng (hẹp), "short" nằm ngang (thấp); đổi theo khi xoay máy */
+function useNarrow(): "tall" | "short" | null {
+  const q = (): "tall" | "short" | null => (window.innerWidth < 600 ? "tall" : window.innerHeight < 500 ? "short" : null);
+  const [n, setN] = useState(q);
+  useEffect(() => {
+    const on = () => setN(q());
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
+  return n;
+}
 const resetCam = () => st().setUI({ camReset: st().ui.camReset + 1 });
 
 function Overlay() {
@@ -80,7 +91,8 @@ export function Present() {
   const ui = useUI();
   const bpm = useProject().bpm;
   const [show, setShow] = useState(true);
-  const [mini, setMini] = useState(true);
+  // điện thoại dựng đứng: sơ đồ nhỏ tắt sẵn cho khung khán giả đủ chỗ
+  const [mini, setMini] = useState(() => !(window.innerWidth < 600 && window.innerHeight > window.innerWidth));
   const timer = useRef(0);
   const root = useRef<HTMLDivElement>(null);
 
@@ -155,11 +167,13 @@ export function Present() {
   const toggle = (k: "countIn" | "mirror" | "bright" | "orbitFree" | "presentBack") => st().setUI({ [k]: !st().ui[k] } as Partial<UI>);
   const hasMe = !!ui.me;
   const ctlShown = show || !playing;
+  const narrow = useNarrow();
 
   // thanh điều khiển rộng (màn 1024) đè lên nhãn Khoá sửa: nhấc nhãn lên trên thanh
   const ctl = useRef<HTMLDivElement>(null);
   const lock = useRef<HTMLDivElement>(null);
   const [lift, setLift] = useState(0);
+  const [ctlH, setCtlH] = useState(0);
   useLayoutEffect(() => {
     const c = ctl.current, l = lock.current;
     if (!c || !l) return;
@@ -169,6 +183,7 @@ export function Present() {
       const left = host ? b.left - host.left : b.left;
       const ctlLeft = host ? a.left - host.left : a.left;
       setLift(ctlLeft < left + b.width + 8 ? Math.round(a.height) + 8 : 0);
+      setCtlH(Math.round(a.height));
     };
     measure();
     window.addEventListener("resize", measure);
@@ -182,7 +197,12 @@ export function Present() {
   }, []);
 
   return (
-    <div className="present" ref={root} onPointerMove={poke} style={{ cursor: show ? "default" : "none" }}>
+    <div
+      className="present"
+      ref={root}
+      onPointerMove={poke}
+      style={{ cursor: show ? "default" : "none", ["--ctl-h" as string]: `${ctlH}px` }}
+    >
       <div className={`rh-stage${ui.mirror ? " mirror" : ""}`}>
         <AudienceView
           interactive={false}
@@ -190,7 +210,11 @@ export function Present() {
           orbit={ui.orbitFree}
           bright={ui.bright}
           preset={ui.presentBack ? "back" : "front"}
-          safe={{ top: hasMe ? 150 : 110, bottom: 92, side: 16 }}
+          safe={narrow === "tall"
+            ? { top: hasMe ? 230 : 110, bottom: (ctlH || 130) + 64 + (mini ? 212 : 0), side: 12 }
+            : narrow === "short"
+              ? { top: hasMe ? 130 : 70, bottom: (ctlH || 90) + 30, side: 12 }
+              : { top: hasMe ? 150 : 110, bottom: 92, side: 16 }}
         />
       </div>
       <Overlay />
