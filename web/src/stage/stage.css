@@ -260,6 +260,7 @@ kbd {
 .flist .fitem.cur .fnum { background: var(--accent); color: #1a1205; }
 .fnum { width: 22px; height: 22px; border-radius: 5px; display: grid; place-items: center; background: var(--line); font-size: 11px; font-weight: 700; flex: none; }
 .fitem .meta { color: var(--dim); font-size: 11px; margin-left: auto; white-space: nowrap; }
+.fitem .bnote { color: #f4d27a; flex: none; }
 .shape-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
 .shape-grid button {
   display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px;

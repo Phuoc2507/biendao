@@ -501,12 +501,13 @@ function FormationsTab() {
                 key={f.id}
                 className={`fitem${ui.selectedBlock === f.id ? " sel" : ""}${cur ? " cur" : ""}`}
                 data-formation={f.id} role="button" aria-pressed={ui.selectedBlock === f.id}
-                aria-label={`${k + 1}. ${f.name}, ${fmtTime(f.start)}${cur ? ", đang ở vạch phát" : ""}`}
+                aria-label={`${k + 1}. ${f.name}, ${fmtTime(f.start)}${f.note ? ", có ghi chú" : ""}${cur ? ", đang ở vạch phát" : ""}`}
                 {...rowKeys(pick)}
                 onClick={pick}
               >
                 <span className="fnum">{k + 1}</span>
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                {f.note && <span className="bnote" title={`Ghi chú: ${f.note}`} aria-hidden="true">✎</span>}
                 <span className="meta">{fmtTime(f.start)}</span>
               </div>
             );
