@@ -6,7 +6,7 @@ import {
   addFormationAfter, deleteFormation, addDancerToAll, removeDancerFromAll,
   arrangeShape, mirrorPositions, distributeX, rotateGroup, scaleGroup, inWings, holdIndexAt, segmentAt,
   snapPos, emptyProject, renameFormation, setFormationNote, wingSpot, placeClones, canonOffsets as canonPatch, SHAPE_LABEL,
-  type CanonOrder, canonRanks, rightSide,
+  type CanonOrder, canonRanks, rightSide, type SavedShape, captureShape, fitSavedShape,
 } from "./model";
 import { defaultLens, snapTime, putCanon, fmtTime, fmtCounts } from "./timing";
 import { st, useStore, batch } from "./store";
@@ -468,6 +468,66 @@ export function pastePositions() {
   setPositionsNow(moves, false);
   st().setUI({ selected: Object.keys(moves) });
   hintWarn(w, `Đã dán chỗ đứng (từ ${copied.from}) cho ${n === p.dancers.length ? "cả đội" : `${n} người`}`, true, false);
+}
+
+// ---------- hình của tôi ----------
+
+/** Nhóm cho Lưu hình và áp hình đã lưu: từ 2 người đang chọn trở lên, không thì cả đội trên sân. */
+function shapeGroup(p: Project, cur: Record<string, Vec2>): string[] {
+  const sel = st().ui.selected.filter((id) => cur[id]);
+  if (sel.length >= 2) return sel;
+  return p.dancers.filter((d) => !d.hidden && cur[d.id] && !inWings(cur[d.id], p.stage)).map((d) => d.id);
+}
+
+/** Lưu hình dạng nhóm tại vạch phát vào thư viện của dự án (hỏi tên bằng hộp nhập). */
+export function saveMyShape() {
+  const p = proj();
+  const cur = currentPoses();
+  const g = shapeGroup(p, cur);
+  if (g.length < 2) {
+    st().notify("Cần ít nhất 2 người trên sân để lưu hình");
+    return;
+  }
+  const t = clock.now();
+  const f = p.formations.find((x) => t >= x.start && t <= x.end);
+  const def = f ? f.name : `Hình ${(p.myShapes?.length ?? 0) + 1}`;
+  const asked = window.prompt(`Tên hình (${g.length} người)`, def);
+  if (asked === null) return;
+  const name = asked.trim() || def;
+  const shape: SavedShape = { id: uid("h"), name, pts: captureShape(cur, g) };
+  st().commit((q) => ({ ...q, myShapes: [...(q.myShapes ?? []), shape] }));
+  st().notify(`Đã lưu hình "${name}" (${g.length} chỗ) vào Hình của tôi`, { undo: true });
+}
+
+/** Xếp nhóm theo một hình đã lưu, như Xếp nhanh. */
+export function applyMyShape(id: string) {
+  const p = proj();
+  const s = p.myShapes?.find((x) => x.id === id);
+  if (!s) return;
+  const cur = currentPoses();
+  const g = shapeGroup(p, cur);
+  if (!g.length) {
+    st().notify("Chưa có ai trên sân để xếp");
+    return;
+  }
+  const r = fitSavedShape(cur, g, s.pts, p.stage);
+  const w = warnCount(p);
+  setPositionsNow(r.moves, false);
+  let what = `Đã xếp theo hình "${s.name}"`;
+  if (r.kept.length) what += `. Hình có ${s.pts.length} chỗ mà nhóm có ${g.length} người: ${r.kept.length} người ở xa nhất giữ chỗ cũ`;
+  else if (r.unused) what += `. Hình có ${s.pts.length} chỗ mà nhóm chỉ có ${g.length} người: dùng ${g.length} chỗ gần tâm nhất`;
+  hintWarn(w, what, r.kept.length > 0 || r.unused > 0);
+}
+
+export function removeMyShape(id: string) {
+  const s = proj().myShapes?.find((x) => x.id === id);
+  if (!s) return;
+  st().commit((q) => {
+    const rest = (q.myShapes ?? []).filter((x) => x.id !== id);
+    const { myShapes: _m, ...base } = q;
+    return rest.length ? { ...base, myShapes: rest } : base;
+  });
+  st().notify(`Đã xoá hình "${s.name}"`, { undo: true });
 }
 
 // ---------- đội hình ----------

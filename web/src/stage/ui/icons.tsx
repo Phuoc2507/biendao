@@ -49,6 +49,7 @@ const P: Record<string, string> = {
   down: "M6 9l6 6 6-6",
   copy: "M8 8h12v12H8zM4 16V4h12",
   edit: "M4 20h4L19 9l-4-4L4 16zM14 6l4 4",
+  bookmark: "M6 3h12v18l-6-4-6 4z",
   route: "M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 17h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7",
   ghost: "M5 21V10a7 7 0 0 1 14 0v11l-3-2-2 2-2-2-2 2-2-2zM9 10v1M15 10v1",
   tag: "M3 3h8l10 10-8 8L3 11zM7.5 7.5v.5",

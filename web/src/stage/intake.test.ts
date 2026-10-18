@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  fileKind, isJunk, parseCardMeta, looksLikeProject, normalizeProject, mediaKey,
+  fileKind, isJunk, parseCardMeta, looksLikeProject, normalizeProject, mediaKey, normalizeShapes,
   offsetPlan, importSummary, emptyReport, fitSize, stripName, ALIGN_MAX_BYTES, HINT, QUOTA_MSG,
 } from "./intake.ts";
 
@@ -122,4 +122,26 @@ test("normalizeProject: ghi chú đội hình không phải chữ thì bỏ, ch�
   })!;
   assert.equal("note" in p.formations[0], false);
   assert.equal(p.formations[1].note, "quay");
+});
+
+test("normalizeProject: Hình của tôi bỏ hình và điểm hỏng, rỗng thì bỏ trường", () => {
+  const p = normalizeProject({
+    version: 1, dancers: [],
+    myShapes: [
+      { id: "h1", name: "  Chữ T ", pts: [[0, 0], [1, "x"], [2, 1], [Infinity, 0], [1, 2, 3]] },
+      { id: "h1", name: "trùng id", pts: [[0, 0]] },
+      { id: "h2", pts: [[0, 1]] },
+      { id: "h3", name: "toàn điểm hỏng", pts: [null, "a"] },
+      { name: "không id", pts: [[0, 0]] },
+      null, 7,
+    ],
+  })!;
+  assert.deepEqual(p.myShapes, [
+    { id: "h1", name: "Chữ T", pts: [[0, 0], [2, 1]] },
+    { id: "h2", name: "Hình không tên", pts: [[0, 1]] },
+  ]);
+  assert.equal("myShapes" in normalizeProject({ version: 1, dancers: [], myShapes: "hỏng" })!, false);
+  assert.equal("myShapes" in normalizeProject({ version: 1, dancers: [], myShapes: [] })!, false);
+  assert.equal("myShapes" in normalizeProject({ version: 1, dancers: [] })!, false);
+  assert.deepEqual(normalizeShapes(undefined), []);
 });

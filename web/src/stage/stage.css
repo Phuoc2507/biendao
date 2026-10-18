@@ -268,6 +268,15 @@ kbd {
 }
 .shape-grid button:hover { border-color: var(--accent); color: var(--text); }
 .shape-grid svg { width: 28px; height: 18px; }
+.shape-grid .mine { position: relative; display: flex; }
+.shape-grid .mine > button:first-child { flex: 1; min-width: 0; }
+.shape-grid .mine .nm { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shape-grid .shape-del {
+  position: absolute; top: 1px; right: 1px; width: 16px; height: 16px; padding: 0; border: none; background: transparent;
+  display: grid; place-items: center; opacity: .55;
+}
+.shape-grid .shape-del:hover { opacity: 1; color: var(--red); }
+.shape-grid .shape-del svg { width: 11px; height: 11px; }
 
 .warn-item { display: flex; gap: 8px; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }
 .warn-item:hover { background: var(--panel2); }

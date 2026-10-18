@@ -6,7 +6,7 @@ import {
   segmentAt, poseAt, posesAt, ensureFormationAt, setPositions, addFormationAfter,
   setBlockTimes, moveBlock, addDancerToAll, removeDancerFromAll, checkInvariants,
   shapePoints, assignNearest, arrangeShape, mirrorPositions, distributeX, rotateGroup, scaleGroup, fitGroup,
-  findWarnings, prevFormation, nextFormation, inWings, WING, setFormationNote,
+  findWarnings, prevFormation, nextFormation, inWings, WING, setFormationNote, captureShape, fitSavedShape,
 } from "./model.ts";
 
 const stage = { width: 10, depth: 6 };
@@ -287,4 +287,68 @@ test("giãn và thu nhóm quanh tâm: dừng ở mép sân, không cho sát nhau
   assert.deepEqual(scaleGroup(cur, ["a", "b"], 0.1, stage), { a: [-0.25, 0], b: [0.25, 0] });
   assert.equal(scaleGroup({ a: [-0.25, 0], b: [0.25, 0] }, ["a", "b"], 0.8, stage), null);
   assert.equal(scaleGroup(cur, ["a"], 1.2, stage), null, "một người thì không giãn");
+});
+
+// ---------- hình của tôi ----------
+
+test("captureShape: điểm trừ tâm nhóm, không gắn người, không phụ thuộc thứ tự", () => {
+  const cur: Record<string, Vec2> = { a: [3, 1], b: [1, 1], c: [2, -1], z: [-4, 0] };
+  const s = captureShape(cur, ["a", "b", "c"]);
+  assert.deepEqual(s, [[0, -1.333], [-1, 0.667], [1, 0.667]]);
+  assert.deepEqual(captureShape(cur, ["c", "a", "b"]), s);
+  // dời cả nhóm đi đâu cũng ra cùng một hình
+  const moved: Record<string, Vec2> = { p: [-1, 2], q: [-3, 2], r: [-2, 0] };
+  assert.deepEqual(captureShape(moved, ["p", "q", "r"]), s);
+  assert.deepEqual(captureShape(cur, []), []);
+});
+
+test("fitSavedShape: đặt quanh tâm nhóm hiện tại, gán người đi gần nhất", () => {
+  const pts: Vec2[] = [[-1, 0], [0, 0], [1, 0]];
+  // ba người đứng hàng ngang quanh (2, 0.5), truyền lộn thứ tự: ai gần điểm nào thì vào điểm đó
+  const cur: Record<string, Vec2> = { a: [1.2, 0.5], b: [2, 0.5], c: [2.8, 0.5] };
+  const r = fitSavedShape(cur, ["c", "a", "b"], pts, stage);
+  assert.deepEqual(r.moves, { a: [1, 0.5], b: [2, 0.5], c: [3, 0.5] });
+  assert.deepEqual(r.kept, []);
+  assert.equal(r.unused, 0);
+});
+
+test("fitSavedShape: hình tràn mép sân thì dời vào trong", () => {
+  const pts: Vec2[] = [[-1, 0], [1, 0]];
+  const cur: Record<string, Vec2> = { a: [4.5, 0], b: [4.6, 0] };
+  const r = fitSavedShape(cur, ["a", "b"], pts, stage);
+  for (const q of Object.values(r.moves)) assert.ok(q[0] <= stage.width / 2 - 0.3 + 1e-9);
+  assert.ok(close(r.moves.b[0] - r.moves.a[0], 2, 1e-6));
+});
+
+test("fitSavedShape: nhóm đông hơn số điểm thì người xa nhất giữ chỗ cũ", () => {
+  const pts: Vec2[] = [[-0.5, 0], [0.5, 0]];
+  const cur: Record<string, Vec2> = { a: [-0.6, 0], b: [0.6, 0], far: [0, 2.4] };
+  const r = fitSavedShape(cur, ["a", "b", "far"], pts, stage);
+  assert.deepEqual(r.kept, ["far"]);
+  assert.equal(Object.keys(r.moves).length, 2);
+  assert.ok(!("far" in r.moves));
+  assert.ok(r.moves.a[0] < r.moves.b[0]);
+  assert.ok(close(r.moves.b[0] - r.moves.a[0], 1, 1e-6));
+});
+
+test("fitSavedShape: nhóm ít hơn số điểm thì dùng các điểm gần tâm hình nhất", () => {
+  const pts: Vec2[] = [[-3, 0], [-1, 0], [1, 0], [3, 0]];
+  const cur: Record<string, Vec2> = { a: [0, 0], b: [0.5, 0] };
+  const r = fitSavedShape(cur, ["a", "b"], pts, stage);
+  assert.equal(r.unused, 2);
+  assert.deepEqual(r.kept, []);
+  const xs = Object.values(r.moves).map((q) => q[0]).sort((x, y) => x - y);
+  assert.ok(close(xs[1] - xs[0], 2, 1e-6));
+  assert.ok(r.moves.a[0] < r.moves.b[0]);
+});
+
+test("fitSavedShape: không có điểm hay không có người thì không dời ai", () => {
+  assert.deepEqual(fitSavedShape({ a: [0, 0] }, ["a"], [], stage).moves, {});
+  assert.deepEqual(fitSavedShape({}, ["x"], [[0, 0]], stage), { moves: {}, kept: [], unused: 0 });
+});
+
+test("checkInvariants: hình tự lưu hỏng bị báo", () => {
+  const p = { ...emptyProject(), myShapes: [{ id: "h1", name: "A", pts: [] }, { id: "h2", name: "B", pts: [[NaN, 0]] as Vec2[] }] };
+  assert.equal(checkInvariants(p).length, 2);
+  assert.deepEqual(checkInvariants({ ...emptyProject(), myShapes: [{ id: "h", name: "C", pts: [[0, 0]] }] }), []);
 });

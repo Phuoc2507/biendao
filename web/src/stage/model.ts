@@ -57,6 +57,15 @@ export interface Project {
   downbeat: number; // giây của phách 1 đầu tiên
   dancers: VDancer[];
   formations: Formation[];
+  /** "Hình của tôi": các hình tự lưu, đi theo tệp dự án. Không có thì coi như rỗng. */
+  myShapes?: SavedShape[];
+}
+
+/** Một hình tự lưu: các điểm đã trừ tâm nhóm, không gắn với người nào. */
+export interface SavedShape {
+  id: string;
+  name: string;
+  pts: Vec2[];
 }
 
 export const WING = 1.5;
@@ -544,6 +553,10 @@ export function checkInvariants(p: Project): string[] {
       if (c[0] !== q[0] || c[1] !== q[1]) errs.push(`${f.name}: ${id} ngoài sân`);
     }
   });
+  for (const s of p.myShapes ?? []) {
+    if (!s.pts.length) errs.push(`hình ${s.name}: không có điểm`);
+    if (s.pts.some((q) => !Number.isFinite(q[0]) || !Number.isFinite(q[1]))) errs.push(`hình ${s.name}: điểm hỏng`);
+  }
   return errs;
 }
 
@@ -782,6 +795,70 @@ export function distributeX(current: Record<string, Vec2>, ids: string[]): Recor
     out[id] = [x0 + ((x1 - x0) * i) / (sorted.length - 1), current[id][1]];
   });
   return out;
+}
+
+// ---------- hình của tôi ----------
+
+/**
+ * Chụp hình dạng của nhóm: điểm đã trừ tâm nhóm, làm tròn tới milimét, xếp
+ * từ sau ra trước rồi trái sang phải để không còn dấu vết thứ tự người.
+ */
+export function captureShape(current: Record<string, Vec2>, ids: string[]): Vec2[] {
+  const have = ids.filter((id) => current[id]);
+  if (!have.length) return [];
+  const [cx, cz] = centroid(current, have);
+  return have
+    .map((id): Vec2 => [r3(current[id][0] - cx), r3(current[id][1] - cz)])
+    .sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+}
+
+export interface SavedShapeFit {
+  /** vị trí mới của những người được xếp vào hình */
+  moves: Record<string, Vec2>;
+  /** người không có chỗ trong hình (nhóm đông hơn số điểm), giữ chỗ cũ */
+  kept: string[];
+  /** số điểm của hình bị bỏ (nhóm ít hơn số điểm) */
+  unused: number;
+}
+
+/**
+ * Áp hình đã lưu cho nhóm `ids` quanh tâm nhóm hiện tại, gán người theo đường
+ * gần nhất rồi dời cả hình cho vừa sân. Nhóm đông hơn số điểm: chỉ những người
+ * đi ít nhất được xếp, còn lại giữ chỗ. Nhóm ít hơn: dùng các điểm gần tâm hình nhất.
+ */
+export function fitSavedShape(
+  current: Record<string, Vec2>, ids: string[], pts: Vec2[], stage: StageSize,
+): SavedShapeFit {
+  const group = ids.filter((id) => current[id]);
+  if (!group.length || !pts.length) return { moves: {}, kept: group, unused: 0 };
+  const [cx, cz] = centroid(current, group);
+  let use = pts;
+  let unused = 0;
+  if (group.length < pts.length) {
+    use = pts.map((q, i) => ({ q, i, d: q[0] ** 2 + q[1] ** 2 }))
+      .sort((a, b) => a.d - b.d || a.i - b.i)
+      .slice(0, group.length)
+      .map((o) => o.q);
+    unused = pts.length - group.length;
+  }
+  const abs = use.map((q): Vec2 => [cx + q[0], cz + q[1]]);
+  const from = group.map((id) => current[id]);
+  const placed: Record<string, Vec2> = {};
+  const kept: string[] = [];
+  if (group.length <= abs.length) {
+    const asg = assignNearest(from, abs);
+    group.forEach((id, i) => { placed[id] = abs[asg[i]]; });
+  } else {
+    // gán ngược: mỗi điểm chọn một người, ai không được chọn thì đứng yên
+    const asg = assignNearest(abs, from);
+    const taken = new Set(asg);
+    asg.forEach((k, j) => { placed[group[k]] = abs[j]; });
+    group.forEach((id, i) => { if (!taken.has(i)) kept.push(id); });
+  }
+  const fitted = fitGroup(placed, stage);
+  const moves: Record<string, Vec2> = {};
+  for (const id of Object.keys(fitted)) moves[id] = clampToStage(fitted[id], stage);
+  return { moves, kept, unused };
 }
 
 // ---------- cảnh báo ----------

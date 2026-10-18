@@ -1,7 +1,7 @@
 // Logic thuần của khâu nhập tệp: phân loại, đọc card.json, kiểm dự án, chọn
 // cách lấy độ lệch nhạc và soạn thông báo tổng kết (test bằng node --test).
 
-import { type Project, type VDancer, emptyProject, newDancer } from "./model.ts";
+import { type Project, type VDancer, type SavedShape, type Vec2, emptyProject, newDancer } from "./model.ts";
 
 export const stripName = (name: string): string =>
   name.replace(/\.[^.]+$/, "").replace(/\.card$/i, "");
@@ -85,7 +85,7 @@ export function normalizeProject(raw: unknown): Project | null {
     else delete x.canon;
     dancers.push(x);
   }
-  return {
+  const out = {
     ...base, ...j,
     version: 1,
     musicDuration: num(j.musicDuration, 0, 0),
@@ -95,6 +95,27 @@ export function normalizeProject(raw: unknown): Project | null {
       ? j.formations.map((f) => (f && typeof f === "object" && "note" in f && typeof f.note !== "string" ? (({ note: _n, ...r }) => r)(f) : f))
       : [],
   } as Project;
+  const shapes = normalizeShapes(j.myShapes);
+  if (shapes.length) out.myShapes = shapes;
+  else delete out.myShapes;
+  return out;
+}
+
+const isPt = (q: unknown): q is Vec2 => Array.isArray(q) && q.length === 2 && fin(q[0]) && fin(q[1]);
+
+/** "Hình của tôi" đọc từ tệp: bỏ hình hỏng, bỏ điểm hỏng, id trùng thì giữ hình đầu. */
+export function normalizeShapes(raw: unknown): SavedShape[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: SavedShape[] = [];
+  for (const s of raw as Partial<SavedShape>[]) {
+    if (!s || typeof s !== "object" || typeof s.id !== "string" || seen.has(s.id) || !Array.isArray(s.pts)) continue;
+    const pts = s.pts.filter(isPt).map((q): Vec2 => [q[0], q[1]]);
+    if (!pts.length) continue;
+    seen.add(s.id);
+    out.push({ id: s.id, name: typeof s.name === "string" && s.name.trim() ? s.name.trim() : "Hình không tên", pts });
+  }
+  return out;
 }
 
 /** Khoá nhận ra cùng một tệp được thả lại (không lưu blob lần hai). */

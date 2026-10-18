@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import {
-  type Project, type ShapeKind, type VDancer, type CanonOrder, SHAPE_LABEL, CANON_ORDER_LABEL, shapePoints, initials, PALETTE,
+  type Project, type ShapeKind, type VDancer, type Vec2, type CanonOrder, SHAPE_LABEL, CANON_ORDER_LABEL, shapePoints, initials, PALETTE,
   segmentAt,
 } from "../model";
 import { fmtCounts, fmtTime, tapTempo } from "../timing";
@@ -11,7 +11,7 @@ import * as clock from "../clock";
 import {
   addDancer, duplicateDancer, canonOffsets, updateDancer, removeDancer, moveDancerOrder, realign, realignAll, replaceVideo,
   importFiles, applyShape, mirrorSelected, distributeSelected, swapSelected, rotateSelected, scaleSelected, sendToWings,
-  addFormation, removeFormation, renameBlock, setNote, setStage, setBpm,
+  addFormation, removeFormation, renameBlock, setNote, setStage, setBpm, saveMyShape, applyMyShape, removeMyShape,
   canonSection, clearCanonSection, mirrorGroup, setFlip, fixReassign, fixWiden, fixAllWarnings,
 } from "../actions";
 import { rowKeys, useHoldIndex, useWarnings } from "./hooks";
@@ -455,7 +455,12 @@ function DancersTab() {
 const SHAPES: ShapeKind[] = ["line", "twoLines", "stagger", "arc", "v", "circle", "diagonal"];
 
 function ShapeMini({ kind }: { kind: ShapeKind }) {
-  const pts = shapePoints(kind, 6, [0, 0], 4);
+  return <PtsMini pts={shapePoints(kind, 6, [0, 0], 4)} />;
+}
+
+/** Hình thu nhỏ của một dãy điểm (dùng cho hình dựng sẵn lẫn hình tự lưu). */
+function PtsMini({ pts }: { pts: Vec2[] }) {
+  if (!pts.length) return <svg viewBox="-14 -9 28 18" />;
   const xs = pts.map((q) => q[0]);
   const zs = pts.map((q) => q[1]);
   const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs);
@@ -466,7 +471,7 @@ function ShapeMini({ kind }: { kind: ShapeKind }) {
   return (
     <svg viewBox="-14 -9 28 18">
       {pts.map((q, i) => (
-        <circle key={i} cx={(q[0] - cx) * s} cy={(q[1] - cz) * s} r={1.8} fill="currentColor" />
+        <circle key={i} cx={(q[0] - cx) * s} cy={(q[1] - cz) * s} r={pts.length > 12 ? 1.2 : 1.8} fill="currentColor" />
       ))}
     </svg>
   );
@@ -479,6 +484,7 @@ function FormationsTab() {
   const sel = p.formations.find((f) => f.id === ui.selectedBlock);
   const nSel = ui.selected.length;
   const target = nSel >= 2 ? `${nSel} người đang chọn` : "mọi người";
+  const mine = p.myShapes ?? [];
   return (
     <>
       <div className="section">
@@ -562,6 +568,32 @@ function FormationsTab() {
             </button>
           ))}
         </div>
+        <h4 style={{ marginTop: 10 }}>
+          Hình của tôi<span className="grow" />
+          <button
+            className="btn sm" onClick={saveMyShape}
+            title="Lưu hình dạng của nhóm đang chọn tại vạch phát (chưa chọn ai thì cả đội trên sân) để dùng lại cho đội hình khác"
+          >
+            <Icon name="bookmark" /> Lưu hình
+          </button>
+        </h4>
+        {mine.length === 0
+          ? <div className="dim">Chưa lưu hình nào. Xếp xong một đội hình ưng ý thì bấm Lưu hình.</div>
+          : (
+            <div className="shape-grid">
+              {mine.map((s) => (
+                <div key={s.id} className="mine">
+                  <button onClick={() => applyMyShape(s.id)} title={`Xếp theo hình "${s.name}" (${s.pts.length} chỗ) tại vạch phát`}>
+                    <PtsMini pts={s.pts} />
+                    <span className="nm">{s.name}</span>
+                  </button>
+                  <button className="shape-del" onClick={() => removeMyShape(s.id)} title={`Xoá hình "${s.name}"`} aria-label={`Xoá hình ${s.name}`}>
+                    <Icon name="close" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         <div className="row" style={{ marginTop: 8, flexWrap: "wrap" }}>
           <button className="btn sm" onClick={mirrorSelected} title="Lật trái phải (M)"><Icon name="mirror" /> Lật</button>
           <button className="btn sm" onClick={distributeSelected} disabled={nSel < 3} title="Dàn đều theo chiều ngang"><Icon name="distribute" /> Dàn đều</button>
