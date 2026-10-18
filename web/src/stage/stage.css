@@ -521,6 +521,11 @@ kbd {
   .app.phone .brand { flex-basis: 60px; max-width: none; }
   .app.phone .top-brk { display: block; order: 1; flex-basis: 100%; height: 0; }
   .app.phone .top :is(.grow, .transport, .clock, .count, .snap-btn, .seg, .learn-btn, .present-btn) { order: 2; }
+  /* hàng hai vừa đủ 360 px: nút Về đầu và nút chế độ xem gọn lại */
+  .app.phone .top { column-gap: 3px; }
+  .app.phone .transport { gap: 2px; }
+  .app.phone .transport > .btn.icon:first-child { width: 32px; min-width: 32px; }
+  .app.phone .seg button { min-width: 36px; padding: 0 6px; }
   .keys { grid-template-columns: 1fr; }
   .modal { padding: 16px; }
 }

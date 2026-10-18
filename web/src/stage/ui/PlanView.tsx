@@ -528,16 +528,19 @@ function PlanTools({ issues }: { issues: Issues }) {
           ? "Đang nhìn từ sân khấu ra khán giả (trái phải theo người múa). Bấm để về góc khán giả (O)"
           : "Xoay sơ đồ: nhìn từ sân khấu ra khán giả, trái phải theo người múa (O)"}
         aria-pressed={ui.planFromStage}
+        aria-label={ui.planFromStage ? "Từ sân khấu" : "Từ khán giả"}
         onClick={togglePlanFrom}
       >
-        <Icon name="turn" /> {ui.planFromStage ? "Từ sân khấu" : "Từ khán giả"}
+        <Icon name="turn" /> <span className="rh-hide-narrow">{ui.planFromStage ? "Từ sân khấu" : "Từ khán giả"}</span>
       </button>
       <button
         className={`btn sm${ui.showNext ? " on" : ""}`}
         title="Hiện mờ chỗ đứng của đội hình kế tiếp"
+        aria-label="Bóng đội hình kế"
+        aria-pressed={ui.showNext}
         onClick={() => st().setUI({ showNext: !ui.showNext })}
       >
-        <Icon name="ghost" /> Bóng đội hình kế
+        <Icon name="ghost" /> <span className="rh-hide-narrow">Bóng đội hình kế</span>
       </button>
       <button
         className={`btn sm rh-warnbtn${issues.length ? " has" : ""}${open ? " on" : ""}`}
