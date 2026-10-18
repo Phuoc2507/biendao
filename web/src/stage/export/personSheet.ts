@@ -141,13 +141,17 @@ export function personLayout(p: Project, id: string, pages: number[][], page: nu
   return { w, h, head, lines, cells };
 }
 
+// ô nhỏ (sân rộng) thì chấm theo mét quá bé để nhìn trên điện thoại: giữ cỡ tối thiểu theo điểm ảnh
+const ME_MIN_PX = 22, OTHER_MIN_PX = 12;
+const meR = (g: PlanGeom) => Math.max(R_ME * g.s, ME_MIN_PX);
+
 /** Nội dung ô đội hình k: người id tô nổi, người khác mờ chỉ còn chữ tắt, mũi tên của riêng người id. */
 export function personFrame(p: Project, k: number, id: string, g: PlanGeom): PlanFrame {
   const f = p.formations[k];
   const fr = planFrame(p, (f.start + f.end) / 2, g, { highlightId: id });
   const dots = fr.dots.map((d) => ({
     ...d,
-    r: (d.highlight ? R_ME : R_OTHER) * g.s,
+    r: d.highlight ? meR(g) : Math.max(R_OTHER * g.s, OTHER_MIN_PX),
     // chỉ người đó có nhãn tên; tên ngắn đã nằm trọn trong chấm thì bỏ nhãn
     name: d.highlight && d.label !== d.name ? d.name : "",
   }));
@@ -158,7 +162,7 @@ export function personFrame(p: Project, k: number, id: string, g: PlanGeom): Pla
     if (a && b && dist(a, b) > MOVE_MIN) {
       const [x0, y0] = toPx(g, a[0], a[1]);
       const [x1, y1] = toPx(g, b[0], b[1]);
-      trails.push({ x0, y0, x1, y1, r: R_ME * g.s, color: safeColor(me.color) });
+      trails.push({ x0, y0, x1, y1, r: meR(g), color: safeColor(me.color) });
     }
   }
   return { ...fr, dots, title: "", sub: "", time: "", count: "", trails };
