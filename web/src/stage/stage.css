@@ -136,6 +136,10 @@ kbd {
   }
   .brand { max-width: 174px; }
 }
+/* chưa tới mức bỏ hết chữ: bỏ chữ nút Học động tác trước để khỏi xuống dòng */
+@media (max-width: 1360px) {
+  .top .learn-btn .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
 @media (max-width: 1080px) {
   .top .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .count span { display: none; }

@@ -13,6 +13,7 @@ import { addFormation, liveDancer, projectEnd, renameBlock } from "../actions";
 import { rowKeys, useHoldIndex, useMediaVersion, useWarnings } from "./hooks";
 import { commaDec, fmtSigned } from "./num";
 import { Icon } from "./icons";
+import { tlHeight } from "../layout";
 
 const RULER = 26;
 const WAVE = 40;
@@ -30,6 +31,17 @@ function loadHeight(): number {
   return 0;
 }
 
+/** Chiều cao cửa sổ, đổi theo khi kéo cửa sổ. */
+function useWinH(): number {
+  const [h, setH] = useState(() => window.innerHeight);
+  useEffect(() => {
+    const on = () => setH(window.innerHeight);
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
+  return h;
+}
+
 export function Timeline() {
   const p = useProject();
   const ui = useUI();
@@ -40,7 +52,8 @@ export function Timeline() {
   const [follow, setFollow] = useState(true);
   const auto = 34 + RULER + WAVE + FORMS + p.dancers.length * VID + 14;
   const [hUser, setHUser] = useState(loadHeight);
-  const height = Math.max(150, Math.min(hUser || Math.min(auto, 300), Math.round(window.innerHeight * 0.55)));
+  const winH = useWinH();
+  const height = tlHeight(auto, hUser, winH);
   const innerW = Math.ceil(end * pps) + 240;
   const warnings = useWarnings();
 

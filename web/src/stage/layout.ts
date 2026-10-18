@@ -80,3 +80,10 @@ export function rememberPlanFromStage(on: boolean): void {
     // bộ nhớ bị chặn: lần sau về mặc định nhìn từ khán giả
   }
 }
+
+/** Chiều cao dòng thời gian: tự tính thì cửa sổ thấp chỉ lấy khoảng 2/5 cho
+ *  sơ đồ và khung khán giả còn chỗ; người dùng đã kéo thì cho tới 55%. */
+export function tlHeight(auto: number, user: number, winH: number): number {
+  const cap = user ? Math.round(winH * 0.55) : Math.min(300, Math.round(winH * (winH < 760 ? 0.38 : 0.55)));
+  return Math.max(150, Math.min(user || auto, cap));
+}

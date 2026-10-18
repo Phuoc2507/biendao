@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isPhone, splitDir, startSideOpen, PANE_ASPECT } from "./layout.ts";
+import { isPhone, splitDir, startSideOpen, tlHeight, PANE_ASPECT } from "./layout.ts";
 
 test("isPhone: dựng đứng hẹp, xoay ngang thấp là điện thoại; laptop thì không", () => {
   assert.equal(isPhone(412, 800), true); // Android dựng đứng
@@ -60,4 +60,13 @@ test("startSideOpen: điện thoại luôn đóng; máy tính theo lần trướ
   assert.equal(startSideOpen("0", 1366, 768), false);
   assert.equal(startSideOpen("1", 412, 915), false);
   assert.equal(startSideOpen(null, 915, 412), false);
+});
+
+test("dòng thời gian: cửa sổ thấp chỉ lấy khoảng 2/5, người dùng kéo thì tới 55%", () => {
+  assert.equal(tlHeight(400, 0, 1000), 300); // cửa sổ cao: tối đa 300
+  assert.equal(tlHeight(200, 0, 1000), 200); // ít người: vừa đủ
+  assert.equal(tlHeight(400, 0, 560), 213); // cửa sổ thấp: 38%
+  assert.equal(tlHeight(400, 0, 300), 150); // không thấp hơn 150
+  assert.equal(tlHeight(400, 280, 560), 280); // đã kéo: theo người dùng
+  assert.equal(tlHeight(400, 500, 560), 308); // nhưng không quá 55%
 });
