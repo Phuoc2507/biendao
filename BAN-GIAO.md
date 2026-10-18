@@ -27,7 +27,7 @@ cd web && npm install
 ```
 
 * Chạy app: `npm run dev` trong `web/` rồi mở http://localhost:5173/ (cấu hình sẵn ở `.claude/launch.json`, tên `web`). `index.html` vào app sân khấu `src/stage/main.tsx`.
-* Test: `npm test` trong `web/` (node:test, hiện **249 test xanh**).
+* Test: `npm test` trong `web/` (node:test, hiện **267 test xanh**).
 * Kiểm kiểu (máy ít RAM, phải nâng heap): `node --max-old-space-size=2500 node_modules/typescript/bin/tsc -p .` trong `web/`.
 * Tệp được test import trực tiếp phải import có đuôi `.ts` (ví dụ `from "./timing.ts"`), `model.ts` chỉ được `import type` từ `timing.ts`.
 * Trong trình duyệt có tay cầm DEV `window.__stage.st()` để đọc và gọi store (`setUI`, `commit`, `project`…).
@@ -73,6 +73,9 @@ Quy ước sân: khán giả ở phía **+Z**, x dương là bên **phải khán
 * **Rà lỗi:** đặt chỗ giữa khoảng chuyển gói thành một bước hoàn tác (`batch` trong `setPositionsNow`); ghi chú toàn khoảng trắng bị bỏ khi mở tệp; điểm Hình của tôi quá 1000 m bị bỏ (tránh NaN); cắt ghi chú trong video theo ký tự thật; ô ghi chú bôi đen được trên Safari.
 * **Chia sẻ ảnh** (điện thoại, `navigator.share`) và **Chép ảnh** (máy tính, `ClipboardItem`); máy không hỗ trợ thì ẩn mục, bị từ chối thì tải ảnh xuống thay.
 * **Phím tắt bị chặn** khi hộp Xuất video hoặc lớp Đang xử lý đang mở (`modalOpen` trong `ui/keys.ts`, cờ `ui.exportOpen` trong store). Thêm hộp thoại mới thì nhớ thêm vào `modalOpen`.
+* **Ảnh vị trí từng người** (menu Tệp, `export/personSheet.ts`): mỗi vũ công một ảnh dọc 1080 rộng, lưới 2 cột các đội hình, người đó tô nổi kèm mũi tên riêng; nhiều đội hình thì chia trang -p1, -p2; gói .zip cả đội.
+* **Rà lỗi đợt hai:** Esc ở popup chỉ đóng popup (`popupOpen` trong `ui/keys.ts`); khối mới không đè khối trước khi khoảng hở nhỏ; Xếp hàng trên sân hẹp không đảo thứ tự; thu nhỏ sân thì kéo người vào (`fitFormationsToStage`); `normalizeProject` làm sạch tệp hỏng (kẹp sân 1 tới 60 m, nhịp 20 tới 400, bỏ id trùng, sắp và đẩy khối chồng); `fuzz.test.ts` 3000 ca ngẫu nhiên.
+* Còn nghi: trên điện thoại Esc của ngăn kéo trong App.tsx có thể đóng ngăn kéo khi đang mở menu; snapPos với bước 0 ra NaN (hiện chỉ gọi với hằng số).
 
 Đợt 2026-10-19, phần cuối (commit 7e04370, ef44de4; làm bằng 2 agent song song trong worktree):
 
