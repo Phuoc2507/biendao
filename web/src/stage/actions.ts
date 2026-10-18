@@ -293,10 +293,16 @@ export function currentPoses(): Record<string, Vec2> {
 }
 
 export function setPositionsNow(moves: Record<string, Vec2>, live: boolean) {
-  const fid = ensureHoldNow(live);
-  const fn = (q: Project) => ({ ...q, formations: setPositions(q.formations, fid, moves, q.stage) });
-  if (live) st().live(fn);
-  else st().commit(fn);
+  const run = () => {
+    const fid = ensureHoldNow(live);
+    const fn = (q: Project) => ({ ...q, formations: setPositions(q.formations, fid, moves, q.stage) });
+    if (live) st().live(fn);
+    else st().commit(fn);
+  };
+  // vạch phát giữa khoảng chuyển: tạo khối mới và đặt chỗ là MỘT bước hoàn tác
+  // (nút Hoàn tác trên thông báo chỉ lùi một bước, không thì còn sót khối mới tạo)
+  if (live) run();
+  else batch(run);
 }
 
 export function nudgeSelected(dx: number, dz: number) {

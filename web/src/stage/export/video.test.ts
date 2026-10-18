@@ -107,3 +107,13 @@ test("khung: dải chữ kèm ghi chú đội hình, đang chuyển thì ghi ch�
   assert.ok(planFrame(p, 5, g).sub.endsWith("x…"));
   assert.ok(planFrame(p, 5, g).sub.length < 80);
 });
+
+test("khung: cắt ghi chú dài không xẻ đôi biểu tượng cảm xúc", () => {
+  const p = sample();
+  // biểu tượng nằm đúng chỗ cắt (ký tự 59, 60 tính theo UTF-16)
+  p.formations = p.formations.map((f, k) => (k === 1 ? { ...f, note: `${"x".repeat(58)}😀${"y".repeat(20)}` } : f));
+  const g = planGeometry(p.stage, 1280, 720);
+  const sub = planFrame(p, 5, g).sub;
+  assert.ok(!/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(sub), "còn nửa cặp thay thế");
+  assert.ok(sub.endsWith("…"));
+});
