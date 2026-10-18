@@ -145,3 +145,9 @@ test("Phím chữ và Shift Z", () => {
   assert.deepEqual(resolveShortcut(key("End"), ctx()), { type: "seek", to: "end" });
   assert.equal(resolveShortcut(key("Enter"), ctx({ hasDancers: false })), null);
 });
+
+test("X: đổi chỗ khi đang chọn người, không chọn ai thì bỏ qua", () => {
+  assert.deepEqual(resolveShortcut(key("x"), ctx({ hasSelection: true })), { type: "swap" });
+  assert.equal(resolveShortcut(key("x"), ctx()), null);
+  assert.equal(resolveShortcut(key("x"), ctx({ hasSelection: true, presenting: true })), null);
+});

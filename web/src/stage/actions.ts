@@ -316,11 +316,11 @@ export function nudgeSelected(dx: number, dz: number) {
 const warnCount = (p: Project = proj()) => findIssues(p.formations, p.dancers, p.stage, p.bpm).length;
 
 /** Sau một thao tác xếp chỗ: sinh thêm cảnh báo thì báo kèm nút Sửa tất cả. */
-function hintWarn(before: number, what: string, always = false) {
+function hintWarn(before: number, what: string, always = false, offerFix = true) {
   const added = warnCount() - before;
   if (added > 0) {
     st().notify(`${what} · thêm ${added} cảnh báo lúc chuyển đội hình`, {
-      undo: true, kind: "warn", action: { label: "Sửa tất cả", run: fixAllWarnings },
+      undo: true, kind: "warn", action: offerFix ? { label: "Sửa tất cả", run: fixAllWarnings } : undefined,
     });
   } else if (always) st().notify(what, { undo: true });
 }
@@ -354,6 +354,23 @@ export function distributeSelected() {
   const w = warnCount();
   setPositionsNow(distributeX(currentPoses(), sel), false);
   hintWarn(w, "Đã dàn đều");
+}
+
+/** Hai người đang chọn đổi chỗ cho nhau trong đội hình tại vạch phát. */
+export function swapSelected() {
+  const p = proj();
+  const sel = st().ui.selected.filter((id) => p.dancers.some((d) => d.id === id));
+  if (sel.length !== 2) {
+    st().notify("Chọn đúng 2 người để đổi chỗ");
+    return;
+  }
+  const cur = currentPoses();
+  const [a, b] = sel;
+  const w = warnCount(p);
+  setPositionsNow({ [a]: cur[b], [b]: cur[a] }, false);
+  const nm = (id: string) => p.dancers.find((d) => d.id === id)!.name;
+  // không mời Sửa tất cả: đổi chỗ cho gần sẽ trả hai người về như cũ
+  hintWarn(w, `Đã đổi chỗ ${nm(a)} và ${nm(b)}`, true, false);
 }
 
 export function sendToWings(side: -1 | 1) {
@@ -410,7 +427,7 @@ export function pastePositions() {
   const w = warnCount(p);
   setPositionsNow(moves, false);
   st().setUI({ selected: Object.keys(moves) });
-  hintWarn(w, `Đã dán chỗ đứng (từ ${copied.from}) cho ${n === p.dancers.length ? "cả đội" : `${n} người`}`, true);
+  hintWarn(w, `Đã dán chỗ đứng (từ ${copied.from}) cho ${n === p.dancers.length ? "cả đội" : `${n} người`}`, true, false);
 }
 
 // ---------- đội hình ----------

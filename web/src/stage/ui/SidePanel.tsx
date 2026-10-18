@@ -10,7 +10,7 @@ import { st, useProject, useUI } from "../store";
 import * as clock from "../clock";
 import {
   addDancer, duplicateDancer, canonOffsets, updateDancer, removeDancer, moveDancerOrder, realign, realignAll, replaceVideo,
-  importFiles, applyShape, mirrorSelected, distributeSelected, sendToWings,
+  importFiles, applyShape, mirrorSelected, distributeSelected, swapSelected, sendToWings,
   addFormation, removeFormation, renameBlock, setNote, setStage, setBpm,
   canonSection, clearCanonSection, mirrorGroup, setFlip, fixReassign, fixWiden, fixAllWarnings,
 } from "../actions";
@@ -564,6 +564,7 @@ function FormationsTab() {
         <div className="row" style={{ marginTop: 8, flexWrap: "wrap" }}>
           <button className="btn sm" onClick={mirrorSelected} title="Lật trái phải (M)"><Icon name="mirror" /> Lật</button>
           <button className="btn sm" onClick={distributeSelected} disabled={nSel < 3} title="Dàn đều theo chiều ngang"><Icon name="distribute" /> Dàn đều</button>
+          <button className="btn sm" onClick={swapSelected} disabled={nSel !== 2} title="Hai người đang chọn đổi chỗ cho nhau (X)"><Icon name="swap" /> Đổi chỗ</button>
           <button className="btn sm" onClick={() => sendToWings(-1)} disabled={!nSel} title="Đưa vào cánh gà trái"><Icon name="wingL" /> Cánh trái</button>
           <button className="btn sm" onClick={() => sendToWings(1)} disabled={!nSel} title="Đưa vào cánh gà phải"><Icon name="wingR" /> Cánh phải</button>
         </div>

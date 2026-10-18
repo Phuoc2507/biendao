@@ -26,6 +26,7 @@ const P: Record<string, string> = {
   mirror: "M12 3v18M8 7L3 12l5 5zM16 7l5 5-5 5z",
   distribute: "M4 4v16M20 4v16M9 8h6v8H9z",
   wingL: "M3 4h5v16H3zM20 12h-9M14 8l-4 4 4 4",
+  swap: "M4 8h14M14 4l4 4-4 4M20 16H6M10 12l-4 4 4 4",
   wingR: "M16 4h5v16h-5zM4 12h9M10 8l4 4-4 4",
   sync: "M4 12a8 8 0 0 1 14-5.3L20 9M20 4v5h-5M20 12a8 8 0 0 1-14 5.3L4 15M4 20v-5h5",
   zoomIn: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5M8 11h6M11 8v6",

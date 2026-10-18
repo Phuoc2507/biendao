@@ -155,6 +155,7 @@ const KEYS: [string, [string, string][]][] = [
     ["Chép chỗ đứng / dán vào đội hình đang đứng", "Ctrl C / Ctrl V"],
     ["Bỏ chọn", "Esc"],
     ["Lật trái phải", "M"],
+    ["Hai người đang chọn đổi chỗ", "X"],
     ["Kéo không bám lưới", "giữ Alt"],
   ]],
   ["Đội hình", [
