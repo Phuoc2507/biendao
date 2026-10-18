@@ -105,6 +105,13 @@ export interface KeyCtx {
   formationFocused: boolean;
   /** Trên trang đang có chữ được bôi đen. */
   textSelected?: boolean;
+  /** Đang mở hộp thoại che bài (Xuất video, Đang xử lý...): chỉ còn Ctrl S, hộp tự lo Esc. */
+  modal?: boolean;
+}
+
+/** Có hộp thoại che bài đang mở không. Hướng dẫn và Học động tác có xử lý phím riêng nên không tính ở đây. */
+export function modalOpen(ui: { exportOpen: boolean; busy: unknown }): boolean {
+  return ui.exportOpen || !!ui.busy;
 }
 
 // giữ phím thì chỉ lặp các phím di chuyển; còn lại một lần bấm một lần chạy
@@ -124,6 +131,8 @@ function resolve(k: KeyIn, c: KeyCtx): Action | null {
   const lower = key.length === 1 ? key.toLowerCase() : key;
   if (k.ctrl && lower === "s") return { type: "save" };
   if (c.help) return key === "Escape" || key === "?" ? { type: "help", open: false } : null;
+  // hộp thoại đang mở: không sửa bài, không dời vạch phát phía sau hộp (Esc do hộp tự đóng)
+  if (c.modal) return null;
   // "?" cần Shift (hoặc AltGr ở vài bàn phím) nên không xét phím bổ trợ
   if (key === "?") return c.presenting ? null : { type: "help", open: true };
   if (k.ctrl) {

@@ -8,7 +8,7 @@ import {
   stepBeat, exportProject, projectEnd, copyPositions, pastePositions, swapSelected, rotateSelected,
 } from "../actions";
 import { focusByPointer } from "./hooks";
-import { type Action, resolveShortcut, routeKey, targetKind } from "./keys";
+import { type Action, modalOpen, resolveShortcut, routeKey, targetKind } from "./keys";
 import { toggleLoop } from "./Timeline";
 import { togglePlanFrom } from "./PlanView";
 
@@ -88,6 +88,7 @@ export function useShortcuts() {
           hasBlock: !!ui.selectedBlock,
           formationFocused: !!fEl,
           textSelected: !!window.getSelection()?.toString(),
+          modal: modalOpen(ui),
         },
       );
       if (!a) return;
