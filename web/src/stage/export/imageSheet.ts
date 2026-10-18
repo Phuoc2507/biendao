@@ -13,7 +13,7 @@ export const IMG_H = 1350;
 
 const FONT = '"Segoe UI", system-ui, Arial, sans-serif';
 const PAD = 56; // lề trái phải của chữ
-const CW = 0.55; // bề rộng trung bình một ký tự so với cỡ chữ (ước lượng để ngắt dòng)
+const CW = 0.47; // bề rộng trung bình một ký tự so với cỡ chữ (đo trên Segoe UI, chữ Việt có dấu)
 
 /**
  * Đội hình ứng với vạch phát: đang đứng thì chính nó, đang chuyển thì đội hình
@@ -71,7 +71,8 @@ export interface ImageLayout {
   geom: PlanGeom;
 }
 
-const chars = (size: number, w: number) => Math.max(8, Math.floor((w - 2 * PAD) / (size * CW)));
+/** Số ký tự ước lượng vừa một dòng chữ cỡ size trên ảnh rộng w. */
+export const lineChars = (size: number, w: number) => Math.max(8, Math.floor((w - 2 * PAD) / (size * CW)));
 
 /** Các dòng chữ đầu ảnh: tên bài, tên đội hình, thời điểm và nhịp, ghi chú. */
 export function headerLines(p: Project, k: number, w = IMG_W): TextLine[] {
@@ -79,11 +80,11 @@ export function headerLines(p: Project, k: number, w = IMG_W): TextLine[] {
   const n = p.formations.length;
   const spec: [string[], number, number, string, number][] = [
     // [các dòng, cỡ, đậm, màu, khoảng cách trước]
-    [wrapText(p.title || "Bài múa", chars(40, w), 1), 40, 600, "#8b95a7", 0],
-    [wrapText(`${k + 1}/${n} · ${f.name}`, chars(60, w), 2), 60, 700, "#e8ecf2", 14],
-    [wrapText(timeLabel(p, k), chars(32, w), 2), 32, 400, "#ff9f43", 12],
+    [wrapText(p.title || "Bài múa", lineChars(40, w), 1), 40, 600, "#8b95a7", 0],
+    [wrapText(`${k + 1}/${n} · ${f.name}`, lineChars(60, w), 2), 60, 700, "#e8ecf2", 14],
+    [wrapText(timeLabel(p, k), lineChars(32, w), 2), 32, 400, "#ff9f43", 12],
   ];
-  if (f.note?.trim()) spec.push([wrapText(f.note, chars(34, w), 3), 34, 400, "#e8ecf2", 18]);
+  if (f.note?.trim()) spec.push([wrapText(f.note, lineChars(34, w), 3), 34, 400, "#e8ecf2", 18]);
   const out: TextLine[] = [];
   let y = PAD;
   for (const [ls, size, weight, color, gap] of spec) {
@@ -125,7 +126,8 @@ export function imageFrame(p: Project, k: number, g: PlanGeom): PlanFrame {
   const f = p.formations[k];
   const fr = planFrame(p, (f.start + f.end) / 2, g);
   // chấm to hơn video một chút để đọc được chữ tắt trên điện thoại
-  const dots = fr.dots.map((d) => ({ ...d, r: 0.36 * g.s }));
+  // tên ngắn đã nằm trọn trong chấm thì bỏ nhãn dưới chấm để khỏi đè chấm bên cạnh
+  const dots = fr.dots.map((d) => ({ ...d, r: 0.36 * g.s, name: d.label === d.name ? "" : d.name }));
   const now = holdPoses(p, k);
   const prev = k > 0 ? holdPoses(p, k - 1) : null;
   const trails: FrameTrail[] = [];

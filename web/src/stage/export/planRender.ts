@@ -254,6 +254,7 @@ export function drawPlanFrame(ctx: Ctx2D, g: PlanGeom, f: PlanFrame) {
     ctx.font = `700 ${Math.round(Math.max(9, d.r * 0.75))}px ${FONT}`;
     ctx.textAlign = "center";
     ctx.fillText(d.label, d.x, d.y + 1);
+    if (!d.name) continue;
     ctx.fillStyle = "#e8ecf2";
     ctx.font = `${d.highlight ? "700 " : ""}${Math.round(12 * u * (d.highlight ? 1.2 : 1))}px ${FONT}`;
     ctx.fillText(d.name, d.x, d.y + d.r + 12 * u);

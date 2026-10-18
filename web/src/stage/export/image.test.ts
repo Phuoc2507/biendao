@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  IMG_W, IMG_H, formationIndexAt, wrapText, headerLines, imageLayout, imageFrame, drawImage, imageFileName, imagesZipName,
+  IMG_W, IMG_H, formationIndexAt, wrapText, headerLines, imageLayout, imageFrame, drawImage, imageFileName, imagesZipName, lineChars,
 } from "./imageSheet.ts";
 import { toPx, type Ctx2D } from "./planRender.ts";
 import { type Project, emptyProject, newDancer, WING } from "../model.ts";
@@ -131,4 +131,19 @@ test("tên tệp ảnh và gói: không dấu cách, có số thứ tự", () =>
   const q = { ...p, title: "", formations: [{ ...p.formations[0], name: "  " }] };
   assert.equal(imageFileName(q, 0), "bai-mua-01-doi-hinh.png");
   for (const n of [imageFileName(p, 1), imagesZipName(p), imageFileName(q, 0)]) assert.ok(!/\s/.test(n));
+});
+
+test("ảnh: tên ngắn đã nằm trọn trong chấm thì không vẽ lại dưới chấm (khỏi đè chấm bên cạnh)", () => {
+  const p = sample();
+  const { ctx, texts } = fakeCtx();
+  drawImage(ctx, p, 1);
+  assert.equal(texts.filter((s) => s === "Lan").length, 1);
+  const long = { ...p, dancers: p.dancers.map((d) => (d.id === "a" ? { ...d, name: "Nguyễn Văn Hương" } : d)) };
+  const t2 = fakeCtx();
+  drawImage(t2.ctx, long, 1);
+  assert.ok(t2.texts.includes("Nguyễn Văn Hương"), "tên dài vẫn có nhãn dưới chấm");
+});
+
+test("ảnh: dòng giờ và nhịp cỡ 56 ký tự vẫn nằm trên một dòng", () => {
+  assert.equal(wrapText("0:24.0 – 0:27.6 · bắt đầu 8 thứ 6, phách 1 · giữ 6 phách", lineChars(32, 1080), 2).length, 1);
 });
