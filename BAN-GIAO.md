@@ -27,7 +27,7 @@ cd web && npm install
 ```
 
 * Chạy app: `npm run dev` trong `web/` rồi mở http://localhost:5173/ (cấu hình sẵn ở `.claude/launch.json`, tên `web`). `index.html` vào app sân khấu `src/stage/main.tsx`.
-* Test: `npm test` trong `web/` (node:test, hiện **197 test xanh**).
+* Test: `npm test` trong `web/` (node:test, hiện **209 test xanh**).
 * Kiểm kiểu (máy ít RAM, phải nâng heap): `node --max-old-space-size=2500 node_modules/typescript/bin/tsc -p .` trong `web/`.
 * Tệp được test import trực tiếp phải import có đuôi `.ts` (ví dụ `from "./timing.ts"`), `model.ts` chỉ được `import type` từ `timing.ts`.
 * Trong trình duyệt có tay cầm DEV `window.__stage.st()` để đọc và gọi store (`setUI`, `commit`, `project`…).
@@ -65,21 +65,29 @@ Video mẫu thật: `D:\bien\IMG_5116.mov` (iPhone, HEVC 1920x1080, 41,9 s, khô
 
 Quy ước sân: khán giả ở phía **+Z**, x dương là bên **phải khán giả**.
 
-## 5. Đã xong gần nhất (commit 91f7646, 6616b4a, 74a796f)
+## 5. Đã xong gần nhất
+
+Đợt 2026-10-19 (commit 0a9c461 tới 94d387d):
+
+* **Sửa nhanh cảnh báo** (`fixes.ts`): Đổi chỗ cho gần (Hungarian quanh một đội hình), Đổi vai từ đây (khi đổi riêng làm đoạn sau xấu đi thì đổi vai cho mọi đội hình về sau), Nới khoảng chuyển (rời sớm, bắt về phách, không nới nếu thêm va), Sửa tất cả (có ở ngăn Cảnh báo và ô Cảnh báo trên sơ đồ). Test ngẫu nhiên 300 bài: không bao giờ tăng cảnh báo, giữ lúc tới, khối không chồng.
+* **Trình chiếu:** góc Sau lưng (phím B); nhãn Khoá sửa tự nhấc lên khi bị thanh điều khiển đè; bố cục riêng cho điện thoại dựng đứng (sơ đồ nhỏ nằm trên thanh điều khiển, mặc định tắt) và nằm ngang (sơ đồ nhỏ bên phải).
+* **Bố cục:** dòng thời gian chỉ lấy khoảng 2/5 khi cửa sổ thấp (`tlHeight` trong `layout.ts`); thanh trên không xuống dòng ở 1180 tới 1360 px; điện thoại thanh trên còn hai hàng; cửa sổ thấp thì nút sơ đồ cùng hàng nhãn trạng thái và sân chỉ chừa chỗ cho nút thật sự đè lên bề ngang của nó (`topExtra` trong `layout.ts`).
+* **Học động tác trên điện thoại:** lời nhắc gương còn một câu.
+
+Trước đó (commit 91f7646, 6616b4a, 74a796f):
 
 * **Góc nhìn:** sơ đồ "Từ sân khấu" (phím O). Khung 3D thêm góc **Sau lưng**: thẻ là billboard nên khi camera ở sau thì lật texture (uniform `flipX`), tức như soi gương.
-* **Canon theo đoạn:** `VDancer.canon = [{start, end, lag}]`. Trong đoạn, người vào sau đứng chờ ở khung đầu đoạn rồi múa trễ `lag`; hết đoạn khớp lại. Thứ tự: trái sang phải, phải sang trái, giữa trước, hàng đầu trước, theo danh sách; người cách nhau dưới 0,3 m theo tiêu chí vào cùng lượt.
-* **Đối xứng hai bên:** `VDancer.flip`; nút lật gương người bên phải nhóm, nên 3 bản sao từ một video thành tổ hợp 3 người.
-* **Học động tác:** gương (M), chậm 0,25× tới 1× giữ cao độ, lặp A B, đếm 5678, bước khung, "Bám theo tôi" (khung vẽ tay, nội suy). Đã thử với `IMG_5116.mov` thật, phát được trên Chrome.
-* Bộ lọc người múa chính khi tạo thẻ (commit e04225a): trễ khi tách mảng dính, cắt bớt người xem lúc dính.
+* **Canon theo đoạn:** `VDancer.canon = [{start, end, lag}]`. Trong đoạn, người vào sau đứng chờ ở khung đầu đoạn rồi múa trễ `lag`; hết đoạn khớp lại.
+* **Đối xứng hai bên:** `VDancer.flip`; nút lật gương người bên phải nhóm.
+* **Học động tác:** gương (M), chậm 0,25× tới 1× giữ cao độ, lặp A B, đếm 5678, bước khung, "Bám theo tôi" (khung vẽ tay, nội suy).
+* Bộ lọc người múa chính khi tạo thẻ (commit e04225a).
 
 ## 6. Việc còn mở (gợi ý thứ tự)
 
-1. **Trình chiếu chưa có góc Sau lưng:** `ui/Present.tsx` có thể truyền `preset="back"` cho `AudienceView` (prop đã có sẵn) kèm một nút chọn góc.
-2. **Bộ lọc tạo thẻ** còn lọt người xem khi chạm sát vũ công thật (khoảng 29 tới 30 s, 39 s, 40,5 tới 41,5 s của IMG_5116) và còn mẩu áo trắng bị cắt ở 28,5 s và 38,5 s. Đã thử "chỉ giữ mảng lớn nhất": làm mất chân, đã bỏ.
-3. **Bám theo tôi** đang dùng khung vẽ tay; có thể thêm tự bám người (cần mô hình phát hiện người, phải xin phép người dùng trước khi tải).
-4. **Nhìn thật từ sau lưng** (thấy lưng người múa) cần dựng tư thế 3D từ video: để sau, hiện app nói rõ là chưa làm được.
-5. Thử trên **điện thoại thật** và với **nhiều video người khác nhau** (đến giờ chủ yếu thử bằng bản nhân bản của IMG_5116).
+1. **Bộ lọc tạo thẻ** còn lọt người xem khi chạm sát vũ công thật (khoảng 29 tới 30 s, 39 s, 40,5 tới 41,5 s của IMG_5116) và còn mẩu áo trắng bị cắt ở 28,5 s và 38,5 s. Đã thử "chỉ giữ mảng lớn nhất": làm mất chân, đã bỏ.
+2. **Bám theo tôi** đang dùng khung vẽ tay; có thể thêm tự bám người (cần mô hình phát hiện người, phải xin phép người dùng trước khi tải).
+3. **Nhìn thật từ sau lưng** (thấy lưng người múa) cần dựng tư thế 3D từ video: để sau, hiện app nói rõ là chưa làm được.
+4. Thử trên **điện thoại thật** và với **nhiều video người khác nhau** (đến giờ chủ yếu thử bằng bản nhân bản của IMG_5116).
 
 ## 7. Bộ nhớ của Claude
 
