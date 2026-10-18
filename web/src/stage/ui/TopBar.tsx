@@ -46,7 +46,9 @@ const DEV = typeof location !== "undefined" && new URLSearchParams(location.sear
 
 function FileMenu() {
   const [open, setOpen] = useState(false);
-  const [exporting, setExporting] = useState(false);
+  // trong store để phím tắt chung biết đang có hộp thoại (keys.ts modalOpen)
+  const exporting = useStore((s) => s.ui.exportOpen);
+  const setExporting = (on: boolean) => st().setUI({ exportOpen: on });
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;

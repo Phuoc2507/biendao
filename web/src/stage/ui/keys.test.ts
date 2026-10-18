@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { type KeyCtx, type KeyIn, nativeKey, resolveShortcut, routeKey, targetKind } from "./keys.ts";
+import { type KeyCtx, type KeyIn, modalOpen, nativeKey, resolveShortcut, routeKey, targetKind } from "./keys.ts";
 
 const ctx = (o: Partial<KeyCtx> = {}): KeyCtx => ({
   presenting: false, help: false, hasSelection: false, hasDancers: true, hasBlock: false, formationFocused: false, ...o,
@@ -157,4 +157,25 @@ test("R: xoay theo chiều kim đồng hồ, Shift R xoay ngược, giữ phím 
   assert.deepEqual(resolveShortcut(key("R", { shift: true }), ctx({ hasDancers: true })), { type: "rotate", dir: -1 });
   assert.equal(resolveShortcut(key("r", { repeat: true }), ctx({ hasDancers: true })), null);
   assert.equal(resolveShortcut(key("r"), ctx({ hasDancers: false })), null);
+});
+
+test("hộp thoại đang mở: phím tắt không sửa bài phía sau, chỉ còn Ctrl S", () => {
+  const m = ctx({ modal: true, hasSelection: true, hasBlock: true, formationFocused: true });
+  assert.deepEqual(resolveShortcut(key("s", { ctrl: true }), m), { type: "save" });
+  for (const k of ["m", "r", "R", "x", "n", "v", "f", "l", "o", "Z", "Delete", "Enter", "+", " ", "Home", "End",
+    "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "[", "]", "?", "Escape"]) {
+    assert.equal(resolveShortcut(key(k, { shift: k === "Z" || k === "R" }), m), null, `phím ${k}`);
+  }
+  for (const k of ["v", "c", "z", "y", "a"]) {
+    assert.equal(resolveShortcut(key(k, { ctrl: true }), m), null, `Ctrl ${k}`);
+  }
+  assert.equal(resolveShortcut(key("z", { ctrl: true, shift: true }), m), null, "Ctrl Shift Z");
+  // hướng dẫn vẫn tự đóng bằng Esc như cũ
+  assert.deepEqual(resolveShortcut(key("Escape"), ctx({ modal: true, help: true })), { type: "help", open: false });
+});
+
+test("modalOpen: hộp Xuất video hoặc lớp Đang xử lý là đang có hộp thoại", () => {
+  assert.equal(modalOpen({ exportOpen: false, busy: null }), false);
+  assert.equal(modalOpen({ exportOpen: true, busy: null }), true);
+  assert.equal(modalOpen({ exportOpen: false, busy: { msg: "Đang nạp bài…", progress: -1 } }), true);
 });
