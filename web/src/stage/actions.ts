@@ -350,21 +350,24 @@ export function applyShape(kind: ShapeKind) {
 
 export function mirrorSelected() {
   const p = proj();
-  let sel = st().ui.selected;
+  // lựa chọn cũ có thể còn id người đã xoá: lọc trước khi tính
+  const cur = currentPoses();
+  let sel = st().ui.selected.filter((id) => id in cur);
   if (!sel.length) sel = ids(p);
   const w = warnCount(p);
-  setPositionsNow(mirrorPositions(currentPoses(), sel), false);
+  setPositionsNow(mirrorPositions(cur, sel), false);
   hintWarn(w, "Đã lật trái phải");
 }
 
 export function distributeSelected() {
-  const sel = st().ui.selected;
+  const cur = currentPoses();
+  const sel = st().ui.selected.filter((id) => id in cur);
   if (sel.length < 3) {
     st().notify("Chọn ít nhất 3 người để dàn đều");
     return;
   }
   const w = warnCount();
-  setPositionsNow(distributeX(currentPoses(), sel), false);
+  setPositionsNow(distributeX(cur, sel), false);
   hintWarn(w, "Đã dàn đều");
 }
 
