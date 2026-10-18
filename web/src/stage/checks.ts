@@ -13,7 +13,7 @@ export interface Issue extends Warning {
   from: string | null; // khối đi (null với overlap)
   at: Vec2; // chỗ đánh dấu trên sơ đồ
   paths: [Vec2, Vec2][]; // đường đi liên quan, tô đỏ
-  value: number; // m/s với fast, khoảng cách (m) với collide / overlap
+  value: number; // m/s với fast, khoảng cách (m) với collide / overlap, độ lệch ngang (m) với blocked
 }
 
 /** Ngược của smoothstep trên [0, 1]: phần đường u ứng với phần thời gian nào. */
@@ -89,8 +89,54 @@ export function transitionIssues(
   return out;
 }
 
-/** Mọi cảnh báo, theo thứ tự thời gian: đứng chồng (từ findWarnings) cộng va
- *  nhau và chạy quá nhanh trong lúc chuyển (bản tính đúng, ngưỡng của tự chia). */
+// ---------- bị che ----------
+//
+// Khán giả ngồi phía +Z và nhìn thẳng vào sân. Người A bị che khi có người B
+// đứng gần khán giả hơn hẳn (z_B > z_A + BLOCK_Z_M) mà lệch ngang với A chưa
+// tới BLOCK_X_M. Chỉ xét lúc GIỮ đội hình (lúc chuyển ai cũng đi qua nhau, che
+// thoáng qua không sao), bỏ qua người ẩn và người trong cánh gà.
+
+/** Bề ngang vai người lớn khoảng 0,35 đến 0,45 m: lệch ngang ít hơn khoảng này
+ *  thì người sau bị thân người trước che gần hết khi nhìn thẳng. Lấy cận dưới
+ *  để hai hàng so le (lệch nửa khoảng cách, thường 0,6 m trở lên) không bị báo. */
+export const BLOCK_X_M = 0.35;
+/** Gần khán giả hơn hẳn khoảng này mới tính là đứng trước; cùng một hàng mà
+ *  lệch trước sau chút ít thì không ai che ai. */
+export const BLOCK_Z_M = 0.3;
+
+/** Loại cảnh báo nhẹ (bị che): vẫn liệt kê, nhưng không đếm trong thông báo
+ *  sau thao tác xếp chỗ và không thuộc "Sửa tất cả" (vốn chỉ sửa lúc chuyển). */
+export const isSoft = (kind: Warning["kind"]) => kind === "blocked";
+
+export function blockedIssues(
+  fs: Formation[],
+  dancers: { id: string; name: string; hidden?: boolean }[],
+  stage: StageSize,
+): Issue[] {
+  const vis = dancers.filter((d) => !d.hidden);
+  const out: Issue[] = [];
+  for (const f of fs) {
+    const on = vis.filter((d) => f.pos[d.id] && !inWings(f.pos[d.id], stage));
+    for (const a of on)
+      for (const b of on) {
+        if (a === b) continue;
+        const pa = f.pos[a.id], pb = f.pos[b.id];
+        if (!(pb[1] > pa[1] + BLOCK_Z_M)) continue;
+        const dx = Math.abs(pa[0] - pb[0]);
+        if (dx >= BLOCK_X_M) continue;
+        if (dist(pa, pb) < NEAR_M) continue; // đã có cảnh báo đứng chồng
+        out.push({
+          kind: "blocked", formation: f.id, from: null, ids: [a.id, b.id],
+          t: (f.start + f.end) / 2, at: pa, paths: [[pb, pa]], value: dx,
+          msg: `${f.name}: ${a.name} bị ${b.name} che (khán giả nhìn thẳng)`,
+        });
+      }
+  }
+  return out;
+}
+
+/** Mọi cảnh báo, theo thứ tự thời gian: đứng chồng (từ findWarnings), bị che,
+ *  cộng va nhau và chạy quá nhanh trong lúc chuyển (bản tính đúng, ngưỡng của tự chia). */
 export function findIssues(
   fs: Formation[],
   dancers: { id: string; name: string; hidden?: boolean }[],
@@ -104,5 +150,6 @@ export function findIssues(
       const a = f?.pos[w.ids[0]], b = f?.pos[w.ids[1]];
       return { ...w, from: null, at: a && b ? lerp2(a, b, 0.5) : [0, 0], paths: [], value: a && b ? dist(a, b) : 0 };
     });
-  return [...over, ...transitionIssues(fs, dancers, stage, bpm)].sort((a, b) => a.t - b.t);
+  return [...over, ...blockedIssues(fs, dancers, stage), ...transitionIssues(fs, dancers, stage, bpm)]
+    .sort((a, b) => a.t - b.t);
 }

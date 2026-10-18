@@ -1,7 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { closestU, findIssues, invSmoothstep, transitionIssues } from "./checks.ts";
-import { type Formation, type StageSize, type Vec2, lerp2, smoothstep } from "./model.ts";
+import {
+  BLOCK_X_M, BLOCK_Z_M, blockedIssues, closestU, findIssues, invSmoothstep, isSoft, transitionIssues,
+} from "./checks.ts";
+import { type Formation, type StageSize, type Vec2, lerp2, shapePoints, smoothstep } from "./model.ts";
+import { fittedShape } from "./autoplan.ts";
 
 const stage: StageSize = { width: 8, depth: 6 };
 const ds = [
@@ -123,4 +126,71 @@ test("findIssues: giữ cảnh báo đứng chồng, xếp theo thời gian", ()
   assert.ok(near(o.at[0], 0.05) && near(o.at[1], 1));
   assert.ok(near(o.value, 0.1));
   assert.deepEqual(findIssues([], ds, stage, null), []);
+});
+
+// ---- bị che: khán giả ở phía +Z ----
+
+test("bị che: người đứng sau, lệch ngang dưới bề vai, giữa khối giữ", () => {
+  const fs = [F("1", 2, 6, { a: [0, -1], b: [0.2, 0.5] })];
+  const is = blockedIssues(fs, ds, stage);
+  assert.equal(is.length, 1);
+  const w = is[0];
+  assert.equal(w.kind, "blocked");
+  assert.deepEqual(w.ids, ["a", "b"]); // An (sau) bị Bình (trước) che
+  assert.equal(w.formation, "1");
+  assert.equal(w.from, null);
+  assert.ok(near(w.t, 4));
+  assert.ok(near(w.value, 0.2));
+  assert.deepEqual(w.at, [0, -1]);
+  assert.equal(w.msg, "Đội hình 1: An bị Bình che (khán giả nhìn thẳng)");
+  assert.ok(isSoft(w.kind));
+  assert.ok(!isSoft("collide") && !isSoft("overlap") && !isSoft("fast"));
+  // findIssues có luôn loại này
+  assert.deepEqual(findIssues(fs, ds, stage, null).map((x) => x.kind), ["blocked"]);
+});
+
+test("bị che: lệch đủ bề vai, cùng hàng, hay đứng chồng thì không báo", () => {
+  const no = (pos: Record<string, Vec2>) => assert.deepEqual(blockedIssues([F("1", 0, 2, pos)], ds, stage), []);
+  no({ a: [0, -1], b: [BLOCK_X_M, 1] }); // lệch đúng ngưỡng
+  no({ a: [0, 0], b: [0.1, BLOCK_Z_M] }); // trước sau chưa quá 30 cm: cùng một hàng
+  no({ a: [-2, 0], b: [2, 0] });
+  // gần dưới 45 cm thì đã là đứng chồng, không báo trùng
+  const close = [F("1", 0, 2, { a: [0, 0], b: [0, 0.4] })];
+  assert.deepEqual(blockedIssues(close, ds, stage), []);
+  assert.deepEqual(findIssues(close, ds, stage, null).map((x) => x.kind), ["overlap"]);
+});
+
+test("bị che: bỏ qua người ẩn và người trong cánh gà, mỗi cặp một cảnh báo", () => {
+  const hid = [{ id: "a", name: "An" }, { id: "b", name: "Bình", hidden: true }];
+  assert.deepEqual(blockedIssues([F("1", 0, 2, { a: [0, -1], b: [0, 1] })], hid, stage), []);
+  assert.deepEqual(blockedIssues([F("1", 0, 2, { a: [4.5, -1], b: [4.6, 1] })], ds, stage), []);
+  // một người ra sân, người kia còn trong cánh gà: chưa ai che ai
+  assert.deepEqual(blockedIssues([F("1", 0, 2, { a: [3.9, -1], b: [4.1, 1] })], ds, stage), []);
+  // ba người một cột dọc: ba cặp
+  const three = [...ds, { id: "c", name: "Cúc" }];
+  const col = blockedIssues([F("1", 0, 2, { a: [0, -2], b: [0, 0], c: [0, 2] })], three, stage);
+  assert.deepEqual(col.map((w) => w.ids.join(">")).sort(), ["a>b", "a>c", "b>c"]);
+  // lúc chuyển không xét: hai đội hình không ai che ai, đường đi cắt nhau dọc vẫn không báo che
+  const move = [F("1", 0, 2, { a: [0, -2], b: [1, 2] }), F("2", 4, 6, { a: [0, 2], b: [1, -2] })];
+  assert.deepEqual(blockedIssues(move, ds, stage), []);
+});
+
+test("bị che: hai hàng so le và các hình mẫu so le không bị báo, hai hàng thẳng thì có", () => {
+  const big: StageSize = { width: 8, depth: 6 };
+  for (let n = 2; n <= 12; n++) {
+    const people = Array.from({ length: n }, (_, i) => ({ id: `d${i}`, name: `N${i}` }));
+    const pos = (pts: Vec2[]) => Object.fromEntries(pts.map((p, i) => [`d${i}`, p]));
+    for (const pts of [shapePoints("stagger", n, [0, 0], big.width - 2), fittedShape("stagger", n, big)]) {
+      assert.deepEqual(blockedIssues([F("1", 0, 2, pos(pts))], people, big), [], `so le ${n} người`);
+    }
+    // vòng tròn thì người nửa sau thật sự sau lưng người nửa trước, vòng cung 12 người
+    // cong ngược ở hai đầu: báo nhẹ là đúng, không đưa vào đây
+    for (const kind of ["line", "v", "diagonal"] as const)
+      assert.deepEqual(blockedIssues([F("1", 0, 2, pos(fittedShape(kind, n, big)))], people, big), [], `${kind} ${n} người`);
+    // hai hàng thẳng, số người chẵn: mỗi cột trước sau là một chỗ bị che
+    if (n % 2 === 0) {
+      const tl = blockedIssues([F("1", 0, 2, pos(shapePoints("twoLines", n, [0, 0], big.width - 2)))], people, big);
+      assert.equal(tl.length, n / 2, `hai hàng ${n} người`);
+    }
+  }
 });

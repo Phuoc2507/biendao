@@ -11,6 +11,7 @@ import { st, useProject, useUI } from "../store";
 import { useTime } from "../clock";
 import * as clock from "../clock";
 import { fixAllWarnings, setPositionsNow } from "../actions";
+import { isSoft } from "../checks";
 import { fmtTime } from "../timing";
 import { dancerLegs, dancerStops, stopLabel } from "../rehearse";
 import { describePos, useWarnings } from "./hooks";
@@ -321,6 +322,18 @@ export function PlanView({
   // cảnh báo của lúc chuyển sắp tới / đang chuyển: vẽ đỏ trên sơ đồ
   const curFrom = seg.kind === "hold" || seg.kind === "gap" ? p.formations[seg.k]?.id : seg.kind === "before" ? p.formations[0]?.id : undefined;
   const issueLayer: JSX.Element[] = [];
+  // bị che trong đội hình đang giữ: vạch đứt xám từ người trước tới người sau
+  const curHold = seg.kind === "hold" ? p.formations[seg.k]?.id : undefined;
+  if (!compact && curHold)
+    issues.forEach((w, i) => {
+      if (w.kind !== "blocked" || w.formation !== curHold) return;
+      w.paths.forEach(([a, b], j) =>
+        issueLayer.push(
+          <line key={`ib${i}-${j}`} x1={X(a[0])} y1={Z(a[1])} x2={X(b[0])} y2={Z(b[1])} stroke="#9aa4b4" strokeOpacity={0.8}
+            strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeDasharray="2 3" />,
+        ),
+      );
+    });
   if (!compact && curFrom)
     issues.forEach((w, i) => {
       if (w.from !== curFrom) return;
@@ -507,7 +520,9 @@ function PlanTools({ issues }: { issues: Issues }) {
     st().setUI({ selected: w.ids, selectedBlock: w.formation });
     setOpen(false);
   };
-  const mark = (k: string) => (k === "collide" ? "×" : k === "fast" ? "»" : "!");
+  const mark = (k: string) => (k === "collide" ? "×" : k === "fast" ? "»" : k === "blocked" ? "◐" : "!");
+  // chỉ còn chỗ bị che thì Sửa tất cả không làm được gì: ẩn nút
+  const fixable = issues.some((w) => !isSoft(w.kind));
   return (
     <div className="rh-plan-tools" ref={ref} onPointerDown={(e) => e.stopPropagation()}>
       <MePicker small />
@@ -533,7 +548,7 @@ function PlanTools({ issues }: { issues: Issues }) {
       </button>
       <button
         className={`btn sm rh-warnbtn${issues.length ? " has" : ""}${open ? " on" : ""}`}
-        title="Ai va nhau, chồng lên nhau hay phải chạy quá nhanh"
+        title="Ai va nhau, chồng lên nhau, bị che hay phải chạy quá nhanh"
         onClick={() => setOpen((o) => !o)}
       >
         <Icon name="warn" /> Cảnh báo
@@ -542,18 +557,20 @@ function PlanTools({ issues }: { issues: Issues }) {
       {open && (
         <div className="rh-pop">
           {issues.length === 0 ? (
-            <div className="rh-ok">✓ Không thấy ai va nhau, chồng lên nhau hay phải chạy quá nhanh.</div>
+            <div className="rh-ok">✓ Không thấy ai va nhau, chồng lên nhau, bị che hay phải chạy quá nhanh.</div>
           ) : (
             <>
             <div className="rh-pop-head">
               <span>{issues.length} chỗ cần xem · bấm để tua tới</span>
-              <button
-                className="btn sm"
-                title="Tự đổi chỗ cho gần và nới khoảng chuyển ở mọi chỗ sửa được (có Hoàn tác)"
-                onClick={fixAllWarnings}
-              >
-                Sửa tất cả
-              </button>
+              {fixable && (
+                <button
+                  className="btn sm"
+                  title="Tự đổi chỗ cho gần và nới khoảng chuyển ở mọi chỗ sửa được (có Hoàn tác)"
+                  onClick={fixAllWarnings}
+                >
+                  Sửa tất cả
+                </button>
+              )}
             </div>
             {issues.map((w, i) => (
               <button key={i} className="rh-item" onClick={() => jump(w)} title="Tua tới chỗ này">

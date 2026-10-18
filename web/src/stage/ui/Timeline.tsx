@@ -337,7 +337,8 @@ function FormLane(props: {
   const ui = useUI();
   const hk = useHoldIndex(fs);
   const [renaming, setRenaming] = useState<string | null>(null);
-  const badTrans = new Set(props.warnTimes.filter((w) => w.kind !== "overlap").map((w) => w.formation));
+  // bị che (blocked) là cảnh báo nhẹ trong lúc giữ đội hình: không tô đỏ khoảng chuyển hay khối
+  const badTrans = new Set(props.warnTimes.filter((w) => w.kind !== "overlap" && w.kind !== "blocked").map((w) => w.formation));
   const badBlock = new Set(props.warnTimes.filter((w) => w.kind === "overlap").map((w) => w.formation));
 
   const startDrag = (e: React.PointerEvent, f: Formation, mode: "move" | "l" | "r") => {

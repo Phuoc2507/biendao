@@ -12,10 +12,11 @@ import {
   addDancer, duplicateDancer, canonOffsets, updateDancer, removeDancer, moveDancerOrder, realign, realignAll, replaceVideo,
   importFiles, applyShape, mirrorSelected, distributeSelected, swapSelected, rotateSelected, scaleSelected, sendToWings,
   addFormation, removeFormation, renameBlock, setNote, setStage, setBpm, saveMyShape, applyMyShape, removeMyShape,
-  canonSection, clearCanonSection, mirrorGroup, setFlip, fixReassign, fixWiden, fixAllWarnings,
+  canonSection, clearCanonSection, mirrorGroup, setFlip, fixReassign, fixWiden, fixStagger, fixAllWarnings,
 } from "../actions";
 import { rowKeys, useHoldIndex, useWarnings } from "./hooks";
-import { reassignFix, widenFix } from "../fixes";
+import { reassignFix, staggerFix, widenFix } from "../fixes";
+import { isSoft } from "../checks";
 import { AutoPlanSection } from "./AutoPlanSection";
 import { NumField } from "./NumField";
 import { commaDec, fmtNum, fmtSigned } from "./num";
@@ -641,15 +642,15 @@ function WarningsTab() {
   if (!ws.length)
     return (
       <div className="ok-box">
-        ✓ Không thấy ai va nhau, chồng lên nhau hay phải chạy quá nhanh.
+        ✓ Không thấy ai va nhau, chồng lên nhau, bị che hay phải chạy quá nhanh.
         {p.formations.length < 2 && <div className="dim" style={{ marginTop: 6 }}>Thêm đội hình thứ hai để kiểm tra đường chuyển.</div>}
       </div>
     );
-  const icon = { collide: "×", overlap: "!", fast: "»" } as const;
+  const icon = { collide: "×", overlap: "!", fast: "»", blocked: "◐" } as const;
   // cách sửa có được cho từng đội hình đích (chỉ đề nghị khi đỡ hơn thật)
   const fx: Record<string, { swap: boolean; carry: boolean; widen: boolean }> = {};
   for (const w of ws) {
-    if (w.kind === "overlap" || fx[w.formation]) continue;
+    if (w.kind === "overlap" || isSoft(w.kind) || fx[w.formation]) continue;
     const k = p.formations.findIndex((f) => f.id === w.formation);
     const r = reassignFix(p.formations, k, p.dancers, p.stage, p.bpm);
     fx[w.formation] = {
@@ -675,15 +676,27 @@ function WarningsTab() {
           st().setUI({ selected: w.ids, selectedBlock: w.formation });
         };
         const msg = commaDec(w.msg);
+        // bị che: chỉ có Đứng so le (dời người đứng sau sang ngang), tính riêng từng dòng
+        const sf = w.kind === "blocked" &&
+          !!staggerFix(p.formations, p.formations.findIndex((f) => f.id === w.formation), w.ids[0], w.ids[1], p.dancers, p.stage, p.bpm);
+        const tf = isSoft(w.kind) ? undefined : fx[w.formation];
         return (
           <div key={i} className="warn-item" role="button" aria-label={`${msg}, lúc ${fmtTime(w.t)}`} {...rowKeys(go)} onClick={go}>
             <span className={`ic ${w.kind}`} aria-hidden="true">{icon[w.kind]}</span>
             <div>
               <div>{msg}</div>
               <div className="dim">{fmtTime(w.t)}</div>
-              {(fx[w.formation]?.swap || (w.kind === "fast" && fx[w.formation]?.widen)) && (
+              {sf && (
                 <div className="warn-fix">
-                  {fx[w.formation]?.swap && (
+                  <button className="btn sm" onClick={(e) => { e.stopPropagation(); fixStagger(w.formation, w.ids[0], w.ids[1]); }}
+                    title="Dời người đứng sau sang ngang vừa đủ để khán giả thấy, giữ nguyên hàng trước sau">
+                    Đứng so le
+                  </button>
+                </div>
+              )}
+              {(tf?.swap || (w.kind === "fast" && tf?.widen)) && (
+                <div className="warn-fix">
+                  {tf?.swap && (
                     <button className="btn sm" onClick={(e) => { e.stopPropagation(); fixReassign(w.formation); }}
                       title={fx[w.formation]?.carry
                         ? "Đổi vai: từ đội hình này về sau, mỗi người nhận luôn các chỗ của người kia cho đường đi gần nhất"

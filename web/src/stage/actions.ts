@@ -23,8 +23,8 @@ import {
 } from "./intake";
 import { claimTab, canAutosave, setBootProblem, otherTabsOpen, onTakeOver, subscribeGuard } from "./guard";
 import { planDance, energyChangeScore } from "./autoplan";
-import { findIssues } from "./checks";
-import { fixAll, reassignFix, widenFix } from "./fixes";
+import { findIssues, isSoft } from "./checks";
+import { fixAll, reassignFix, staggerFix, widenFix } from "./fixes";
 import { errText } from "./storage";
 import { quickSave, openProjectJson, openBundleFile } from "./export/save";
 
@@ -313,7 +313,12 @@ export function nudgeSelected(dx: number, dz: number) {
   setPositionsNow(moves, false);
 }
 
-const warnCount = (p: Project = proj()) => findIssues(p.formations, p.dancers, p.stage, p.bpm).length;
+// Không đếm cảnh báo nhẹ (bị che): xếp hai hàng, đưa ai ra sau hay thu đội
+// hình thường cố ý tạo người đứng sau người, báo động mỗi lần thì phiền. Bị che
+// vẫn hiện trong danh sách Cảnh báo; thông báo này chỉ nói về lúc chuyển, khớp
+// với nút Sửa tất cả đi kèm (vốn không sửa chỗ bị che).
+const hardIssues = (p: Project) => findIssues(p.formations, p.dancers, p.stage, p.bpm).filter((w) => !isSoft(w.kind));
+const warnCount = (p: Project = proj()) => hardIssues(p).length;
 
 /** Sau một thao tác xếp chỗ: sinh thêm cảnh báo thì báo kèm nút Sửa tất cả. */
 function hintWarn(before: number, what: string, always = false, offerFix = true) {
@@ -1201,12 +1206,28 @@ export function fixWiden(fid: string) {
   );
 }
 
+/** Đứng so le: dời người `a` (bị `b` che) sang ngang vừa đủ trong đội hình `fid`. */
+export function fixStagger(fid: string, a: string, b: string) {
+  const p = proj();
+  const k = p.formations.findIndex((f) => f.id === fid);
+  const fx = staggerFix(p.formations, k, a, b, p.dancers, p.stage, p.bpm);
+  if (!fx) return st().notify("Không có chỗ dời ngang mà không vướng người khác: hãy kéo tay");
+  st().commit((q) => ({ ...q, formations: fx.fs }));
+  const nm = (id: string) => p.dancers.find((d) => d.id === id)?.name ?? id;
+  const cm = Math.round(fx.dx * 100);
+  st().notify(
+    `${p.formations[k].name}: dời ${nm(a)} sang ngang ${cm} cm${fx.after ? `, còn ${fx.after} chỗ bị che` : ", hết bị che"}`,
+    { undo: true },
+  );
+}
+
 /** Sửa mọi khoảng chuyển một lần (đổi chỗ cho gần, rời sớm hơn). */
 export function fixAllWarnings() {
   const p = proj();
-  const before = findIssues(p.formations, p.dancers, p.stage, p.bpm).length;
+  // chỉ đếm loại Sửa tất cả lo được; bị che giữ nguyên (đổi chỗ không đổi tập chỗ đứng)
+  const before = hardIssues(p).length;
   const fs = fixAll(p.formations, p.dancers, p.stage, p.bpm, p.downbeat);
-  const after = findIssues(fs, p.dancers, p.stage, p.bpm).length;
+  const after = hardIssues({ ...p, formations: fs }).length;
   if (after >= before) return st().notify("Không tự sửa được thêm: hãy kéo người hoặc kéo dài khối chuyển");
   st().commit((q) => ({ ...q, formations: fs }));
   st().notify(after ? `Đã sửa ${before - after} cảnh báo, còn ${after} phải sửa tay` : `Đã sửa hết ${before} cảnh báo`, { undo: true });

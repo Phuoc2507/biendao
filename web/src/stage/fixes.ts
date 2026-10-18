@@ -12,10 +12,13 @@
 //  * Nới khoảng chuyển: rời đội hình trước sớm hơn để ai cũng đi kịp dưới VMAX.
 //    Giữ nguyên lúc tới đội hình mới (vẫn đúng phách), mép rời bắt về phách
 //    trước đó; đội hình trước giữ lại ít nhất một phách.
+//  * Đứng so le (cảnh báo bị che): dời người đứng sau sang ngang vừa đủ lộ ra.
+//    Không nằm trong fixAll: che là chuyện bố cục, có khi cố ý (đứng nấp, hiện
+//    ra sau), nên chỉ sửa khi người dùng bấm từng dòng.
 
-import { type Formation, type StageSize, assignNearest, dist } from "./model.ts";
+import { type Formation, type StageSize, type Vec2, assignNearest, dist, findWarnings } from "./model.ts";
 import { VMAX } from "./autoplan.ts";
-import { type Issue, transitionIssues } from "./checks.ts";
+import { BLOCK_X_M, type Issue, blockedIssues, transitionIssues } from "./checks.ts";
 import { beatLen } from "./timing.ts";
 
 type Who = { id: string; name: string; hidden?: boolean };
@@ -107,6 +110,37 @@ export function widenFix(
     transitionIssues([x, g], dancers, stage, bpm, { vmax }).filter((i: Issue) => i.kind !== "fast").length;
   if (other({ ...f, end }) > other(f)) return null;
   return { fs: fs.map((x, j) => (j === k - 1 ? { ...x, end } : x)), sec: f.end - end, partial };
+}
+
+/** Dời ngang thêm chút cho chắc khỏi bị che (khỏi bám sát mép ngưỡng). */
+const STAGGER_PAD = 0.05;
+
+/** Đứng so le: dời người bị che `a` sang ngang vừa đủ để lộ ra khỏi người `b`
+ *  đứng trước, trong đội hình k. Thử bên xa người trước trước, rồi bên kia; chỉ
+ *  nhận chỗ còn trên sân (không vào cánh gà), không đứng chồng thêm, không thêm
+ *  cảnh báo lúc chuyển quanh đội hình đó, và số chỗ bị che trong đội hình giảm.
+ *  null nếu không có chỗ như vậy. */
+export function staggerFix(
+  fs: Formation[], k: number, a: string, b: string, dancers: Who[], stage: StageSize, bpm: number | null,
+): (Fix & { dx: number }) | null {
+  const g = fs[k];
+  const pa = g?.pos[a], pb = g?.pos[b];
+  if (!pa || !pb) return null;
+  const solo = (x: Formation[]) => blockedIssues([x[k]], dancers, stage).length;
+  const over = (x: Formation[]) => findWarnings([x[k]], dancers).filter((w) => w.kind === "overlap").length;
+  const before = solo(fs), over0 = over(fs), tr0 = around(fs, k, dancers, stage, bpm);
+  const side = pa[0] >= pb[0] ? 1 : -1;
+  let best: (Fix & { dx: number }) | null = null;
+  for (const s of [side, -side]) {
+    const x = Math.round((pb[0] + s * (BLOCK_X_M + STAGGER_PAD)) * 100) / 100;
+    if (Math.abs(x) > stage.width / 2 + 1e-9) continue;
+    const out = fs.map((f, j) => (j === k ? { ...f, pos: { ...f.pos, [a]: [x, pa[1]] as Vec2 } } : f));
+    const after = solo(out);
+    if (after >= before || over(out) > over0 || around(out, k, dancers, stage, bpm) > tr0) continue;
+    const dx = Math.abs(x - pa[0]);
+    if (!best || after < best.after || (after === best.after && dx < best.dx)) best = { fs: out, before, after, dx };
+  }
+  return best;
 }
 
 /** Sửa lần lượt mọi khoảng chuyển: đổi chỗ nếu đỡ hơn, rồi nới nếu còn quá nhanh.

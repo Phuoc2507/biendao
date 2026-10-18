@@ -864,7 +864,7 @@ export function fitSavedShape(
 // ---------- cảnh báo ----------
 
 export interface Warning {
-  kind: "fast" | "collide" | "overlap";
+  kind: "fast" | "collide" | "overlap" | "blocked"; // blocked: bị che, chỉ checks.ts sinh ra
   formation: string; // id khối (khối đích với fast/collide)
   ids: string[];
   t: number; // thời điểm nên tua tới để xem

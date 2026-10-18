@@ -283,6 +283,8 @@ kbd {
 .warn-item .ic { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; flex: none; font-size: 11px; font-weight: 800; }
 .warn-item .ic.collide, .warn-item .ic.overlap { background: var(--redBg); color: var(--red); }
 .warn-item .ic.fast { background: rgba(255,204,77,.15); color: var(--yellow); }
+/* bị che: cảnh báo nhẹ, màu dịu hơn va chạm */
+.warn-item .ic.blocked { background: var(--panel2); color: var(--muted); }
 .ok-box { margin: 16px 12px; padding: 14px; border-radius: var(--radius); background: rgba(58,208,122,.08); color: var(--green); text-align: center; font-size: 12px; }
 
 /* ---------- vùng chính ---------- */
