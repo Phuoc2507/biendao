@@ -109,7 +109,14 @@ export async function copyCurrentImage() {
     })();
     await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
     st().notify("Đã chép ảnh, dán vào Zalo bằng Ctrl V.");
-  } catch (e) {
-    st().notify(`Không chép được ảnh: ${(e as Error).message}`, { kind: "error" });
+  } catch {
+    // trình duyệt không cho ghi bộ nhớ tạm: tải ảnh xuống thay vì mất ảnh
+    try {
+      const name = imageFileName(p, k);
+      download(await renderPng(p, k), name);
+      st().notify(`Trình duyệt không cho chép ảnh, đã tải ${name} xuống thay.`, { kind: "warn" });
+    } catch (e) {
+      st().notify(`Không tạo được ảnh: ${(e as Error).message}`, { kind: "error" });
+    }
   }
 }
