@@ -8,7 +8,10 @@ import { usePlaying, useTime } from "../clock";
 import { createPortal } from "react-dom";
 import { saveAs, saveBundle, saveTargetName, forgetSaveTarget, watchMusic, openBundleFile, isBlankProject } from "../export/save";
 import { printFormations } from "../export/print";
-import { exportCurrentImage, exportAllImages, shareCurrentImage, copyCurrentImage, shareSupported, copySupported } from "../export/image";
+import {
+  exportCurrentImage, exportAllImages, shareCurrentImage, copyCurrentImage, shareSupported, copySupported,
+  exportPersonImages, exportPersonImage, selectedPerson,
+} from "../export/image";
 import { ExportDialog } from "./ExportDialog";
 import { exportProject, newProject, openProjectFile, setTitle, stepBeat, projectEnd } from "../actions";
 import { saveProject } from "../db";
@@ -94,6 +97,7 @@ function FileMenu() {
     inp.click();
   };
   const target = open ? saveTargetName() : null;
+  const person = open ? selectedPerson() : null;
   return (
     <div className="menu" ref={ref}>
       <button className={`btn${open ? " on" : ""}`} onClick={() => setOpen(!open)}>
@@ -129,6 +133,14 @@ function FileMenu() {
           <button onClick={run(exportAllImages)} title="Mỗi đội hình một ảnh PNG, gói trong một tệp .zip">
             <Icon name="image" size={16} /> Xuất ảnh tất cả đội hình (.zip)
           </button>
+          <button onClick={run(exportPersonImages)} title="Mỗi người một ảnh dọc có vị trí của mình ở mọi đội hình, gói trong một tệp .zip">
+            <Icon name="image" size={16} /> Xuất ảnh vị trí từng người (.zip)
+          </button>
+          {person && (
+            <button onClick={run(() => exportPersonImage(person.id))} title={`Ảnh dọc có vị trí của ${person.name} ở mọi đội hình`}>
+              <Icon name="image" size={16} /> Xuất ảnh vị trí của {person.name} (.png)
+            </button>
+          )}
           <button onClick={run(() => setExporting(true))}><Icon name="video" size={16} /> Xuất video…</button>
           <hr />
           <button
