@@ -7,6 +7,8 @@ export interface Toast {
   kind?: "info" | "warn" | "error";
   /** Dự án lúc báo: chỉ còn hiện nút Hoàn tác khi chưa sửa gì thêm. */
   at?: unknown;
+  /** Nút làm tiếp (ví dụ Sửa tất cả); có Hoàn tác thì cũng chỉ hiện khi chưa sửa gì thêm. */
+  action?: { label: string; run: () => void };
 }
 
 const kindOf = (t: Toast) => t.kind ?? "info";

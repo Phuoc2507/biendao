@@ -56,7 +56,7 @@ interface State {
   undo(): void;
   redo(): void;
   setUI(u: Partial<UI>): void;
-  notify(msg: string, o?: { undo?: boolean; kind?: Toast["kind"] }): void;
+  notify(msg: string, o?: { undo?: boolean; kind?: Toast["kind"]; action?: Toast["action"] }): void;
   clearToast(id: number): void;
 }
 

@@ -103,6 +103,7 @@ export function duplicateDancer(id: string, n = 1): string | null {
   const src = p.dancers.find((d) => d.id === id);
   n = Math.max(1, Math.min(30, Math.floor(n)));
   if (!src) return null;
+  const warnBefore = findIssues(p.formations, p.dancers, p.stage, p.bpm).length;
   const clones: VDancer[] = [];
   let q0 = p;
   for (let i = 0; i < n; i++) {
@@ -118,7 +119,14 @@ export function duplicateDancer(id: string, n = 1): string | null {
     return { ...q, dancers, formations: placeClones(q.formations, id, clones.map((d) => d.id), q.stage) };
   });
   clock.resync();
-  if (n > 1) st().notify(`Đã nhân bản ${src.name} thành ${n} người`, { undo: true });
+  const q = proj();
+  const added = findIssues(q.formations, q.dancers, q.stage, q.bpm).length - warnBefore;
+  const what = n > 1 ? `Đã nhân bản ${src.name} thành ${n} người` : `Đã nhân bản ${src.name}`;
+  if (added > 0) {
+    st().notify(`${what} · thêm ${added} cảnh báo lúc chuyển đội hình`, {
+      undo: true, kind: "warn", action: { label: "Sửa tất cả", run: fixAllWarnings },
+    });
+  } else if (n > 1) st().notify(what, { undo: true });
   return clones[0].id;
 }
 

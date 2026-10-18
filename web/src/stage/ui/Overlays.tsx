@@ -29,6 +29,9 @@ export function ToastView() {
               <Icon name="undo" /> Hoàn tác
             </button>
           )}
+          {t.action && (!t.undo || t.at === project) && (
+            <button className="btn sm" onClick={() => { st().clearToast(t.id); t.action!.run(); }}>{t.action.label}</button>
+          )}
           <button className="btn sm icon ghost" onClick={() => st().clearToast(t.id)} aria-label="Đóng thông báo"><Icon name="close" /></button>
         </div>
       ))}

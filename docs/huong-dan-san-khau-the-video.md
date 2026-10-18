@@ -134,7 +134,7 @@ Chọn một vũ công trong danh sách:
 
 Một video có thể dùng cho nhiều người trên sân (ví dụ chỉ quay một bạn rồi nhân lên cả nhóm):
 
-* Nút **nhân bản** (biểu tượng hai tờ giấy) ở dòng vũ công thêm một bản sao; **Shift bấm** để hỏi số người. Trong khung chi tiết vũ công có ô **Nhân bản thêm [n] người**.
+* Nút **nhân bản** (biểu tượng hai tờ giấy) ở dòng vũ công thêm một bản sao; **Shift bấm** để hỏi số người. Trong khung chi tiết vũ công có ô **Nhân bản thêm [n] người**. Nếu bản sao làm sinh thêm cảnh báo lúc chuyển đội hình, thông báo hiện kèm nút **Sửa tất cả** để xếp lại ngay.
 * Bản sao đứng **cạnh** bản gốc (cách ít nhất 0.8 m) ở mọi đội hình còn chỗ trên sân; bản gốc đang ở cánh gà hoặc sân đã kín thì bản sao vào cánh gà.
 * Mỗi bản sao phát video **riêng**, nên chỉnh độ lệch từng người được.
 * **Canon theo đoạn:** chọn nhiều người (Shift bấm trong danh sách). Ở khung *N người đang chọn: tổ hợp* đặt đoạn **Từ … tới …** (nút **Lấy đoạn hiện tại** lấy vùng lặp nếu có, không thì khối đội hình đang đứng ở vạch phát), chọn **Thứ tự** (trái sang phải, phải sang trái, giữa trước rồi hai bên, hàng đầu trước, theo danh sách) và **Mỗi lượt trễ** (1 phách, 2 phách hoặc tự nhập giây), bấm **Canon đoạn này**. Trong đoạn đó lượt sau đứng chờ rồi múa đúng động tác của mình trễ hơn lượt trước; hết đoạn cả nhóm khớp lại đồng loạt. Người đứng gần như cùng chỗ theo tiêu chí (ví dụ hai bạn đối xứng khi chọn *giữa trước*) vào cùng một lượt. Trên dòng thời gian mỗi đoạn canon có vạch *canon +… s*, phần gạch chéo là lúc đứng chờ. **Bỏ canon** trả đoạn đó về đồng loạt. Dùng được cả với người khác video.
