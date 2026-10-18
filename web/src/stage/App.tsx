@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { st, useProject, useUI } from "./store";
 import * as clock from "./clock";
-import { mirrorSelected, distributeSelected, sendToWings } from "./actions";
+import { mirrorSelected, distributeSelected, swapSelected, rotateSelected, sendToWings } from "./actions";
 import { savedSide } from "./layout";
 import { QUOTA_MSG, requestPersist } from "./storage";
 import { TopBar } from "./ui/TopBar";
@@ -30,8 +30,10 @@ function SelectionHud({ phone }: { phone: boolean }) {
     <div className="hud">
       <span className="lbl">{name ?? `${n} người`}{phone ? "" : " · mũi tên để dịch"}</span>
       <span className="sep" />
-      <button className="btn sm" onClick={mirrorSelected} title="Lật trái phải (M)"><Icon name="mirror" /> Lật</button>
-      {n >= 3 && <button className="btn sm" onClick={distributeSelected} title="Dàn đều ngang"><Icon name="distribute" /> Dàn đều</button>}
+      <button className="btn sm" onClick={mirrorSelected} title="Lật trái phải (M)" aria-label="Lật trái phải"><Icon name="mirror" />{phone ? "" : " Lật"}</button>
+      {n >= 3 && <button className="btn sm" onClick={distributeSelected} title="Dàn đều ngang" aria-label="Dàn đều ngang"><Icon name="distribute" />{phone ? "" : " Dàn đều"}</button>}
+      {n === 2 && <button className="btn sm" onClick={swapSelected} title="Đổi chỗ hai người (X)" aria-label="Đổi chỗ hai người"><Icon name="swap" /></button>}
+      {n >= 2 && <button className="btn sm" onClick={() => rotateSelected(1)} title="Xoay một phần tư vòng (R, Shift R xoay ngược)" aria-label="Xoay nhóm"><Icon name="rotate" /></button>}
       <button className="btn sm" onClick={() => sendToWings(-1)} title="Vào cánh gà trái" aria-label="Vào cánh gà trái"><Icon name="wingL" /></button>
       <button className="btn sm" onClick={() => sendToWings(1)} title="Vào cánh gà phải" aria-label="Vào cánh gà phải"><Icon name="wingR" /></button>
       <span className="sep" />

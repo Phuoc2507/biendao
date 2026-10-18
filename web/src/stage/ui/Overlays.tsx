@@ -156,6 +156,7 @@ const KEYS: [string, [string, string][]][] = [
     ["Bỏ chọn", "Esc"],
     ["Lật trái phải", "M"],
     ["Hai người đang chọn đổi chỗ", "X"],
+    ["Xoay nhóm một phần tư vòng (ngược chiều: Shift R)", "R"],
     ["Kéo không bám lưới", "giữ Alt"],
   ]],
   ["Đội hình", [

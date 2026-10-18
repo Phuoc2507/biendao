@@ -151,3 +151,10 @@ test("X: đổi chỗ khi đang chọn người, không chọn ai thì bỏ qua"
   assert.equal(resolveShortcut(key("x"), ctx()), null);
   assert.equal(resolveShortcut(key("x"), ctx({ hasSelection: true, presenting: true })), null);
 });
+
+test("R: xoay theo chiều kim đồng hồ, Shift R xoay ngược, giữ phím không lặp", () => {
+  assert.deepEqual(resolveShortcut(key("r"), ctx({ hasDancers: true })), { type: "rotate", dir: 1 });
+  assert.deepEqual(resolveShortcut(key("R", { shift: true }), ctx({ hasDancers: true })), { type: "rotate", dir: -1 });
+  assert.equal(resolveShortcut(key("r", { repeat: true }), ctx({ hasDancers: true })), null);
+  assert.equal(resolveShortcut(key("r"), ctx({ hasDancers: false })), null);
+});

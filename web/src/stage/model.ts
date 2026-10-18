@@ -701,6 +701,73 @@ export function mirrorPositions(current: Record<string, Vec2>, ids: string[]): R
   return out;
 }
 
+const r3 = (v: number) => Math.round(v * 1000) / 1000 + 0;
+
+function centroid(current: Record<string, Vec2>, ids: string[]): Vec2 {
+  let x = 0, z = 0;
+  for (const id of ids) { x += current[id][0]; z += current[id][1]; }
+  return [x / ids.length, z / ids.length];
+}
+
+/** Giữ cả nhóm trong sân khấu (cách mép pad): to quá thì thu quanh tâm, rồi dời vào trong. */
+export function fitGroup(pts: Record<string, Vec2>, stage: StageSize, pad = 0.3): Record<string, Vec2> {
+  const ids = Object.keys(pts);
+  if (!ids.length) return pts;
+  const hx = Math.max(0, stage.width / 2 - pad), hz = Math.max(0, stage.depth / 2 - pad);
+  const xs = ids.map((id) => pts[id][0]), zs = ids.map((id) => pts[id][1]);
+  let [x0, x1, z0, z1] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
+  const k = Math.min(1, x1 - x0 > 1e-9 ? (2 * hx) / (x1 - x0) : 1, z1 - z0 > 1e-9 ? (2 * hz) / (z1 - z0) : 1);
+  const [cx, cz] = [(x0 + x1) / 2, (z0 + z1) / 2];
+  [x0, x1, z0, z1] = [cx + (x0 - cx) * k, cx + (x1 - cx) * k, cz + (z0 - cz) * k, cz + (z1 - cz) * k];
+  const dx = x0 < -hx ? -hx - x0 : x1 > hx ? hx - x1 : 0;
+  const dz = z0 < -hz ? -hz - z0 : z1 > hz ? hz - z1 : 0;
+  const out: Record<string, Vec2> = {};
+  for (const id of ids) out[id] = [r3(cx + (pts[id][0] - cx) * k + dx), r3(cz + (pts[id][1] - cz) * k + dz)];
+  return out;
+}
+
+/** Xoay nhóm một phần tư vòng quanh tâm nhóm, chiều kim đồng hồ khi nhìn sơ đồ (dir = 1). */
+export function rotateGroup(current: Record<string, Vec2>, ids: string[], dir: 1 | -1, stage: StageSize): Record<string, Vec2> {
+  if (!ids.length) return {};
+  const [cx, cz] = centroid(current, ids);
+  const out: Record<string, Vec2> = {};
+  for (const id of ids) {
+    const [dx, dz] = [current[id][0] - cx, current[id][1] - cz];
+    out[id] = dir === 1 ? [cx - dz, cz + dx] : [cx + dz, cz - dx];
+  }
+  return fitGroup(out, stage);
+}
+
+/**
+ * Giãn (k > 1) hay thu (k < 1) nhóm quanh tâm nhóm. Giãn thì dừng ở mép sân,
+ * thu thì không cho hai người gần nhau dưới minGap. Không đổi được thì null.
+ */
+export function scaleGroup(
+  current: Record<string, Vec2>, ids: string[], k: number, stage: StageSize, minGap = 0.5, pad = 0.3,
+): Record<string, Vec2> | null {
+  if (ids.length < 2) return null;
+  const [cx, cz] = centroid(current, ids);
+  const hx = stage.width / 2 - pad, hz = stage.depth / 2 - pad;
+  let kk = k;
+  if (k > 1) {
+    for (const id of ids) {
+      const [dx, dz] = [current[id][0] - cx, current[id][1] - cz];
+      if (Math.abs(dx) > 1e-9) kk = Math.min(kk, Math.max(1, ((dx > 0 ? hx : -hx) - cx) / dx));
+      if (Math.abs(dz) > 1e-9) kk = Math.min(kk, Math.max(1, ((dz > 0 ? hz : -hz) - cz) / dz));
+    }
+  } else {
+    let near = Infinity;
+    for (let i = 0; i < ids.length; i++)
+      for (let j = i + 1; j < ids.length; j++)
+        near = Math.min(near, Math.hypot(current[ids[i]][0] - current[ids[j]][0], current[ids[i]][1] - current[ids[j]][1]));
+    if (near > 1e-9) kk = Math.max(kk, Math.min(1, minGap / near));
+  }
+  if (Math.abs(kk - 1) < 1e-3) return null;
+  const out: Record<string, Vec2> = {};
+  for (const id of ids) out[id] = [r3(cx + (current[id][0] - cx) * kk), r3(cz + (current[id][1] - cz) * kk)];
+  return out;
+}
+
 /** Dàn đều theo trục x giữa người trái nhất và phải nhất (giữ z). */
 export function distributeX(current: Record<string, Vec2>, ids: string[]): Record<string, Vec2> {
   const sorted = [...ids].sort((a, b) => current[a][0] - current[b][0]);

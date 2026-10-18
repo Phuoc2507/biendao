@@ -10,7 +10,7 @@ import { st, useProject, useUI } from "../store";
 import * as clock from "../clock";
 import {
   addDancer, duplicateDancer, canonOffsets, updateDancer, removeDancer, moveDancerOrder, realign, realignAll, replaceVideo,
-  importFiles, applyShape, mirrorSelected, distributeSelected, swapSelected, sendToWings,
+  importFiles, applyShape, mirrorSelected, distributeSelected, swapSelected, rotateSelected, scaleSelected, sendToWings,
   addFormation, removeFormation, renameBlock, setNote, setStage, setBpm,
   canonSection, clearCanonSection, mirrorGroup, setFlip, fixReassign, fixWiden, fixAllWarnings,
 } from "../actions";
@@ -566,6 +566,9 @@ function FormationsTab() {
           <button className="btn sm" onClick={mirrorSelected} title="Lật trái phải (M)"><Icon name="mirror" /> Lật</button>
           <button className="btn sm" onClick={distributeSelected} disabled={nSel < 3} title="Dàn đều theo chiều ngang"><Icon name="distribute" /> Dàn đều</button>
           <button className="btn sm" onClick={swapSelected} disabled={nSel !== 2} title="Hai người đang chọn đổi chỗ cho nhau (X)"><Icon name="swap" /> Đổi chỗ</button>
+          <button className="btn sm" onClick={() => rotateSelected(1)} title="Xoay một phần tư vòng quanh tâm nhóm, theo chiều kim đồng hồ (R, Shift R để xoay ngược). Chưa chọn ai thì xoay cả đội trên sân"><Icon name="rotate" /> Xoay</button>
+          <button className="btn sm" onClick={() => scaleSelected(true)} title="Giãn nhóm ra quanh tâm, mỗi lần 15%, dừng ở mép sân. Chưa chọn ai thì cả đội trên sân"><Icon name="grow" /> Giãn</button>
+          <button className="btn sm" onClick={() => scaleSelected(false)} title="Thu nhóm lại quanh tâm, mỗi lần 15%, không để ai sát nhau dưới nửa mét"><Icon name="shrink" /> Thu</button>
           <button className="btn sm" onClick={() => sendToWings(-1)} disabled={!nSel} title="Đưa vào cánh gà trái"><Icon name="wingL" /> Cánh trái</button>
           <button className="btn sm" onClick={() => sendToWings(1)} disabled={!nSel} title="Đưa vào cánh gà phải"><Icon name="wingR" /> Cánh phải</button>
         </div>

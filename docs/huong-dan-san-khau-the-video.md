@@ -148,7 +148,7 @@ Mỗi đội hình là một **khối** trên dòng thời gian: trong khối m�
 1. Kéo vạch phát tới lúc đội hình mới bắt đầu, bấm **+ Đội hình** (hoặc Enter). Đội hình mới chép vị trí đội hình trước để bạn sửa tiếp. Nếu sau đó còn đội hình khác, khối mới được nhét vào khoảng trống; chỉ khi quá chật app mới dời các khối sau và báo kèm nút Hoàn tác.
 2. Kéo người trên sơ đồ tới chỗ mới. Kéo vùng trống để chọn nhiều người; Shift bấm để thêm bớt.
 3. Kéo **mép khối** để đổi lúc bắt đầu, kết thúc; kéo **giữa khối** để dời cả khối. Khoảng giữa hai khối càng dài thì đi càng chậm.
-4. Trong thẻ *Đội hình*: đổi tên, **ghi chú** cho người tập (vd "nhịp 5 quay người"; Enter để chốt, Shift Enter xuống dòng; ghi chú hiện lúc Trình chiếu, trong bản in, trong video sơ đồ xuất ra, và dấu ✎ trên khối ở dòng thời gian), **Lật** trái phải, **Dàn đều**, **Đổi chỗ** (chọn đúng 2 người, hoặc phím X), đưa người vào **Cánh trái** hoặc **Cánh phải** (hai dải mờ hai bên sân khấu là cánh gà, người ở đó coi như chưa ra sân).
+4. Trong thẻ *Đội hình*: đổi tên, **ghi chú** cho người tập (vd "nhịp 5 quay người"; Enter để chốt, Shift Enter xuống dòng; ghi chú hiện lúc Trình chiếu, trong bản in, trong video sơ đồ xuất ra, và dấu ✎ trên khối ở dòng thời gian), **Lật** trái phải, **Dàn đều**, **Đổi chỗ** (chọn đúng 2 người, hoặc phím X), **Xoay** một phần tư vòng quanh tâm nhóm (phím R, Shift R xoay ngược; hàng ngang thành hàng dọc, quá dài thì tự thu cho vừa sân), **Giãn** hay **Thu** nhóm quanh tâm mỗi lần 15% (giãn dừng ở mép sân, thu không để ai sát nhau dưới nửa mét; chưa chọn ai thì áp cho cả đội đang trên sân), đưa người vào **Cánh trái** hoặc **Cánh phải** (hai dải mờ hai bên sân khấu là cánh gà, người ở đó coi như chưa ra sân).
 5. **Tự chia đội hình** (thẻ *Đội hình*): chọn **Mỗi … lượt 8** hoặc **Số đội hình**, bấm **Tạo**. App thay toàn bộ đội hình bằng một chuỗi hình xoay vòng (hàng ngang, chữ V, vòng tròn, hai hàng, đường chéo, so le, vòng cung) cho cả bài:
    * Có nhịp thì mỗi khối bắt đầu và kết thúc đúng vạch lượt 8, mọi người tới đội hình mới đúng phách 1; chưa đặt nhịp thì chia theo mốc 4 s.
    * Khoảng chuyển ít nhất 1 lượt 8 (hoặc 2 s), tự giãn khi phải đi xa để không ai chạy quá 1.5 m/s.
@@ -184,7 +184,7 @@ Góc trên phải sơ đồ có ba nút:
   * **Đổi vai từ đây:** hiện thay cho nút trên khi đổi riêng một đội hình lại làm đoạn ra khỏi nó xấu đi. Từ đội hình đó về sau, mỗi người nhận luôn các chỗ của người kia, nên các khoảng chuyển sau giữ y hình cũ, chỉ đổi tên người.
   * **Nới khoảng chuyển:** rời đội hình trước sớm hơn (bắt về phách) để ai cũng đi kịp; lúc tới đội hình mới vẫn đúng phách cũ. Đội hình trước quá ngắn thì app nới hết mức và báo còn thiếu.
   * **Sửa tất cả** (đầu danh sách, và đầu ô Cảnh báo trên sơ đồ): làm các việc trên cho mọi khoảng chuyển một lượt.
-  * Sau khi **Xếp nhanh**, **Lật trái phải**, **Dàn đều**, **Cánh gà** hay **Nhân bản**, nếu sinh thêm cảnh báo thì thông báo hiện số cảnh báo mới kèm nút **Sửa tất cả**. Đổi chỗ và Dán chỗ đứng (Ctrl V) chỉ báo số cảnh báo, không kèm nút, vì đổi chỗ cho gần sẽ xếp lại đúng những người bạn vừa cố ý đặt.
+  * Sau khi **Xếp nhanh**, **Lật trái phải**, **Dàn đều**, **Xoay**, **Giãn**, **Thu**, **Cánh gà** hay **Nhân bản**, nếu sinh thêm cảnh báo thì thông báo hiện số cảnh báo mới kèm nút **Sửa tất cả**. Đổi chỗ và Dán chỗ đứng (Ctrl V) chỉ báo số cảnh báo, không kèm nút, vì đổi chỗ cho gần sẽ xếp lại đúng những người bạn vừa cố ý đặt.
 
 Khung 3D có các góc **Khán giả**, **Chéo**, **Trên cao** và **Sau lưng** (đứng sau đội nhìn ra khán giả, hình lật như soi gương để trái phải giống người múa, dễ tập theo). Nút **Đặt lại** đưa góc nhìn về vừa khít sân; kéo thẻ giữ **Alt** để đặt tự do không bám lưới.
 
@@ -215,6 +215,7 @@ Khung 3D có các góc **Khán giả**, **Chéo**, **Trên cao** và **Sau lưng
 | Ctrl C / Ctrl V | Chép chỗ đứng lúc này của người đang chọn (không chọn ai thì cả đội), tua tới đội hình khác rồi dán vào; không có đội hình ở đó thì app tạo mới |
 | M | Lật trái phải người đang chọn |
 | X | Hai người đang chọn đổi chỗ cho nhau |
+| R / Shift R | Xoay nhóm đang chọn (chưa chọn ai thì cả đội trên sân) một phần tư vòng theo / ngược chiều kim đồng hồ |
 | N | Bật, tắt bám lưới và phách |
 | O | Sơ đồ nhìn từ khán giả hoặc từ sân khấu |
 | B | (Trình chiếu) góc Sau lưng người múa; C đặt lại góc nhìn |

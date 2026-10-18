@@ -5,7 +5,7 @@ import {
   emptyProject, newDancer, cloneDancer, initials, smoothstep, lineup, clampToStage, snapPos,
   segmentAt, poseAt, posesAt, ensureFormationAt, setPositions, addFormationAfter,
   setBlockTimes, moveBlock, addDancerToAll, removeDancerFromAll, checkInvariants,
-  shapePoints, assignNearest, arrangeShape, mirrorPositions, distributeX,
+  shapePoints, assignNearest, arrangeShape, mirrorPositions, distributeX, rotateGroup, scaleGroup, fitGroup,
   findWarnings, prevFormation, nextFormation, inWings, WING, setFormationNote,
 } from "./model.ts";
 
@@ -257,4 +257,34 @@ test("ghi chú đội hình: đặt, cắt khoảng trắng, chuỗi rỗng thì
   assert.equal(a[1], fs[1]);
   const b = setFormationNote(a, "x", "   ");
   assert.equal("note" in b[0], false);
+});
+
+test("xoay nhóm: một phần tư vòng quanh tâm, xoay hai chiều thì về như cũ, tràn sân thì kéo vào", () => {
+  const cur: Record<string, Vec2> = { a: [-1, 0], b: [1, 0], c: [5, 5] };
+  const r = rotateGroup(cur, ["a", "b"], 1, stage);
+  assert.deepEqual(r, { a: [0, -1], b: [0, 1] }, "hàng ngang thành hàng dọc, người phải xuống dưới");
+  assert.equal(r.c, undefined, "người ngoài nhóm không đụng tới");
+  const back = rotateGroup(r, ["a", "b"], -1, stage);
+  assert.deepEqual(back, { a: [-1, 0], b: [1, 0] });
+  // hàng ngang 8 m xoay thành dọc 8 m trên sân sâu 6 m: thu lại cho vừa
+  const long = rotateGroup({ a: [-4, 0], b: [4, 0] }, ["a", "b"], 1, stage);
+  assert.ok(Math.abs(long.a[1]) <= 2.7 + 1e-9 && Math.abs(long.b[1]) <= 2.7 + 1e-9);
+  assert.ok(long.b[1] > long.a[1]);
+});
+
+test("đưa nhóm vào sân: dời mà không méo khi vừa", () => {
+  const f = fitGroup({ a: [4.9, 0], b: [3.9, 1] }, stage);
+  assert.deepEqual(f, { a: [4.7, 0], b: [3.7, 1] });
+});
+
+test("giãn và thu nhóm quanh tâm: dừng ở mép sân, không cho sát nhau", () => {
+  const cur: Record<string, Vec2> = { a: [-1, 0], b: [1, 0] };
+  assert.deepEqual(scaleGroup(cur, ["a", "b"], 1.5, stage), { a: [-1.5, 0], b: [1.5, 0] });
+  // mép sân x = 4.7 (cách 0.3): giãn 10 lần chỉ được tới 4.7
+  assert.deepEqual(scaleGroup(cur, ["a", "b"], 10, stage), { a: [-4.7, 0], b: [4.7, 0] });
+  assert.equal(scaleGroup({ a: [-4.7, 0], b: [4.7, 0] }, ["a", "b"], 1.2, stage), null);
+  // thu: hai người cách 2 m, thu còn tối thiểu 0.5 m
+  assert.deepEqual(scaleGroup(cur, ["a", "b"], 0.1, stage), { a: [-0.25, 0], b: [0.25, 0] });
+  assert.equal(scaleGroup({ a: [-0.25, 0], b: [0.25, 0] }, ["a", "b"], 0.8, stage), null);
+  assert.equal(scaleGroup(cur, ["a"], 1.2, stage), null, "một người thì không giãn");
 });

@@ -4,7 +4,7 @@ import {
   type Project, type VDancer, type Vec2, type ShapeKind,
   PALETTE, newDancer, cloneDancer, lineup, posesAt, ensureFormationAt, setPositions,
   addFormationAfter, deleteFormation, addDancerToAll, removeDancerFromAll,
-  arrangeShape, mirrorPositions, distributeX, holdIndexAt, segmentAt,
+  arrangeShape, mirrorPositions, distributeX, rotateGroup, scaleGroup, inWings, holdIndexAt, segmentAt,
   snapPos, emptyProject, renameFormation, setFormationNote, wingSpot, placeClones, canonOffsets as canonPatch, SHAPE_LABEL,
   type CanonOrder, canonRanks, rightSide,
 } from "./model";
@@ -371,6 +371,46 @@ export function swapSelected() {
   const nm = (id: string) => p.dancers.find((d) => d.id === id)!.name;
   // không mời Sửa tất cả: đổi chỗ cho gần sẽ trả hai người về như cũ
   hintWarn(w, `Đã đổi chỗ ${nm(a)} và ${nm(b)}`, true, false);
+}
+
+/** Người đang chọn, chưa chọn ai thì mọi người đang hiện trên sân (không tính cánh gà). */
+function groupNow(p: Project, cur: Record<string, Vec2>): string[] {
+  const sel = st().ui.selected.filter((id) => cur[id]);
+  if (sel.length) return sel;
+  return p.dancers.filter((d) => !d.hidden && cur[d.id] && !inWings(cur[d.id], p.stage)).map((d) => d.id);
+}
+
+/** Xoay nhóm một phần tư vòng quanh tâm nhóm (dir = 1 theo chiều kim đồng hồ trên sơ đồ). */
+export function rotateSelected(dir: 1 | -1) {
+  const p = proj();
+  const cur = currentPoses();
+  const g = groupNow(p, cur);
+  if (g.length < 2) {
+    st().notify("Chọn ít nhất 2 người để xoay");
+    return;
+  }
+  const w = warnCount(p);
+  setPositionsNow(rotateGroup(cur, g, dir, p.stage), false);
+  hintWarn(w, `Đã xoay ${dir === 1 ? "theo" : "ngược"} chiều kim đồng hồ`);
+}
+
+/** Giãn (grow) hay thu nhóm quanh tâm nhóm, mỗi lần 15%. */
+export function scaleSelected(grow: boolean) {
+  const p = proj();
+  const cur = currentPoses();
+  const g = groupNow(p, cur);
+  if (g.length < 2) {
+    st().notify(`Chọn ít nhất 2 người để ${grow ? "giãn" : "thu"}`);
+    return;
+  }
+  const moves = scaleGroup(cur, g, grow ? 1.15 : 1 / 1.15, p.stage);
+  if (!moves) {
+    st().notify(grow ? "Nhóm đã chạm mép sân khấu, không giãn thêm được" : "Hai người đã sát nhau, không thu thêm được");
+    return;
+  }
+  const w = warnCount(p);
+  setPositionsNow(moves, false);
+  hintWarn(w, grow ? "Đã giãn đội hình" : "Đã thu đội hình");
 }
 
 export function sendToWings(side: -1 | 1) {

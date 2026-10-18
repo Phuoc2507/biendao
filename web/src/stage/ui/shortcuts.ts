@@ -5,7 +5,7 @@ import { st, type View } from "../store";
 import * as clock from "../clock";
 import {
   addFormation, removeFormation, jumpFormation, mirrorSelected, nudgeSelected,
-  stepBeat, exportProject, projectEnd, copyPositions, pastePositions, swapSelected,
+  stepBeat, exportProject, projectEnd, copyPositions, pastePositions, swapSelected, rotateSelected,
 } from "../actions";
 import { focusByPointer } from "./hooks";
 import { type Action, resolveShortcut, routeKey, targetKind } from "./keys";
@@ -50,6 +50,7 @@ function run(a: Action, focusedFormation: string | null) {
       break;
     case "mirror": mirrorSelected(); break;
     case "swap": swapSelected(); break;
+    case "rotate": rotateSelected(a.dir); break;
     case "loop": toggleLoop(); break;
     case "fit": window.dispatchEvent(new CustomEvent("stage:fit")); break;
   }
