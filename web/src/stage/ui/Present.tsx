@@ -2,7 +2,7 @@
 // đội hình kế tiếp còn bao lâu. Điều khiển tự ẩn khi không rê chuột.
 // Đang trình chiếu thì KHOÁ SỬA: không kéo được người, chỉ xem và tập.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { type Vec2, nextFormation, segmentAt } from "../model";
 import { countAt } from "../timing";
 import { type UI, st, useProject, useUI } from "../store";
@@ -154,6 +154,32 @@ export function Present() {
   };
   const toggle = (k: "countIn" | "mirror" | "bright" | "orbitFree" | "presentBack") => st().setUI({ [k]: !st().ui[k] } as Partial<UI>);
   const hasMe = !!ui.me;
+  const ctlShown = show || !playing;
+
+  // thanh điều khiển rộng (màn 1024) đè lên nhãn Khoá sửa: nhấc nhãn lên trên thanh
+  const ctl = useRef<HTMLDivElement>(null);
+  const lock = useRef<HTMLDivElement>(null);
+  const [lift, setLift] = useState(0);
+  useLayoutEffect(() => {
+    const c = ctl.current, l = lock.current;
+    if (!c || !l) return;
+    const measure = () => {
+      const a = c.getBoundingClientRect(), b = l.getBoundingClientRect();
+      const host = root.current?.getBoundingClientRect();
+      const left = host ? b.left - host.left : b.left;
+      const ctlLeft = host ? a.left - host.left : a.left;
+      setLift(ctlLeft < left + b.width + 8 ? Math.round(a.height) + 8 : 0);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    ro?.observe(c);
+    if (root.current) ro?.observe(root.current);
+    return () => {
+      window.removeEventListener("resize", measure);
+      ro?.disconnect();
+    };
+  }, []);
 
   return (
     <div className="present" ref={root} onPointerMove={poke} style={{ cursor: show ? "default" : "none" }}>
@@ -173,10 +199,14 @@ export function Present() {
           <PlanView readOnly compact mirror={ui.mirror} fromStage={ui.presentBack} />
         </div>
       )}
-      <div className="rh-lock" title="Đang trình chiếu: không kéo hay sửa được người">
+      <div
+        ref={lock}
+        className="rh-lock"
+        style={ctlShown && lift ? { bottom: 22 + lift } : undefined}
+        title="Đang trình chiếu: không kéo hay sửa được người">
         <Icon name="lock" /> Khoá sửa{ui.orbitFree ? "" : " · khoá góc nhìn"}
       </div>
-      <div className={`ctl rh-ctl${show || !playing ? "" : " hide"}`}>
+      <div ref={ctl} className={`ctl rh-ctl${ctlShown ? "" : " hide"}`}>
         <button className="btn icon" onClick={() => step(-1)} title="Đội hình trước (PageUp)"><Icon name="stepBack" /></button>
         <button className="play" onClick={play} title="Phát / dừng (Space)">
           <Icon name={playing || counting ? "pause" : "play"} />
