@@ -26,6 +26,7 @@ export interface UI {
   learning: boolean; // chế độ Học động tác từ video cả đội (không lưu vào dự án)
   // trình chiếu & tập (không lưu vào dự án)
   me: string | null; countIn: boolean; orbitFree: boolean; mirror: boolean; bright: boolean; showNext: boolean;
+  presentBack: boolean; // trình chiếu nhìn từ sau lưng người múa (trái phải như người múa)
   pxPerSec: number;
   saveState: "saved" | "saving" | "error";
   saveError: string | null; // lời báo khi không lưu được
@@ -80,7 +81,7 @@ export const useStore = create<State>((set, get) => ({
     planFromStage: savedPlanFromStage(),
     presenting: false,
     learning: false,
-    me: null, countIn: true, orbitFree: false, mirror: false, bright: false, showNext: false,
+    me: null, countIn: true, orbitFree: false, mirror: false, bright: false, showNext: false, presentBack: false,
     pxPerSec: 40,
     saveState: "saved",
     saveError: null,

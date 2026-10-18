@@ -164,6 +164,7 @@ Bấm **Trình chiếu** (F): toàn màn hình góc khán giả, có tên đội
 * **Đếm vào 5 · 6 · 7 · 8:** nút **5-6-7-8** (bật sẵn). Bấm phát thì app đếm bốn số theo nhịp bài (chưa đặt nhịp thì 0,6 s một số) rồi mới chạy nhạc. Space hoặc Esc để huỷ.
 * **Khoá sửa:** lúc trình chiếu không kéo được người, góc dưới trái ghi *Khoá sửa*. Góc nhìn cũng khoá; nút ổ khoá mở cho xoay bằng chuột. Nút máy ảnh hoặc phím **C** đặt lại góc nhìn vừa khít sân.
 * **Gương:** lật trái phải cả hình và sơ đồ nhỏ, để đội đứng quay mặt vào màn hình như soi gương.
+* **Sau lưng** (phím **B**): đổi sang góc đứng sau lưng người múa nhìn ra khán giả, sơ đồ nhỏ cũng quay theo (khán giả ở trên). Trái phải trên màn hình và trong dòng nhắc khớp với tay trái tay phải của người múa, nên đứng quay lưng về màn hình vẫn tập theo được. Dòng nhắc luôn ghi rõ đang tính trái phải theo hướng người múa hay theo hướng khán giả.
 * **Sáng:** sân sáng hơn, dễ nhìn trên máy chiếu yếu.
 * **Tôi là ai:** chọn tên mình; người khác mờ đi, có vòng trắng dưới chân mình và dòng nhắc "bạn đứng ở đâu, còn bao lâu thì đi tới đâu".
 * Dòng **Tiếp** đếm theo lượt 8 và phách (ví dụ *còn 1×8 + 4*); chưa đặt nhịp thì theo giây.
@@ -209,6 +210,7 @@ Khung 3D có các góc **Khán giả**, **Chéo**, **Trên cao** và **Sau lưng
 | M | Lật trái phải người đang chọn |
 | N | Bật, tắt bám lưới và phách |
 | O | Sơ đồ nhìn từ khán giả hoặc từ sân khấu |
+| B | (Trình chiếu) góc Sau lưng người múa; C đặt lại góc nhìn |
 | L | Lặp đoạn chuyển vào đội hình đang chọn (tập đi tập lại một chỗ di chuyển) |
 | V | Đổi chế độ xem |
 | Shift Z | Vừa khung dòng thời gian |

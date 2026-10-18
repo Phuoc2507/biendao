@@ -39,8 +39,10 @@ function Overlay() {
   const end = projectEnd(p);
   const { width: W, depth: D } = p.stage;
   const me = p.dancers.some((d) => d.id === ui.me && !d.hidden) ? (ui.me as string) : null;
+  // sau lưng: trái phải theo người múa (ngược khán giả); gương lật thêm lần nữa
+  const flipX = ui.mirror !== ui.presentBack;
   const cue = me
-    ? meCue(p.formations, me, t, p.bpm, (q: Vec2) => describePos(ui.mirror ? -q[0] : q[0], q[1], W, D))
+    ? meCue(p.formations, me, t, p.bpm, (q: Vec2) => describePos(flipX ? -q[0] : q[0], q[1], W, D))
     : null;
   const label = useCountIn();
   return (
@@ -49,7 +51,12 @@ function Overlay() {
       {nxt && s.kind !== "gap" && until < 30 && (
         <div className="ov fnext">Tiếp: {nxt.name} · {untilText(Math.max(0, until), p.bpm)}</div>
       )}
-      {cue && <div className="ov rh-cue">{cue}</div>}
+      {cue && (
+        <div className="ov rh-cue">
+          {cue}
+          <small>trái phải {flipX ? "theo hướng người múa" : "theo hướng khán giả nhìn"}</small>
+        </div>
+      )}
       {c && (
         <div className="ov bigcount">
           {c.beat}<span>lượt {c.eight}</span>
@@ -111,6 +118,11 @@ export function Present() {
         cancelCountIn();
         return;
       }
+      if (e.key === "b" || e.key === "B") {
+        e.stopPropagation();
+        st().setUI({ presentBack: !st().ui.presentBack });
+        return;
+      }
       if (e.key === "c" || e.key === "C") {
         e.stopPropagation();
         resetCam();
@@ -140,7 +152,7 @@ export function Present() {
     cancelCountIn();
     jumpFormation(d);
   };
-  const toggle = (k: "countIn" | "mirror" | "bright" | "orbitFree") => st().setUI({ [k]: !st().ui[k] } as Partial<UI>);
+  const toggle = (k: "countIn" | "mirror" | "bright" | "orbitFree" | "presentBack") => st().setUI({ [k]: !st().ui[k] } as Partial<UI>);
   const hasMe = !!ui.me;
 
   return (
@@ -151,13 +163,14 @@ export function Present() {
           showTools={false}
           orbit={ui.orbitFree}
           bright={ui.bright}
+          preset={ui.presentBack ? "back" : "front"}
           safe={{ top: hasMe ? 150 : 110, bottom: 92, side: 16 }}
         />
       </div>
       <Overlay />
       {mini && (
         <div className={`mini rh-mini${bpm ? "" : " nobpm"}`}>
-          <PlanView readOnly compact mirror={ui.mirror} />
+          <PlanView readOnly compact mirror={ui.mirror} fromStage={ui.presentBack} />
         </div>
       )}
       <div className="rh-lock" title="Đang trình chiếu: không kéo hay sửa được người">
@@ -186,6 +199,13 @@ export function Present() {
         <MePicker />
         <button className={`btn${ui.mirror ? " on" : ""}`} onClick={() => toggle("mirror")} title="Lật trái phải như soi gương">
           <Icon name="mirror" /> Gương
+        </button>
+        <button
+          className={`btn${ui.presentBack ? " on" : ""}`}
+          onClick={() => toggle("presentBack")}
+          title="Nhìn từ sau lưng người múa ra khán giả: trái phải như người múa (B)"
+        >
+          <Icon name="turn" /> Sau lưng
         </button>
         <button className={`btn${ui.bright ? " on" : ""}`} onClick={() => toggle("bright")} title="Sân sáng hơn cho máy chiếu">
           <Icon name="sun" /> Sáng

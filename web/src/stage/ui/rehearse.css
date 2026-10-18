@@ -71,3 +71,4 @@ select.btn.rh-me.on { border-color: #fff; color: #fff; }
   .rh-plan-tools .btn .rh-hide-narrow { display: none; }
   .rh-plan-tools { top: 40px; }
 }
+.present .rh-cue small { display: block; margin-top: 4px; font-size: 12px; opacity: 0.6; }

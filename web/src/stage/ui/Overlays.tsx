@@ -173,6 +173,8 @@ const KEYS: [string, [string, string][]][] = [
     ["Phát / dừng", "Space"],
     ["Đội hình trước / sau", "← →  hoặc  PageUp PageDown"],
     ["Về đầu / về cuối", "Home / End"],
+    ["Góc sau lưng người múa", "B"],
+    ["Đặt lại góc nhìn", "C"],
     ["Thoát trình chiếu", "Esc / F"],
   ]],
   ["Khi học động tác", [
