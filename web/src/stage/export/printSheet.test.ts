@@ -82,3 +82,11 @@ test("chưa có đội hình: vẫn ra trang có lời nhắn", () => {
   assert.ok(h.includes("Chưa có đội hình nào."));
   assert.ok(!h.includes("<table>"));
 });
+
+test("bản in: ghi chú đội hình hiện dưới giờ, đã thoát ký tự", () => {
+  const p = sample();
+  p.formations[0] = { ...p.formations[0], note: "nhịp 5 <quay>" };
+  const h = printHtml(p, { describe });
+  assert.ok(h.includes('<div class="fnote">nhịp 5 &lt;quay&gt;</div>'));
+  assert.equal(h.split('class="fnote"').length - 1, 1);
+});

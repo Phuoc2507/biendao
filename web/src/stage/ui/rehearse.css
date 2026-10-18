@@ -8,7 +8,7 @@
 .present .ctl.rh-ctl.hide { pointer-events: none; }
 
 .present .rh-cue {
-  left: 32px; top: 108px; max-width: min(62vw, 900px); font-size: 19px; line-height: 1.35;
+  margin-top: 4px; font-size: 19px; line-height: 1.35;
   color: #fff; background: rgba(0,0,0,.45); padding: 6px 12px; border-radius: 8px; border-left: 3px solid #fff;
 }
 
@@ -76,11 +76,14 @@ select.btn.rh-me.on { border-color: #fff; color: #fff; }
 
 /* trình chiếu trên điện thoại dựng đứng: chữ nhỏ lại, sơ đồ nhỏ nằm trên thanh điều khiển */
 @media (max-width: 599.98px) {
-  .present .fname { left: 16px; top: 14px; font-size: 24px; max-width: calc(100% - 150px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .present .rh-head { left: 16px; right: 16px; top: 14px; max-width: none; gap: 4px; align-items: stretch; }
+  /* tên chừa chỗ cho số đếm to bên phải; dòng sau bắt đầu dưới số đếm */
+  .present .fname { font-size: 24px; max-width: calc(100% - 134px); min-height: 56px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .present .bigcount { right: 16px; top: 12px; font-size: 56px; }
   .present .bigcount span { font-size: 20px; margin-left: 4px; }
-  .present .fnext { left: 16px; top: 76px; font-size: 15px; max-width: calc(100% - 32px); }
-  .present .rh-cue { left: 16px; right: 16px; top: 104px; max-width: none; font-size: 15px; padding: 5px 10px; }
+  .present .fnext { font-size: 15px; }
+  .present .fnote { font-size: 14px; padding: 3px 10px; -webkit-line-clamp: 2; }
+  .present .rh-cue { margin-top: 2px; font-size: 15px; padding: 5px 10px; }
   .present .mini.rh-mini {
     top: auto; left: 16px; right: 16px; width: auto; height: 170px;
     bottom: calc(22px + var(--ctl-h, 130px) + 42px);
@@ -88,12 +91,14 @@ select.btn.rh-me.on { border-color: #fff; color: #fff; }
 }
 /* điện thoại nằm ngang (thấp): chữ gọn sát trên, sơ đồ nhỏ bên phải, không đè thanh điều khiển */
 @media (max-height: 499.98px) {
-  .present .fname { left: 16px; top: 10px; font-size: 22px; }
-  .present .fnext { left: 16px; top: 42px; font-size: 14px; }
+  .present .rh-head { left: 16px; top: 10px; gap: 3px; }
+  .present:has(.rh-mini) .rh-head { max-width: calc(100% - 290px); }
+  .present .fname { font-size: 22px; }
+  .present .fnext { font-size: 14px; }
+  .present .fnote { font-size: 13px; padding: 2px 8px; -webkit-line-clamp: 2; }
   .present .bigcount { right: 16px; top: 8px; font-size: 52px; }
   .present .bigcount span { font-size: 20px; margin-left: 4px; }
-  .present .rh-cue { left: 16px; top: 66px; font-size: 14px; padding: 4px 10px; max-width: min(62vw, 900px); }
-  .present:has(.rh-mini) .rh-cue { max-width: calc(100% - 290px); }
+  .present .rh-cue { margin-top: 2px; font-size: 14px; padding: 4px 10px; }
   .present .mini.rh-mini {
     top: 70px; right: 16px; width: 250px; bottom: auto;
     height: max(110px, calc(100% - 70px - 30px - var(--ctl-h, 90px)));

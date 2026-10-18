@@ -111,3 +111,15 @@ test("fitSize giới hạn cạnh dài", () => {
   assert.deepEqual(fitSize(640, 360, 1024), [640, 360]);
   assert.deepEqual(fitSize(0, 0, 1024), [1, 1]);
 });
+
+test("normalizeProject: ghi chú đội hình không phải chữ thì bỏ, chữ thì giữ", () => {
+  const p = normalizeProject({
+    version: 1, dancers: [],
+    formations: [
+      { id: "a", name: "A", start: 0, end: 1, pos: {}, note: 5 },
+      { id: "b", name: "B", start: 2, end: 3, pos: {}, note: "quay" },
+    ],
+  })!;
+  assert.equal("note" in p.formations[0], false);
+  assert.equal(p.formations[1].note, "quay");
+});

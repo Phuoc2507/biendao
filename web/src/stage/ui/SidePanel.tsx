@@ -11,7 +11,7 @@ import * as clock from "../clock";
 import {
   addDancer, duplicateDancer, canonOffsets, updateDancer, removeDancer, moveDancerOrder, realign, realignAll, replaceVideo,
   importFiles, applyShape, mirrorSelected, distributeSelected, sendToWings,
-  addFormation, removeFormation, renameBlock, setStage, setBpm,
+  addFormation, removeFormation, renameBlock, setNote, setStage, setBpm,
   canonSection, clearCanonSection, mirrorGroup, setFlip, fixReassign, fixWiden, fixAllWarnings,
 } from "../actions";
 import { rowKeys, useHoldIndex, useWarnings } from "./hooks";
@@ -529,6 +529,20 @@ function FormationsTab() {
               type="text" key={sel.id + sel.name} defaultValue={sel.name} style={{ flex: 1, width: "auto" }}
               onBlur={(e) => e.currentTarget.value.trim() && e.currentTarget.value !== sel.name && renameBlock(sel.id, e.currentTarget.value.trim())}
               onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+            />
+          </label>
+          <label className="field note-field">
+            Ghi chú
+            <textarea
+              key={sel.id + (sel.note ?? "")} defaultValue={sel.note ?? ""} rows={2} maxLength={300}
+              placeholder="Vd: nhịp 5 quay người, nhịp 7 giơ quạt"
+              onBlur={(e) => setNote(sel.id, e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  e.currentTarget.blur();
+                }
+              }}
             />
           </label>
           <div className="dim" style={{ marginTop: 6 }}>

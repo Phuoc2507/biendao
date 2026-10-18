@@ -125,6 +125,7 @@ header.doc .meta { color: #444; font-size: 9.5pt; margin-top: 1mm; }
 .f h2 { margin: 0 0 1mm; font-size: 13pt; }
 .f h2 small { font-weight: normal; color: #555; font-size: 9.5pt; margin-left: 2mm; }
 .f .when { font-size: 9.5pt; color: #333; margin-bottom: 1.5mm; }
+.f .fnote { font-size: 10pt; margin: 0 0 1.5mm; padding-left: 2mm; border-left: 0.6mm solid #888; white-space: pre-wrap; }
 svg.plan { width: 100%; max-height: 112mm; display: block; }
 svg .lbl { font-size: 10px; fill: #777; letter-spacing: .5px; }
 svg .aud { font-size: 12px; font-weight: 700; fill: #e07a1f; letter-spacing: 1px; }
@@ -161,7 +162,9 @@ export function printHtml(p: Project, o: PrintOpts): string {
   const block = (k: number) => {
     const f = fs[k];
     return `<div class="f"><h2>${k + 1}. ${esc(f.name)}<small>${k > 0 ? `sau “${esc(fs[k - 1].name)}”` : "mở đầu"}</small></h2>`
-      + `<div class="when">${timeLabel(p, k)}</div>${formationSvg(p, k)}</div>`;
+      + `<div class="when">${timeLabel(p, k)}</div>`
+      + (f.note ? `<div class="fnote">${esc(f.note)}</div>` : "")
+      + `${formationSvg(p, k)}</div>`;
   };
 
   const pages: string[] = [];

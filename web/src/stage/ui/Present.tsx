@@ -46,6 +46,9 @@ function Overlay() {
     s.kind === "hold" || s.kind === "after" ? p.formations[s.k].name
       : s.kind === "gap" ? `→ ${p.formations[s.k + 1].name}`
         : s.kind === "before" ? "Chuẩn bị" : "";
+  // chuyển đội hình: báo trước ghi chú của đội hình sắp tới
+  const noteF = s.kind === "hold" || s.kind === "after" ? p.formations[s.k] : s.kind === "gap" ? p.formations[s.k + 1] : null;
+  const note = noteF?.note;
   const until = nxt ? nxt.start - t : 0;
   const end = projectEnd(p);
   const { width: W, depth: D } = p.stage;
@@ -58,16 +61,20 @@ function Overlay() {
   const label = useCountIn();
   return (
     <>
-      <div className="ov fname">{cur}</div>
-      {nxt && s.kind !== "gap" && until < 30 && (
-        <div className="ov fnext">Tiếp: {nxt.name} · {untilText(Math.max(0, until), p.bpm)}</div>
-      )}
-      {cue && (
-        <div className="ov rh-cue">
-          {cue}
-          <small>trái phải {flipX ? "theo hướng người múa" : "theo hướng khán giả nhìn"}</small>
-        </div>
-      )}
+      {/* một cột: dài ngắn thế nào các dòng cũng tự xếp dưới nhau */}
+      <div className="ov rh-head">
+        <div className="fname">{cur}</div>
+        {nxt && s.kind !== "gap" && until < 30 && (
+          <div className="fnext">Tiếp: {nxt.name} · {untilText(Math.max(0, until), p.bpm)}</div>
+        )}
+        {note && <div className="fnote">{note}</div>}
+        {cue && (
+          <div className="rh-cue">
+            {cue}
+            <small>trái phải {flipX ? "theo hướng người múa" : "theo hướng khán giả nhìn"}</small>
+          </div>
+        )}
+      </div>
       {c && (
         <div className="ov bigcount">
           {c.beat}<span>lượt {c.eight}</span>

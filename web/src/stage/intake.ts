@@ -91,7 +91,9 @@ export function normalizeProject(raw: unknown): Project | null {
     musicDuration: num(j.musicDuration, 0, 0),
     downbeat: num(j.downbeat, 0),
     dancers,
-    formations: Array.isArray(j.formations) ? j.formations : [],
+    formations: Array.isArray(j.formations)
+      ? j.formations.map((f) => (f && typeof f === "object" && "note" in f && typeof f.note !== "string" ? (({ note: _n, ...r }) => r)(f) : f))
+      : [],
   } as Project;
 }
 

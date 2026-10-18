@@ -37,6 +37,8 @@ export interface Formation {
   start: number;
   end: number;
   pos: Record<string, Vec2>;
+  /** Ghi chú cho người tập (động tác, nhịp quay...), hiện lúc trình chiếu và trong bản in. */
+  note?: string;
 }
 
 export interface StageSize {
@@ -343,6 +345,16 @@ export function deleteFormation(fs: Formation[], id: string): Formation[] {
 
 export function renameFormation(fs: Formation[], id: string, name: string): Formation[] {
   return fs.map((f) => (f.id === id ? { ...f, name } : f));
+}
+
+/** Đặt ghi chú; chuỗi rỗng thì bỏ trường. */
+export function setFormationNote(fs: Formation[], id: string, note: string): Formation[] {
+  const v = note.trim();
+  return fs.map((f) => {
+    if (f.id !== id) return f;
+    const { note: _old, ...rest } = f;
+    return v ? { ...rest, note: v } : rest;
+  });
 }
 
 /** Các cột đứng trong cánh gà, từ giữa cánh gà ra hai bên (mét, trị tuyệt đối). */

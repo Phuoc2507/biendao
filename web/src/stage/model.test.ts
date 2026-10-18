@@ -6,7 +6,7 @@ import {
   segmentAt, poseAt, posesAt, ensureFormationAt, setPositions, addFormationAfter,
   setBlockTimes, moveBlock, addDancerToAll, removeDancerFromAll, checkInvariants,
   shapePoints, assignNearest, arrangeShape, mirrorPositions, distributeX,
-  findWarnings, prevFormation, nextFormation, inWings, WING,
+  findWarnings, prevFormation, nextFormation, inWings, WING, setFormationNote,
 } from "./model.ts";
 
 const stage = { width: 10, depth: 6 };
@@ -245,4 +245,16 @@ test("nhân bản: chung video và độ lệch, tên đánh số không trùng"
   assert.equal(c.offsetSec, 1.5);
   assert.equal(c.stacked, true);
   assert.equal(cloneDancer(c, "c", ["Lan", "Lan 2", "Lan 3"], "#00f").name, "Lan 4");
+});
+
+test("ghi chú đội hình: đặt, cắt khoảng trắng, chuỗi rỗng thì bỏ trường, khối khác giữ nguyên", () => {
+  const fs: Formation[] = [
+    { id: "x", name: "A", start: 0, end: 2, pos: {} },
+    { id: "y", name: "B", start: 3, end: 5, pos: {} },
+  ];
+  const a = setFormationNote(fs, "x", "  nhịp 5 quay  ");
+  assert.equal(a[0].note, "nhịp 5 quay");
+  assert.equal(a[1], fs[1]);
+  const b = setFormationNote(a, "x", "   ");
+  assert.equal("note" in b[0], false);
 });

@@ -5,7 +5,7 @@ import {
   PALETTE, newDancer, cloneDancer, lineup, posesAt, ensureFormationAt, setPositions,
   addFormationAfter, deleteFormation, addDancerToAll, removeDancerFromAll,
   arrangeShape, mirrorPositions, distributeX, holdIndexAt, segmentAt,
-  snapPos, emptyProject, renameFormation, wingSpot, placeClones, canonOffsets as canonPatch, SHAPE_LABEL,
+  snapPos, emptyProject, renameFormation, setFormationNote, wingSpot, placeClones, canonOffsets as canonPatch, SHAPE_LABEL,
   type CanonOrder, canonRanks, rightSide,
 } from "./model";
 import { defaultLens, snapTime, putCanon, fmtTime, fmtCounts } from "./timing";
@@ -438,6 +438,12 @@ export function removeFormation(id: string) {
 
 export function renameBlock(id: string, name: string) {
   st().commit((q) => ({ ...q, formations: renameFormation(q.formations, id, name) }));
+}
+
+export function setNote(id: string, note: string) {
+  const f = proj().formations.find((x) => x.id === id);
+  if (!f || (f.note ?? "") === note.trim()) return;
+  st().commit((q) => ({ ...q, formations: setFormationNote(q.formations, id, note) }));
 }
 
 export function jumpFormation(dir: -1 | 1) {
