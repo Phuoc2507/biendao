@@ -64,6 +64,8 @@ export type Action =
   | { type: "undo" }
   | { type: "redo" }
   | { type: "selectAll" }
+  | { type: "copy" }
+  | { type: "paste" }
   | { type: "toggle" }
   | { type: "seek"; to: "start" | "end" }
   | { type: "jump"; dir: -1 | 1 }
@@ -99,11 +101,13 @@ export interface KeyCtx {
   hasBlock: boolean;
   /** Tiêu điểm đang ở một khối đội hình (dòng thời gian hoặc danh sách). */
   formationFocused: boolean;
+  /** Trên trang đang có chữ được bôi đen. */
+  textSelected?: boolean;
 }
 
 // giữ phím thì chỉ lặp các phím di chuyển; còn lại một lần bấm một lần chạy
 const ONCE = new Set<Action["type"]>([
-  "save", "selectAll", "toggle", "clear", "add", "delete", "deleteHint", "help",
+  "save", "selectAll", "copy", "paste", "toggle", "clear", "add", "delete", "deleteHint", "help",
   "snap", "view", "present", "exit", "mirror", "loop", "fit", "planFrom",
 ]);
 
@@ -126,6 +130,9 @@ function resolve(k: KeyIn, c: KeyCtx): Action | null {
     if (lower === "z") return { type: k.shift ? "redo" : "undo" };
     if (lower === "y") return { type: "redo" };
     if (lower === "a") return { type: "selectAll" };
+    // đang bôi đen chữ trên trang thì để Ctrl C chép chữ như thường
+    if (lower === "c" && !k.shift && !c.textSelected && c.hasDancers) return { type: "copy" };
+    if (lower === "v" && !k.shift && c.hasDancers) return { type: "paste" };
     return null;
   }
   if (k.alt) return null;

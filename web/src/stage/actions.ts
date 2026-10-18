@@ -373,6 +373,46 @@ export function sendToWings(side: -1 | 1) {
   hintWarn(w, "Đã đưa vào cánh gà");
 }
 
+// ---------- chép / dán chỗ đứng ----------
+
+let copied: { poses: Record<string, Vec2>; from: string } | null = null;
+
+/** Ctrl C: nhớ chỗ đứng lúc này của người đang chọn (không chọn ai: cả đội). */
+export function copyPositions() {
+  const p = proj();
+  let sel = st().ui.selected.filter((id) => p.dancers.some((d) => d.id === id));
+  if (!sel.length) sel = ids(p);
+  if (!sel.length) return;
+  const cur = currentPoses();
+  const poses: Record<string, Vec2> = {};
+  for (const id of sel) if (cur[id]) poses[id] = [cur[id][0], cur[id][1]];
+  const t = clock.now();
+  const f = p.formations.find((x) => t >= x.start && t <= x.end);
+  copied = { poses, from: f ? f.name : "vạch phát" };
+  const n = Object.keys(poses).length;
+  st().notify(`Đã chép chỗ đứng của ${n === p.dancers.length ? "cả đội" : `${n} người`}. Tua tới chỗ khác rồi Ctrl V để dán`);
+}
+
+/** Ctrl V: đặt lại đúng các chỗ đã chép vào đội hình tại vạch phát. */
+export function pastePositions() {
+  const p = proj();
+  if (!copied) {
+    st().notify("Chưa chép chỗ đứng nào. Chọn người (hoặc không chọn ai cho cả đội) rồi bấm Ctrl C");
+    return;
+  }
+  const moves: Record<string, Vec2> = {};
+  for (const [id, v] of Object.entries(copied.poses)) if (p.dancers.some((d) => d.id === id)) moves[id] = v;
+  const n = Object.keys(moves).length;
+  if (!n) {
+    st().notify("Những người đã chép không còn trong bài");
+    return;
+  }
+  const w = warnCount(p);
+  setPositionsNow(moves, false);
+  st().setUI({ selected: Object.keys(moves) });
+  hintWarn(w, `Đã dán chỗ đứng (từ ${copied.from}) cho ${n === p.dancers.length ? "cả đội" : `${n} người`}`, true);
+}
+
 // ---------- đội hình ----------
 
 export function addFormation() {

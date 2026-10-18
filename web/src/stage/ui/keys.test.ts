@@ -59,7 +59,16 @@ test("Ctrl: hoàn tác, làm lại, lưu, chọn hết", () => {
   assert.deepEqual(resolveShortcut(key("y", { ctrl: true }), ctx()), { type: "redo" });
   assert.deepEqual(resolveShortcut(key("s", { ctrl: true }), ctx()), { type: "save" });
   assert.deepEqual(resolveShortcut(key("a", { ctrl: true }), ctx()), { type: "selectAll" });
-  assert.equal(resolveShortcut(key("c", { ctrl: true }), ctx()), null);
+  assert.equal(resolveShortcut(key("x", { ctrl: true }), ctx()), null);
+});
+
+test("Ctrl C / Ctrl V: chép và dán chỗ đứng, nhường Ctrl C khi đang bôi đen chữ", () => {
+  assert.deepEqual(resolveShortcut(key("c", { ctrl: true }), ctx()), { type: "copy" });
+  assert.deepEqual(resolveShortcut(key("v", { ctrl: true }), ctx()), { type: "paste" });
+  assert.equal(resolveShortcut(key("c", { ctrl: true }), ctx({ textSelected: true })), null);
+  assert.equal(resolveShortcut(key("v", { ctrl: true }), ctx({ hasDancers: false })), null);
+  assert.equal(resolveShortcut(key("v", { ctrl: true, repeat: true }), ctx()), null);
+  assert.equal(resolveShortcut(key("c", { ctrl: true }), ctx({ presenting: true })), null);
 });
 
 test("Trình chiếu: bỏ Ctrl (trừ Ctrl S) và các phím sửa", () => {

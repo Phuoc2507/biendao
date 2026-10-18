@@ -5,7 +5,7 @@ import { st, type View } from "../store";
 import * as clock from "../clock";
 import {
   addFormation, removeFormation, jumpFormation, mirrorSelected, nudgeSelected,
-  stepBeat, exportProject, projectEnd,
+  stepBeat, exportProject, projectEnd, copyPositions, pastePositions,
 } from "../actions";
 import { focusByPointer } from "./hooks";
 import { type Action, resolveShortcut, routeKey, targetKind } from "./keys";
@@ -24,6 +24,8 @@ function run(a: Action, focusedFormation: string | null) {
     case "undo": s.undo(); break;
     case "redo": s.redo(); break;
     case "selectAll": s.setUI({ selected: s.project.dancers.map((d) => d.id) }); break;
+    case "copy": copyPositions(); break;
+    case "paste": pastePositions(); break;
     case "toggle": clock.toggle(); break;
     case "seek": clock.seek(a.to === "start" ? 0 : projectEnd()); break;
     case "jump": jumpFormation(a.dir); break;
@@ -83,6 +85,7 @@ export function useShortcuts() {
           hasDancers: s.project.dancers.length > 0,
           hasBlock: !!ui.selectedBlock,
           formationFocused: !!fEl,
+          textSelected: !!window.getSelection()?.toString(),
         },
       );
       if (!a) return;

@@ -212,6 +212,7 @@ Khung 3D có các góc **Khán giả**, **Chéo**, **Trên cao** và **Sau lưng
 | [ ] | Nhảy tới đội hình trước, sau |
 | Esc | Bỏ chọn |
 | Ctrl A | Chọn tất cả |
+| Ctrl C / Ctrl V | Chép chỗ đứng lúc này của người đang chọn (không chọn ai thì cả đội), tua tới đội hình khác rồi dán vào; không có đội hình ở đó thì app tạo mới |
 | M | Lật trái phải người đang chọn |
 | N | Bật, tắt bám lưới và phách |
 | O | Sơ đồ nhìn từ khán giả hoặc từ sân khấu |
