@@ -16,6 +16,7 @@ import { Present } from "./ui/Present";
 import { Learn } from "./ui/Learn";
 import { Busy, DropZone, Help, ToastView } from "./ui/Overlays";
 import { useShortcuts } from "./ui/shortcuts";
+import { modalOpen, popupOpen } from "./ui/keys";
 import { closeSide, usePhone, useSplitDir } from "./ui/useLayout";
 import { Icon } from "./ui/icons";
 import { SaveGuard } from "./ui/SaveGuard";
@@ -87,9 +88,13 @@ export function App() {
   // ngăn kéo cột trái trên điện thoại: Esc để đóng (khi có bàn phím)
   useEffect(() => {
     if (!phone || !ui.sideOpen) return;
-    const down = (e: KeyboardEvent) => e.key === "Escape" && closeSide();
-    window.addEventListener("keydown", down);
-    return () => window.removeEventListener("keydown", down);
+    // pha bắt: dò menu bật ra trước khi menu tự đóng, để Esc chỉ đóng menu chứ không đóng luôn ngăn kéo
+    const down = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || popupOpen(document) || modalOpen(st().ui)) return;
+      closeSide();
+    };
+    window.addEventListener("keydown", down, true);
+    return () => window.removeEventListener("keydown", down, true);
   }, [phone, ui.sideOpen]);
 
   // đã có bài thì xin trình duyệt giữ dữ liệu lâu dài (một lần, lặng lẽ)
