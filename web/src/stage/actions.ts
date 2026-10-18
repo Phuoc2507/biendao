@@ -993,10 +993,12 @@ export function fixReassign(fid: string) {
   if (!fx) return st().notify("Đổi chỗ không đỡ hơn ở đội hình này");
   st().commit((q) => ({ ...q, formations: fx.fs }));
   const name = p.formations[k].name;
+  const what = fx.carry ? "đổi vai từ đội hình này về sau" : "đổi ai đứng chỗ nào cho gần";
+  const where = fx.carry ? "cả bài" : "quanh đội hình này";
   st().notify(
     fx.after
-      ? `${name}: đổi ai đứng chỗ nào, cảnh báo còn ${fx.after} (trước ${fx.before})`
-      : `${name}: đổi ai đứng chỗ nào cho gần, hết cảnh báo quanh đội hình này`,
+      ? `${name}: ${what}, cảnh báo ${where} còn ${fx.after} (trước ${fx.before})`
+      : `${name}: ${what}, hết cảnh báo ${where}`,
     { undo: true },
   );
 }

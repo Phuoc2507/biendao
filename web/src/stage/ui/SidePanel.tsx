@@ -596,12 +596,14 @@ function WarningsTab() {
     );
   const icon = { collide: "×", overlap: "!", fast: "»" } as const;
   // cách sửa có được cho từng đội hình đích (chỉ đề nghị khi đỡ hơn thật)
-  const fx: Record<string, { swap: boolean; widen: boolean }> = {};
+  const fx: Record<string, { swap: boolean; carry: boolean; widen: boolean }> = {};
   for (const w of ws) {
     if (w.kind === "overlap" || fx[w.formation]) continue;
     const k = p.formations.findIndex((f) => f.id === w.formation);
+    const r = reassignFix(p.formations, k, p.dancers, p.stage, p.bpm);
     fx[w.formation] = {
-      swap: !!reassignFix(p.formations, k, p.dancers, p.stage, p.bpm),
+      swap: !!r,
+      carry: !!r?.carry,
       widen: !!widenFix(p.formations, k, p.dancers, p.stage, p.bpm, p.downbeat),
     };
   }
@@ -632,8 +634,10 @@ function WarningsTab() {
                 <div className="warn-fix">
                   {fx[w.formation]?.swap && (
                     <button className="btn sm" onClick={(e) => { e.stopPropagation(); fixReassign(w.formation); }}
-                      title="Giữ các chỗ đứng của đội hình này, chỉ đổi ai đứng chỗ nào cho mỗi người đi gần nhất">
-                      Đổi chỗ cho gần
+                      title={fx[w.formation]?.carry
+                        ? "Đổi vai: từ đội hình này về sau, mỗi người nhận luôn các chỗ của người kia cho đường đi gần nhất"
+                        : "Giữ các chỗ đứng của đội hình này, chỉ đổi ai đứng chỗ nào cho mỗi người đi gần nhất"}>
+                      {fx[w.formation]?.carry ? "Đổi vai từ đây" : "Đổi chỗ cho gần"}
                     </button>
                   )}
                   {w.kind === "fast" && fx[w.formation]?.widen && (

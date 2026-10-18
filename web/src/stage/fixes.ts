@@ -5,7 +5,10 @@
 //    đứng chỗ nào, gán theo tổng bình phương quãng đường nhỏ nhất từ đội hình
 //    trước (assignNearest). Gán kiểu này ít khi cắt nhau và đường đi ngắn hơn,
 //    nên bớt cả va nhau lẫn chạy quá nhanh. Chỉ đề nghị khi số cảnh báo quanh
-//    đội hình đó (lúc vào và lúc ra) giảm thật.
+//    đội hình đó (lúc vào và lúc ra) giảm thật. Đổi riêng một đội hình mà làm
+//    đoạn ra xấu đi thì thử ĐỔI VAI từ đó về sau: người A nhận luôn mọi chỗ của
+//    B ở các đội hình sau. Hình các khoảng chuyển sau giữ y nguyên (chỉ đổi tên
+//    người), nên chỉ khoảng chuyển vào thay đổi.
 //  * Nới khoảng chuyển: rời đội hình trước sớm hơn để ai cũng đi kịp dưới VMAX.
 //    Giữ nguyên lúc tới đội hình mới (vẫn đúng phách), mép rời bắt về phách
 //    trước đó; đội hình trước giữ lại ít nhất một phách.
@@ -28,6 +31,8 @@ export interface Fix {
   /** cảnh báo quanh đội hình đó trước và sau khi sửa */
   before: number;
   after: number;
+  /** đã đổi vai cho cả các đội hình sau */
+  carry?: boolean;
 }
 
 /** Đổi ai đứng chỗ nào trong đội hình k cho gần đội hình trước. null nếu không đỡ hơn. */
@@ -49,8 +54,22 @@ export function reassignFix(
   if (!moved) return null;
   const out = fs.map((x, j) => (j === k ? { ...x, pos } : x));
   const before = around(fs, k, dancers, stage, bpm), after = around(out, k, dancers, stage, bpm);
-  if (after >= before) return null;
-  return { fs: out, before, after };
+  if (after < before) return { fs: out, before, after };
+  // đổi vai từ k về sau: ids[i] nhận chỗ của ids[asg[i]] ở mọi đội hình j >= k
+  const carried = fs.map((x, j) => {
+    if (j < k) return x;
+    const q = { ...x.pos };
+    ids.forEach((id, i) => {
+      const src = x.pos[ids[asg[i]]];
+      if (src) q[id] = [src[0], src[1]];
+      else delete q[id];
+    });
+    return { ...x, pos: q };
+  });
+  const b2 = transitionIssues(fs, dancers, stage, bpm).length;
+  const a2 = transitionIssues(carried, dancers, stage, bpm).length;
+  if (a2 >= b2) return null;
+  return { fs: carried, before: b2, after: a2, carry: true };
 }
 
 export interface WidenFix {

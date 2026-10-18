@@ -41,6 +41,23 @@ test("đổi chỗ cho gần: không đề nghị nếu làm đoạn ra khỏi �
   assert.ok(fx === null || fx.after < fx.before);
 });
 
+test("đổi vai từ đây: đổi riêng làm đoạn ra xấu thì đổi vai cho cả các đội hình sau", () => {
+  // vào đội hình 2 chậm (6 s) nên chỉ va; ra đội hình 3 gấp (0,5 s) nên đổi riêng là va và chạy nhanh
+  const fs = [
+    F("1", 0, 2, { a: [-2, 0], b: [2, 0] }),
+    F("2", 8, 10, { a: [2, 0], b: [-2, 0] }),
+    F("3", 10.5, 12, { a: [2, 1], b: [-2, 1] }),
+  ];
+  const fx = reassignFix(fs, 1, ds, stage, null);
+  assert.ok(fx);
+  assert.equal(fx.carry, true);
+  // hết va; hai lỗi chạy nhanh sang đội hình 3 vẫn y như trước (hình giữ nguyên, chỉ đổi tên)
+  assert.equal(fx.after, fx.before - 1);
+  assert.ok(transitionIssues(fx.fs, ds, stage, null).every((i) => i.kind === "fast"));
+  assert.deepEqual(fx.fs[2].pos, { a: [-2, 1], b: [2, 1] }); // An nhận luôn chỗ của Bình về sau
+  assert.equal(fx.fs[0], fs[0]);
+});
+
 test("nới khoảng chuyển: rời sớm đủ cho dưới VMAX, giữ lúc tới, bắt về phách", () => {
   // 6 m trong 2 s ở 120 BPM (phách 0,5 s): cần 1,5·6/1,5 = 6 s
   const fs = [F("1", 0, 10, { a: [-3, 0] }), F("2", 12, 14, { a: [3, 0] })];

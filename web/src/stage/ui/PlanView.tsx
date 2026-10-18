@@ -10,7 +10,7 @@ import {
 import { st, useProject, useUI } from "../store";
 import { useTime } from "../clock";
 import * as clock from "../clock";
-import { setPositionsNow } from "../actions";
+import { fixAllWarnings, setPositionsNow } from "../actions";
 import { fmtTime } from "../timing";
 import { dancerLegs, dancerStops, stopLabel } from "../rehearse";
 import { describePos, useWarnings } from "./hooks";
@@ -552,13 +552,25 @@ function PlanTools({ issues }: { issues: Issues }) {
           {issues.length === 0 ? (
             <div className="rh-ok">✓ Không thấy ai va nhau, chồng lên nhau hay phải chạy quá nhanh.</div>
           ) : (
-            issues.map((w, i) => (
+            <>
+            <div className="rh-pop-head">
+              <span>{issues.length} chỗ cần xem · bấm để tua tới</span>
+              <button
+                className="btn sm"
+                title="Tự đổi chỗ cho gần và nới khoảng chuyển ở mọi chỗ sửa được (có Hoàn tác)"
+                onClick={fixAllWarnings}
+              >
+                Sửa tất cả
+              </button>
+            </div>
+            {issues.map((w, i) => (
               <button key={i} className="rh-item" onClick={() => jump(w)} title="Tua tới chỗ này">
                 <span className={`rh-ic ${w.kind}`}>{mark(w.kind)}</span>
                 <span className="rh-msg">{w.msg}</span>
                 <span className="rh-t">{fmtTime(w.t)}</span>
               </button>
-            ))
+            ))}
+            </>
           )}
         </div>
       )}
