@@ -101,3 +101,43 @@ test("sửa tất cả: bắt chéo và quá nhanh đều hết, lúc tới các
   assert.deepEqual(out.map((f) => f.start), [0, 4, 7]);
   assert.equal(transitionIssues(out, ds, stage, 120).length, 0);
 });
+
+// ---- thử ngẫu nhiên: sửa tất cả không bao giờ làm tệ hơn và giữ thời gian hợp lệ ----
+function rng(seed: number) {
+  let s = seed >>> 0;
+  return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+}
+
+test("sửa tất cả (ngẫu nhiên 300 bài): số cảnh báo không tăng, lúc tới giữ nguyên, khối không ngược", async () => {
+  const { findIssues } = await import("./checks.ts");
+  let improved = 0;
+  for (let seed = 1; seed <= 300; seed++) {
+    const r = rng(seed);
+    const n = 2 + Math.floor(r() * 7);
+    const people = Array.from({ length: n }, (_, i) => ({ id: `d${i}`, name: `N${i}` }));
+    const bpm = r() < 0.7 ? 90 + Math.floor(r() * 60) : null;
+    const fs: Formation[] = [];
+    let t = 0;
+    const nf = 2 + Math.floor(r() * 5);
+    for (let k = 0; k < nf; k++) {
+      const start = t + (k ? 0.5 + r() * 4 : 0);
+      const end = start + 1 + r() * 6;
+      const pos: Record<string, Vec2> = {};
+      for (const d of people) pos[d.id] = [Math.round((r() * 7 - 3.5) * 4) / 4, Math.round((r() * 5 - 2.5) * 4) / 4];
+      fs.push(F(String(k), start, end, pos));
+      t = end;
+    }
+    const before = findIssues(fs, people, stage, bpm).length;
+    const out = fixAll(fs, people, stage, bpm);
+    const after = findIssues(out, people, stage, bpm).length;
+    assert.ok(after <= before, `seed ${seed}: ${before} -> ${after}`);
+    if (after < before) improved++;
+    out.forEach((f, k) => {
+      assert.equal(f.start, fs[k].start, `seed ${seed}: lúc tới đội hình ${k} đổi`);
+      assert.ok(f.end > f.start, `seed ${seed}: khối ${k} ngược`);
+      if (k) assert.ok(f.start >= out[k - 1].end - 1e-9, `seed ${seed}: khối chồng`);
+      assert.equal(Object.keys(f.pos).length, n, `seed ${seed}: mất người`);
+    });
+  }
+  assert.ok(improved > 100, `chỉ đỡ hơn ở ${improved} bài`);
+});

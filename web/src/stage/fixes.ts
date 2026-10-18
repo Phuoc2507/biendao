@@ -102,6 +102,10 @@ export function widenFix(
   }
   end = Math.round(end * 1000) / 1000;
   if (end >= f.end - 1e-3) return null;
+  // đi chậm lại thì lúc gặp nhau cũng đổi: không nhận nếu bớt nhanh mà thêm va
+  const other = (x: Formation) =>
+    transitionIssues([x, g], dancers, stage, bpm, { vmax }).filter((i: Issue) => i.kind !== "fast").length;
+  if (other({ ...f, end }) > other(f)) return null;
   return { fs: fs.map((x, j) => (j === k - 1 ? { ...x, end } : x)), sec: f.end - end, partial };
 }
 
