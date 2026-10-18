@@ -27,7 +27,7 @@ cd web && npm install
 ```
 
 * Chạy app: `npm run dev` trong `web/` rồi mở http://localhost:5173/ (cấu hình sẵn ở `.claude/launch.json`, tên `web`). `index.html` vào app sân khấu `src/stage/main.tsx`.
-* Test: `npm test` trong `web/` (node:test, hiện **219 test xanh**).
+* Test: `npm test` trong `web/` (node:test, hiện **233 test xanh**).
 * Kiểm kiểu (máy ít RAM, phải nâng heap): `node --max-old-space-size=2500 node_modules/typescript/bin/tsc -p .` trong `web/`.
 * Tệp được test import trực tiếp phải import có đuôi `.ts` (ví dụ `from "./timing.ts"`), `model.ts` chỉ được `import type` từ `timing.ts`.
 * Trong trình duyệt có tay cầm DEV `window.__stage.st()` để đọc và gọi store (`setUI`, `commit`, `project`…).
@@ -66,6 +66,11 @@ Video mẫu thật: `D:\bien\IMG_5116.mov` (iPhone, HEVC 1920x1080, 41,9 s, khô
 Quy ước sân: khán giả ở phía **+Z**, x dương là bên **phải khán giả**.
 
 ## 5. Đã xong gần nhất
+
+Đợt 2026-10-19, phần cuối (commit 7e04370, ef44de4; làm bằng 2 agent song song trong worktree):
+
+* **Hình của tôi** (`Project.myShapes`, `captureShape` / `fitSavedShape` trong `model.ts`): lưu hình dạng nhóm (tương đối, không gắn người), áp lại quanh tâm nhóm, gán người theo đường gần nhất; lệch số người thì báo rõ.
+* **Cảnh báo bị che** (kind `blocked`, `isSoft` trong `checks.ts`): người đứng sau lệch ngang dưới 0,35 m. Là loại nhẹ: không tính trong hintWarn và Sửa tất cả, không tô đỏ dòng thời gian; có nút **Đứng so le** (`staggerFix` trong `fixes.ts`). Vòng tròn số người chẵn luôn có vài chỗ bị che (thật vậy), nên bài mẫu mở ra có 3 cảnh báo nhẹ.
 
 Đợt 2026-10-19, phần sau (commit ebfdbf1 tới f7e831f):
 
