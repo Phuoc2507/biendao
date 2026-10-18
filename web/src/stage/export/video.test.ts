@@ -96,3 +96,14 @@ test("vẽ khung: chạy hết lệnh canvas, có chữ KHÁN GIẢ và tên", (
   assert.ok(texts.includes("Hương") && texts.includes("Lan") && texts.includes("0:02.0"));
   assert.equal(ctx.globalAlpha, 1);
 });
+
+test("khung: dải chữ kèm ghi chú đội hình, đang chuyển thì ghi chú của đội hình tới, dài thì cắt", () => {
+  const p = sample();
+  p.formations = p.formations.map((f, k) => (k === 1 ? { ...f, note: "nhịp 5\nquay" } : f));
+  const g = planGeometry(p.stage, 1280, 720);
+  assert.equal(planFrame(p, 2, g).sub, "Mở");
+  assert.equal(planFrame(p, 5, g).sub, "Mở → Chữ V · nhịp 5 quay");
+  p.formations = p.formations.map((f, k) => (k === 1 ? { ...f, note: "x".repeat(80) } : f));
+  assert.ok(planFrame(p, 5, g).sub.endsWith("x…"));
+  assert.ok(planFrame(p, 5, g).sub.length < 80);
+});
