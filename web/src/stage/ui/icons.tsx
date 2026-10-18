@@ -44,6 +44,7 @@ const P: Record<string, string> = {
   follow: "M12 3v18M5 8l-3 4 3 4M19 8l3 4-3 4",
   video: "M3 6h12v12H3zM15 10l6-3v10l-6-3z",
   warn: "M12 3l10 18H2zM12 10v5M12 18v.5",
+  image: "M3 5h18v14H3zM3 16l5-5 4 4 3-3 6 6M15 10a1.5 1.5 0 1 0 0-.1",
   camera: "M3 7h4l2-3h6l2 3h4v13H3zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
   up: "M6 15l6-6 6 6",
   down: "M6 9l6 6 6-6",

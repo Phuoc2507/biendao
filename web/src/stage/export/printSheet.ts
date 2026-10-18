@@ -19,7 +19,7 @@ export const esc = (s: string) =>
 export const safeColor = (c: string) => (/^#[0-9a-f]{3,8}$/i.test(c) ? c : "#888888");
 
 const n1 = (v: number) => (Math.round(v * 10) / 10).toString();
-const MOVE_MIN = 0.15; // dời ít hơn thế thì không vẽ mũi tên
+export const MOVE_MIN = 0.15; // dời ít hơn thế thì không vẽ mũi tên
 
 const S = 40; // đơn vị SVG mỗi mét
 const PAD = 28;
