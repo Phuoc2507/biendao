@@ -103,7 +103,7 @@ export function duplicateDancer(id: string, n = 1): string | null {
   const src = p.dancers.find((d) => d.id === id);
   n = Math.max(1, Math.min(30, Math.floor(n)));
   if (!src) return null;
-  const warnBefore = findIssues(p.formations, p.dancers, p.stage, p.bpm).length;
+  const warnBefore = warnCount(p);
   const clones: VDancer[] = [];
   let q0 = p;
   for (let i = 0; i < n; i++) {
@@ -119,14 +119,7 @@ export function duplicateDancer(id: string, n = 1): string | null {
     return { ...q, dancers, formations: placeClones(q.formations, id, clones.map((d) => d.id), q.stage) };
   });
   clock.resync();
-  const q = proj();
-  const added = findIssues(q.formations, q.dancers, q.stage, q.bpm).length - warnBefore;
-  const what = n > 1 ? `Đã nhân bản ${src.name} thành ${n} người` : `Đã nhân bản ${src.name}`;
-  if (added > 0) {
-    st().notify(`${what} · thêm ${added} cảnh báo lúc chuyển đội hình`, {
-      undo: true, kind: "warn", action: { label: "Sửa tất cả", run: fixAllWarnings },
-    });
-  } else if (n > 1) st().notify(what, { undo: true });
+  hintWarn(warnBefore, n > 1 ? `Đã nhân bản ${src.name} thành ${n} người` : `Đã nhân bản ${src.name}`, n > 1);
   return clones[0].id;
 }
 
@@ -320,20 +313,36 @@ export function nudgeSelected(dx: number, dz: number) {
   setPositionsNow(moves, false);
 }
 
+const warnCount = (p: Project = proj()) => findIssues(p.formations, p.dancers, p.stage, p.bpm).length;
+
+/** Sau một thao tác xếp chỗ: sinh thêm cảnh báo thì báo kèm nút Sửa tất cả. */
+function hintWarn(before: number, what: string, always = false) {
+  const added = warnCount() - before;
+  if (added > 0) {
+    st().notify(`${what} · thêm ${added} cảnh báo lúc chuyển đội hình`, {
+      undo: true, kind: "warn", action: { label: "Sửa tất cả", run: fixAllWarnings },
+    });
+  } else if (always) st().notify(what, { undo: true });
+}
+
 export function applyShape(kind: ShapeKind) {
   const p = proj();
   let sel = st().ui.selected.filter((id) => p.dancers.some((d) => d.id === id));
   if (sel.length < 2) sel = p.dancers.filter((d) => !d.hidden).map((d) => d.id);
   if (!sel.length) return;
   const cur = currentPoses();
+  const w = warnCount(p);
   setPositionsNow(arrangeShape(cur, sel, kind, p.stage), false);
+  hintWarn(w, `Đã xếp ${SHAPE_LABEL[kind].toLowerCase()}`);
 }
 
 export function mirrorSelected() {
   const p = proj();
   let sel = st().ui.selected;
   if (!sel.length) sel = ids(p);
+  const w = warnCount(p);
   setPositionsNow(mirrorPositions(currentPoses(), sel), false);
+  hintWarn(w, "Đã lật trái phải");
 }
 
 export function distributeSelected() {
@@ -342,7 +351,9 @@ export function distributeSelected() {
     st().notify("Chọn ít nhất 3 người để dàn đều");
     return;
   }
+  const w = warnCount();
   setPositionsNow(distributeX(currentPoses(), sel), false);
+  hintWarn(w, "Đã dàn đều");
 }
 
 export function sendToWings(side: -1 | 1) {
@@ -357,7 +368,9 @@ export function sendToWings(side: -1 | 1) {
     moves[id] = spot;
     taken.push(spot);
   }
+  const w = warnCount(p);
   setPositionsNow(moves, false);
+  hintWarn(w, "Đã đưa vào cánh gà");
 }
 
 // ---------- đội hình ----------

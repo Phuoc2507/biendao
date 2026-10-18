@@ -184,6 +184,7 @@ Góc trên phải sơ đồ có ba nút:
   * **Đổi vai từ đây:** hiện thay cho nút trên khi đổi riêng một đội hình lại làm đoạn ra khỏi nó xấu đi. Từ đội hình đó về sau, mỗi người nhận luôn các chỗ của người kia, nên các khoảng chuyển sau giữ y hình cũ, chỉ đổi tên người.
   * **Nới khoảng chuyển:** rời đội hình trước sớm hơn (bắt về phách) để ai cũng đi kịp; lúc tới đội hình mới vẫn đúng phách cũ. Đội hình trước quá ngắn thì app nới hết mức và báo còn thiếu.
   * **Sửa tất cả** (đầu danh sách, và đầu ô Cảnh báo trên sơ đồ): làm các việc trên cho mọi khoảng chuyển một lượt.
+  * Sau khi **Xếp nhanh**, **Lật trái phải**, **Dàn đều**, **Cánh gà** hay **Nhân bản**, nếu sinh thêm cảnh báo thì thông báo hiện số cảnh báo mới kèm nút **Sửa tất cả**.
 
 Khung 3D có các góc **Khán giả**, **Chéo**, **Trên cao** và **Sau lưng** (đứng sau đội nhìn ra khán giả, hình lật như soi gương để trái phải giống người múa, dễ tập theo). Nút **Đặt lại** đưa góc nhìn về vừa khít sân; kéo thẻ giữ **Alt** để đặt tự do không bám lưới.
 
