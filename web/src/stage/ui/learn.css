@@ -128,6 +128,7 @@
   .lv-group { gap: 6px; }
   .lv-speed { display: flex; width: 100%; }
   .lv-speed button { flex: 1; }
-  .lv-hint { flex-direction: column; font-size: 12px; }
+  .lv-hint { font-size: 12px; align-items: center; }
+  .lv-hint-more { display: none; }
   .lv-time small { display: none; }
 }

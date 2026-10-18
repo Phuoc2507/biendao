@@ -561,9 +561,9 @@ export function Learn() {
         {src && !hintOk && !drawing && (
           <div className="lv-hint" role="note">
             <div>
-              <b>{hint}</b> Người trong video nhìn về phía bạn; soi gương thì họ giơ tay phải, bạn thấy ở bên phải của
+              <b>{hint}</b><span className="lv-hint-more"> Người trong video nhìn về phía bạn; soi gương thì họ giơ tay phải, bạn thấy ở bên phải của
               mình, cứ thế làm theo, không phải đổi bên. Nhìn thật từ sau lưng (thấy lưng người múa) thì cần dựng lại
-              tư thế 3D, app chưa làm được.
+              tư thế 3D, app chưa làm được.</span>
             </div>
             <button className="btn sm" onClick={dismissHint}>Đã hiểu</button>
           </div>
