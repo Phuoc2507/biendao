@@ -179,7 +179,10 @@ Góc trên phải sơ đồ có ba nút:
 
 * **Tôi là ai…:** làm nổi một người, vẽ cả đường đi qua bài, mỗi chỗ đứng ghi số đội hình.
 * **Bóng đội hình kế:** hiện mờ chỗ đứng ở đội hình sau, có mũi tên.
-* **Cảnh báo:** danh sách ai va nhau (dưới 0,5 m), chồng lên nhau, hay phải chạy quá 1,5 m/s. Bấm một dòng để tua tới đó. Chỗ va nhau hiện dấu × đỏ, đoạn chạy quá nhanh tô đỏ trên sơ đồ.
+* **Cảnh báo:** danh sách ai va nhau (dưới 0,5 m), chồng lên nhau, hay phải chạy quá 1,5 m/s. Bấm một dòng để tua tới đó. Chỗ va nhau hiện dấu × đỏ, đoạn chạy quá nhanh tô đỏ trên sơ đồ. Dưới dòng cảnh báo có nút sửa nhanh (bấm xong có **Hoàn tác**):
+  * **Đổi chỗ cho gần:** giữ nguyên các chỗ đứng của đội hình đó, chỉ đổi ai đứng chỗ nào để mỗi người đi đường gần nhất. Nút chỉ hiện khi đổi xong số cảnh báo giảm thật. Nếu bạn cố ý xếp ai đứng giữa thì kiểm lại sau khi bấm.
+  * **Nới khoảng chuyển:** rời đội hình trước sớm hơn (bắt về phách) để ai cũng đi kịp; lúc tới đội hình mới vẫn đúng phách cũ. Đội hình trước quá ngắn thì app nới hết mức và báo còn thiếu.
+  * **Sửa tất cả** (đầu danh sách): làm hai việc trên cho mọi khoảng chuyển một lượt.
 
 Khung 3D có các góc **Khán giả**, **Chéo**, **Trên cao** và **Sau lưng** (đứng sau đội nhìn ra khán giả, hình lật như soi gương để trái phải giống người múa, dễ tập theo). Nút **Đặt lại** đưa góc nhìn về vừa khít sân; kéo thẻ giữ **Alt** để đặt tự do không bám lưới.
 

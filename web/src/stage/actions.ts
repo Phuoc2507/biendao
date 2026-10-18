@@ -8,7 +8,7 @@ import {
   snapPos, emptyProject, renameFormation, wingSpot, placeClones, canonOffsets as canonPatch, SHAPE_LABEL,
   type CanonOrder, canonRanks, rightSide,
 } from "./model";
-import { defaultLens, snapTime, putCanon, fmtTime } from "./timing";
+import { defaultLens, snapTime, putCanon, fmtTime, fmtCounts } from "./timing";
 import { st, useStore, batch } from "./store";
 import * as clock from "./clock";
 import {
@@ -23,6 +23,8 @@ import {
 } from "./intake";
 import { claimTab, canAutosave, setBootProblem, otherTabsOpen, onTakeOver, subscribeGuard } from "./guard";
 import { planDance, energyChangeScore } from "./autoplan";
+import { findIssues } from "./checks";
+import { fixAll, reassignFix, widenFix } from "./fixes";
 import { errText } from "./storage";
 import { quickSave, openProjectJson, openBundleFile } from "./export/save";
 
@@ -979,4 +981,47 @@ export function autoFormations(o: { count?: number; everyEights?: number }) {
   if (had > 1)
     st().notify(`Đã thay ${had} đội hình cũ bằng ${formations.length} đội hình mới${how} — Ctrl Z để hoàn tác`, { undo: true, kind: "warn" });
   else st().notify(`Đã tạo ${formations.length} đội hình${how} — Ctrl Z để hoàn tác`, { undo: true });
+}
+
+// ---------- sửa nhanh cảnh báo ----------
+
+/** Đổi ai đứng chỗ nào trong đội hình `fid` cho gần đội hình trước. */
+export function fixReassign(fid: string) {
+  const p = proj();
+  const k = p.formations.findIndex((f) => f.id === fid);
+  const fx = reassignFix(p.formations, k, p.dancers, p.stage, p.bpm);
+  if (!fx) return st().notify("Đổi chỗ không đỡ hơn ở đội hình này");
+  st().commit((q) => ({ ...q, formations: fx.fs }));
+  const name = p.formations[k].name;
+  st().notify(
+    fx.after
+      ? `${name}: đổi ai đứng chỗ nào, cảnh báo còn ${fx.after} (trước ${fx.before})`
+      : `${name}: đổi ai đứng chỗ nào cho gần, hết cảnh báo quanh đội hình này`,
+    { undo: true },
+  );
+}
+
+/** Rời đội hình trước `fid` sớm hơn để kịp đi tới. */
+export function fixWiden(fid: string) {
+  const p = proj();
+  const k = p.formations.findIndex((f) => f.id === fid);
+  const fx = widenFix(p.formations, k, p.dancers, p.stage, p.bpm, p.downbeat);
+  if (!fx) return st().notify("Không nới thêm được: đội hình trước đã quá ngắn");
+  st().commit((q) => ({ ...q, formations: fx.fs }));
+  const prev = p.formations[k - 1].name;
+  st().notify(
+    `Rời ${prev} sớm hơn ${p.bpm ? fmtCounts(fx.sec, p.bpm) : fx.sec.toFixed(1).replace(".", ",") + " s"}${fx.partial ? ", vẫn chưa đủ: thử đổi chỗ hoặc kéo dài khối" : ""}`,
+    { undo: true },
+  );
+}
+
+/** Sửa mọi khoảng chuyển một lần (đổi chỗ cho gần, rời sớm hơn). */
+export function fixAllWarnings() {
+  const p = proj();
+  const before = findIssues(p.formations, p.dancers, p.stage, p.bpm).length;
+  const fs = fixAll(p.formations, p.dancers, p.stage, p.bpm, p.downbeat);
+  const after = findIssues(fs, p.dancers, p.stage, p.bpm).length;
+  if (after >= before) return st().notify("Không tự sửa được thêm: hãy kéo người hoặc kéo dài khối chuyển");
+  st().commit((q) => ({ ...q, formations: fs }));
+  st().notify(after ? `Đã sửa ${before - after} cảnh báo, còn ${after} phải sửa tay` : `Đã sửa hết ${before} cảnh báo`, { undo: true });
 }

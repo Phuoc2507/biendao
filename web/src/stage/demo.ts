@@ -9,6 +9,7 @@
 import { Muxer, ArrayBufferTarget } from "webm-muxer";
 import { type Project, type Vec2, emptyProject, newDancer, arrangeShape, lineup, WING } from "./model";
 import { storeBlob, registerVideo, setMusic, uid } from "./media";
+import { fixAll } from "./fixes";
 
 export const DEMO_BPM = 100;
 const BEAT = 60 / DEMO_BPM;
@@ -319,6 +320,8 @@ export async function makeDemoProject(
     { id: uid("f"), name: "Vòng tròn", start: 6.25 * bar, end: 7 * bar, pos: circ },
     { id: uid("f"), name: "Chào", start: 7.5 * bar, end: 8 * bar, pos: front },
   ];
+  // bài mẫu mở ra phải sạch cảnh báo: đổi chỗ cho gần, rời sớm nếu đường xa
+  p.formations = fixAll(p.formations, p.dancers, p.stage, p.bpm, p.downbeat);
   progress("Xong", 1);
   return p;
 }

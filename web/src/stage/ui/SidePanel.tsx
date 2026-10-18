@@ -12,9 +12,10 @@ import {
   addDancer, duplicateDancer, canonOffsets, updateDancer, removeDancer, moveDancerOrder, realign, realignAll, replaceVideo,
   importFiles, applyShape, mirrorSelected, distributeSelected, sendToWings,
   addFormation, removeFormation, renameBlock, setStage, setBpm,
-  canonSection, clearCanonSection, mirrorGroup, setFlip,
+  canonSection, clearCanonSection, mirrorGroup, setFlip, fixReassign, fixWiden, fixAllWarnings,
 } from "../actions";
 import { rowKeys, useHoldIndex, useWarnings } from "./hooks";
+import { reassignFix, widenFix } from "../fixes";
 import { AutoPlanSection } from "./AutoPlanSection";
 import { NumField } from "./NumField";
 import { commaDec, fmtNum, fmtSigned } from "./num";
@@ -594,9 +595,26 @@ function WarningsTab() {
       </div>
     );
   const icon = { collide: "×", overlap: "!", fast: "»" } as const;
+  // cách sửa có được cho từng đội hình đích (chỉ đề nghị khi đỡ hơn thật)
+  const fx: Record<string, { swap: boolean; widen: boolean }> = {};
+  for (const w of ws) {
+    if (w.kind === "overlap" || fx[w.formation]) continue;
+    const k = p.formations.findIndex((f) => f.id === w.formation);
+    fx[w.formation] = {
+      swap: !!reassignFix(p.formations, k, p.dancers, p.stage, p.bpm),
+      widen: !!widenFix(p.formations, k, p.dancers, p.stage, p.bpm, p.downbeat),
+    };
+  }
   return (
     <div style={{ padding: 6 }}>
-      <div className="dim" style={{ padding: "4px 8px 8px" }}>Bấm một dòng để tua tới đúng lúc đó.</div>
+      <div className="warn-head">
+        <span className="dim">Bấm một dòng để tua tới đúng lúc đó.</span>
+        {Object.values(fx).some((f) => f.swap || f.widen) && (
+          <button className="btn sm" onClick={fixAllWarnings} title="Đổi chỗ cho gần và rời sớm hơn ở mọi khoảng chuyển còn lỗi (có Hoàn tác)">
+            Sửa tất cả
+          </button>
+        )}
+      </div>
       {ws.map((w, i) => {
         const go = () => {
           clock.pause();
@@ -609,7 +627,23 @@ function WarningsTab() {
             <span className={`ic ${w.kind}`} aria-hidden="true">{icon[w.kind]}</span>
             <div>
               <div>{msg}</div>
-              <div className="dim">{fmtTime(w.t)}{w.kind === "fast" ? " · nới khoảng chuyển hoặc đứng gần hơn" : ""}</div>
+              <div className="dim">{fmtTime(w.t)}</div>
+              {(fx[w.formation]?.swap || (w.kind === "fast" && fx[w.formation]?.widen)) && (
+                <div className="warn-fix">
+                  {fx[w.formation]?.swap && (
+                    <button className="btn sm" onClick={(e) => { e.stopPropagation(); fixReassign(w.formation); }}
+                      title="Giữ các chỗ đứng của đội hình này, chỉ đổi ai đứng chỗ nào cho mỗi người đi gần nhất">
+                      Đổi chỗ cho gần
+                    </button>
+                  )}
+                  {w.kind === "fast" && fx[w.formation]?.widen && (
+                    <button className="btn sm" onClick={(e) => { e.stopPropagation(); fixWiden(w.formation); }}
+                      title="Rời đội hình trước sớm hơn, vẫn tới đội hình này đúng phách cũ">
+                      Nới khoảng chuyển
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         );

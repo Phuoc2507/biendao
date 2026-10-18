@@ -534,3 +534,5 @@ kbd {
   .bar.indet i { width: 100% !important; margin-left: 0; opacity: .5; animation: none !important; }
   .btn:active { transform: none; }
 }
+.warn-fix { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.warn-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px 8px; }
