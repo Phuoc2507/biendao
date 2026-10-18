@@ -175,3 +175,29 @@ export function imageFileName(p: Project, k: number): string {
 
 /** Tên gói mọi ảnh: "<tên bài>-doi-hinh.zip". */
 export const imagesZipName = (p: Project) => safeName(`${slugTitle(p.title)}-doi-hinh.zip`);
+
+/** Phần của navigator mà mục Chia sẻ cần (để test bằng đối tượng giả). */
+export interface ShareNav {
+  share?: unknown;
+  canShare?: (data: { files?: File[] }) => boolean;
+}
+
+/** Có hiện mục "Chia sẻ ảnh" không: cần share và canShare nhận đúng các tệp này (điện thoại, Safari, Edge). */
+export function canShareImage(nav: ShareNav | undefined, files: File[]): boolean {
+  if (!nav || typeof nav.share !== "function" || typeof nav.canShare !== "function") return false;
+  try {
+    return nav.canShare({ files }) === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Phần của navigator mà mục Chép ảnh cần. */
+export interface ClipNav {
+  clipboard?: { write?: unknown };
+}
+
+/** Có hiện mục "Chép ảnh" không: cần clipboard.write (trang an toàn) và lớp ClipboardItem. */
+export function canCopyImage(nav: ClipNav | undefined, clipboardItem: unknown): boolean {
+  return typeof nav?.clipboard?.write === "function" && typeof clipboardItem === "function";
+}

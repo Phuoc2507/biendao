@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   IMG_W, IMG_H, formationIndexAt, wrapText, headerLines, imageLayout, imageFrame, drawImage, imageFileName, imagesZipName, lineChars,
+  canShareImage, canCopyImage,
 } from "./imageSheet.ts";
 import { toPx, type Ctx2D } from "./planRender.ts";
 import { type Project, emptyProject, newDancer, WING } from "../model.ts";
@@ -146,4 +147,28 @@ test("ảnh: tên ngắn đã nằm trọn trong chấm thì không vẽ lại d
 
 test("ảnh: dòng giờ và nhịp cỡ 56 ký tự vẫn nằm trên một dòng", () => {
   assert.equal(wrapText("0:24.0 – 0:27.6 · bắt đầu 8 thứ 6, phách 1 · giữ 6 phách", lineChars(32, 1080), 2).length, 1);
+});
+
+test("chia sẻ ảnh: chỉ hiện khi có share và canShare nhận tệp", () => {
+  const files = [new File([new Uint8Array(1)], "a.png", { type: "image/png" })];
+  const share = async () => {};
+  assert.equal(canShareImage(undefined, files), false);
+  assert.equal(canShareImage({}, files), false);
+  assert.equal(canShareImage({ share }, files), false, "không có canShare: máy tính cũ, không chắc nhận tệp");
+  assert.equal(canShareImage({ share, canShare: () => false }, files), false);
+  assert.equal(canShareImage({ canShare: () => true }, files), false, "có canShare mà thiếu share");
+  let got: unknown;
+  assert.equal(canShareImage({ share, canShare: (d) => ((got = d), true) }, files), true);
+  assert.deepEqual(got, { files });
+  assert.equal(canShareImage({ share, canShare: () => { throw new TypeError("x"); } }, files), false);
+});
+
+test("chép ảnh: chỉ hiện khi có clipboard.write và ClipboardItem", () => {
+  class CI {}
+  const write = async () => {};
+  assert.equal(canCopyImage(undefined, CI), false);
+  assert.equal(canCopyImage({}, CI), false);
+  assert.equal(canCopyImage({ clipboard: {} }, CI), false);
+  assert.equal(canCopyImage({ clipboard: { write } }, undefined), false);
+  assert.equal(canCopyImage({ clipboard: { write } }, CI), true);
 });
