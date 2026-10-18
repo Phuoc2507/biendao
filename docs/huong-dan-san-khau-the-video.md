@@ -204,6 +204,8 @@ Khung 3D có các góc **Khán giả**, **Chéo**, **Trên cao** và **Sau lưng
 * Tệp `.choreo.json` chỉ chứa đội hình và thông tin, **không chứa video**. Muốn chép sang máy khác cho đủ cả nhạc và video: **Tệp ▸ Đóng gói cả video (.zip)…** ra một tệp `.zip` duy nhất (tối đa 4 GB).
 * Mở trên máy mới: **Tệp ▸ Mở…** chọn tệp `.zip` (hoặc kéo thả tệp `.zip` vào cửa sổ), **không cần giải nén**. App chép video vào trình duyệt rồi mở bài; bấm Hoàn tác (Ctrl Z) nếu lỡ tay. Mở tệp `.choreo.json` thì thả lại thư mục thẻ và nhạc, app tự gắn theo tên tệp.
 * **Tệp ▸ In tờ đội hình…**: in (hoặc lưu PDF) mỗi trang A4 hai đội hình, sơ đồ nhìn từ trên có tên từng người, mũi tên từ chỗ đứng trước, và bảng vị trí từng người. Phát cho cả đội.
+* **Tệp ▸ Xuất ảnh đội hình này (.png)**: một ảnh PNG (rộng 1080, vuông hoặc dọc 4:5) của đội hình tại vạch phát, để gửi Zalo, Messenger cho cả nhóm. Ảnh có tên bài, số thứ tự và tên đội hình, thời điểm và nhịp bắt đầu, ghi chú của đội hình (nếu có), sơ đồ nhìn từ trên với cánh gà, chấm tên từng người, mũi tên từ chỗ đứng ở đội hình trước, chữ KHÁN GIẢ ở đáy ảnh. Vạch phát đang nằm giữa hai đội hình thì lấy đội hình gần hơn; trước bài lấy đội hình đầu, sau bài lấy đội hình cuối.
+* **Tệp ▸ Xuất ảnh tất cả đội hình (.zip)**: mỗi đội hình một ảnh như trên, gói chung một tệp `.zip` (giải nén ra rồi gửi cả loạt ảnh). Tên ảnh theo dạng `Tên-bài-01-Tên-đội-hình.png`, không có dấu cách.
 * **Tệp ▸ Xuất video…**: ghi video `.mp4` (hoặc `.webm` nếu trình duyệt không ghi được MP4) kèm nhạc, góc khán giả 3D hoặc sơ đồ từ trên. Sơ đồ có thể tô đậm một người ("video riêng cho Lan") để gửi riêng. Video ghi theo thời gian thật: bài dài 3 phút thì mất 3 phút, phải **giữ tab mở**, chuyển tab là dừng. Esc hoặc Hủy để dừng.
 
 ## 5. Phím tắt

@@ -12,6 +12,7 @@ export interface PlanGeom {
   cy: number; // điểm ảnh của z = 0
   stage: StageSize;
   head: number; // chiều cao dải chữ phía trên
+  u?: number; // cỡ chữ riêng (ảnh gửi điện thoại); bỏ trống thì theo độ cao khung
 }
 
 /** Đặt sân (kể cả cánh gà) vừa khung, chừa dải chữ trên và dòng KHÁN GIẢ dưới. */
@@ -44,6 +45,18 @@ export interface PlanFrame {
   time: string;
   count: string;
   dots: FrameDot[];
+  /** Mũi tên từ chỗ đứng trước (ảnh đội hình); video không dùng. */
+  trails?: FrameTrail[];
+}
+
+/** Bóng chỗ cũ và mũi tên tới chỗ mới, toạ độ điểm ảnh. */
+export interface FrameTrail {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  r: number;
+  color: string;
 }
 
 /** Nội dung một khung tại thời điểm t. highlightId: video riêng cho một người. */
@@ -112,7 +125,7 @@ const FONT = '"Segoe UI", system-ui, Arial, sans-serif';
 export function drawPlanFrame(ctx: Ctx2D, g: PlanGeom, f: PlanFrame) {
   const { w, h, s } = g;
   const W = g.stage.width, D = g.stage.depth;
-  const u = h / 720; // cỡ chữ theo độ cao khung
+  const u = g.u ?? h / 720; // cỡ chữ theo độ cao khung
   ctx.globalAlpha = 1;
   ctx.setLineDash([]);
   ctx.fillStyle = "#0f1115";
@@ -188,6 +201,38 @@ export function drawPlanFrame(ctx: Ctx2D, g: PlanGeom, f: PlanFrame) {
   ctx.textAlign = "center";
   ctx.fillText("CÁNH GÀ", x0 - wing / 2, y0 + 14 * u);
   ctx.fillText("CÁNH GÀ", x1 + wing / 2, y0 + 14 * u);
+
+  // bóng chỗ cũ và mũi tên, vẽ dưới chấm
+  for (const t of f.trails ?? []) {
+    const len = Math.hypot(t.x1 - t.x0, t.y1 - t.y0);
+    if (len < 1e-6) continue;
+    const ux = (t.x1 - t.x0) / len, uy = (t.y1 - t.y0) / len;
+    ctx.globalAlpha = 0.6;
+    ctx.strokeStyle = t.color;
+    ctx.lineWidth = 2 * u;
+    ctx.setLineDash([4 * u, 4 * u]);
+    ctx.beginPath();
+    ctx.arc(t.x0, t.y0, t.r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = "#aab3c2";
+    ctx.setLineDash([7 * u, 5 * u]);
+    const ax = t.x1 - ux * (t.r + 3 * u), ay = t.y1 - uy * (t.r + 3 * u);
+    const hl = Math.min(12 * u, len * 0.4);
+    ctx.beginPath();
+    ctx.moveTo(t.x0 + ux * t.r, t.y0 + uy * t.r);
+    ctx.lineTo(ax - ux * hl * 0.6, ay - uy * hl * 0.6);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#aab3c2";
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(ax - ux * hl - uy * hl * 0.5, ay - uy * hl + ux * hl * 0.5);
+    ctx.lineTo(ax - ux * hl + uy * hl * 0.5, ay - uy * hl - ux * hl * 0.5);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.setLineDash([]);
 
   // người
   for (const d of f.dots) {

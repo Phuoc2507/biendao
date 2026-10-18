@@ -8,6 +8,7 @@ import { usePlaying, useTime } from "../clock";
 import { createPortal } from "react-dom";
 import { saveAs, saveBundle, saveTargetName, forgetSaveTarget, watchMusic, openBundleFile, isBlankProject } from "../export/save";
 import { printFormations } from "../export/print";
+import { exportCurrentImage, exportAllImages } from "../export/image";
 import { ExportDialog } from "./ExportDialog";
 import { exportProject, newProject, openProjectFile, setTitle, stepBeat, projectEnd } from "../actions";
 import { saveProject } from "../db";
@@ -110,6 +111,12 @@ function FileMenu() {
           </button>
           <hr />
           <button onClick={run(printFormations)}><Icon name="print" size={16} /> In tờ đội hình…</button>
+          <button onClick={run(exportCurrentImage)} title="Ảnh PNG dọc của đội hình tại vạch phát, để gửi Zalo, Messenger">
+            <Icon name="image" size={16} /> Xuất ảnh đội hình này (.png)
+          </button>
+          <button onClick={run(exportAllImages)} title="Mỗi đội hình một ảnh PNG, gói trong một tệp .zip">
+            <Icon name="image" size={16} /> Xuất ảnh tất cả đội hình (.zip)
+          </button>
           <button onClick={run(() => setExporting(true))}><Icon name="video" size={16} /> Xuất video…</button>
           <hr />
           <button
