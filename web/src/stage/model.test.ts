@@ -7,6 +7,7 @@ import {
   setBlockTimes, moveBlock, addDancerToAll, removeDancerFromAll, checkInvariants,
   shapePoints, assignNearest, arrangeShape, mirrorPositions, distributeX, rotateGroup, scaleGroup, fitGroup,
   findWarnings, prevFormation, nextFormation, inWings, WING, setFormationNote, captureShape, fitSavedShape,
+  fitFormationsToStage,
 } from "./model.ts";
 
 const stage = { width: 10, depth: 6 };
@@ -351,4 +352,40 @@ test("checkInvariants: hình tự lưu hỏng bị báo", () => {
   const p = { ...emptyProject(), myShapes: [{ id: "h1", name: "A", pts: [] }, { id: "h2", name: "B", pts: [[NaN, 0]] as Vec2[] }] };
   assert.equal(checkInvariants(p).length, 2);
   assert.deepEqual(checkInvariants({ ...emptyProject(), myShapes: [{ id: "h", name: "C", pts: [[0, 0]] }] }), []);
+});
+
+test("ensureFormationAt: khoảng chuyển ngắn hơn MIN_BLOCK thì khối mới không đè khối trước", () => {
+  const fs: Formation[] = [
+    { id: "A", name: "A", start: 0, end: 5, pos: { a: [0, 0] } },
+    { id: "B", name: "B", start: 5.1, end: 8, pos: { a: [1, 0] } },
+  ];
+  const p = { ...emptyProject(), dancers: [newDancer("a", "A", "#fff")] };
+  const r = ensureFormationAt(fs, 5.05, ["a"], stage, "N", 4);
+  assert.deepEqual(checkInvariants({ ...p, formations: r.formations }), []);
+  const n = r.formations.find((f) => f.id === "N")!;
+  assert.ok(n.start >= 5 && n.end <= 5.1 && n.start < n.end);
+  // nút + Đội hình ở chỗ trống đó cũng vậy
+  const a = addFormationAfter(fs, 5.05, ["a"], stage, "N", 4, 2);
+  assert.deepEqual(checkInvariants({ ...p, formations: a.formations }), []);
+});
+
+test("lineup: sân hẹp hơn 1 m không đảo thứ tự hàng", () => {
+  const l = lineup(["a", "b", "c"], { width: 0.5, depth: 1 });
+  assert.ok(l.a[0] <= l.b[0] && l.b[0] <= l.c[0]);
+});
+
+test("fitFormationsToStage: thu sân thì kéo người ra ngoài sân và cánh gà vào trong", () => {
+  const small = { width: 4, depth: 3 };
+  const fs: Formation[] = [
+    { id: "A", name: "A", start: 0, end: 1, pos: { a: [4.9, 2.9], b: [0, 0] } },
+    { id: "B", name: "B", start: 2, end: 3, pos: { a: [-1, 1] } },
+  ];
+  const out = fitFormationsToStage(fs, small);
+  assert.deepEqual(out[0].pos.a, [2 + WING, 1.5]);
+  assert.equal(out[0].pos.b, fs[0].pos.b);
+  // khối không ai ra ngoài thì giữ nguyên đối tượng (khỏi vẽ lại)
+  assert.equal(out[1], fs[1]);
+  assert.equal(fitFormationsToStage(fs, stage), fs);
+  const p = { ...emptyProject(), stage: small, dancers: [newDancer("a", "A", "#fff"), newDancer("b", "B", "#fff")] };
+  assert.deepEqual(checkInvariants({ ...p, formations: out }).filter((e) => e.includes("ngoài sân")), []);
 });

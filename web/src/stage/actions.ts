@@ -5,6 +5,7 @@ import {
   PALETTE, newDancer, cloneDancer, lineup, posesAt, ensureFormationAt, setPositions,
   addFormationAfter, deleteFormation, addDancerToAll, removeDancerFromAll,
   arrangeShape, mirrorPositions, distributeX, rotateGroup, scaleGroup, inWings, holdIndexAt, segmentAt,
+  fitFormationsToStage,
   snapPos, emptyProject, renameFormation, setFormationNote, wingSpot, placeClones, canonOffsets as canonPatch, SHAPE_LABEL,
   type CanonOrder, canonRanks, rightSide, type SavedShape, captureShape, fitSavedShape,
 } from "./model";
@@ -1117,7 +1118,11 @@ export function setTitle(title: string) {
 }
 
 export function setStage(width: number, depth: number) {
-  st().commit((q) => ({ ...q, stage: { width, depth } }));
+  // thu nhỏ sân: kéo người đứng ngoài sân và cánh gà mới vào trong, khỏi mất khỏi sơ đồ
+  st().commit((q) => {
+    const stage = { width, depth };
+    return { ...q, stage, formations: fitFormationsToStage(q.formations, stage) };
+  });
 }
 
 export { clock };
