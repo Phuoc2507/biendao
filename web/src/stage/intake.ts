@@ -91,9 +91,7 @@ export function normalizeProject(raw: unknown): Project | null {
     musicDuration: num(j.musicDuration, 0, 0),
     downbeat: num(j.downbeat, 0),
     dancers,
-    formations: Array.isArray(j.formations)
-      ? j.formations.map((f) => (f && typeof f === "object" && "note" in f && typeof f.note !== "string" ? (({ note: _n, ...r }) => r)(f) : f))
-      : [],
+    formations: Array.isArray(j.formations) ? j.formations.map(cleanNote) : [],
   } as Project;
   const shapes = normalizeShapes(j.myShapes);
   if (shapes.length) out.myShapes = shapes;
@@ -101,7 +99,19 @@ export function normalizeProject(raw: unknown): Project | null {
   return out;
 }
 
-const isPt = (q: unknown): q is Vec2 => Array.isArray(q) && q.length === 2 && fin(q[0]) && fin(q[1]);
+/** Ghi chú đọc từ tệp: như setFormationNote, cắt khoảng trắng hai đầu, rỗng hay không phải chữ thì bỏ trường. */
+function cleanNote<F>(f: F): F {
+  if (!f || typeof f !== "object" || !("note" in f)) return f;
+  const { note, ...rest } = f as F & { note: unknown };
+  const v = typeof note === "string" ? note.trim() : "";
+  return (v ? { ...rest, note: v } : rest) as F;
+}
+
+/** Điểm của hình tự lưu là độ lệch so với tâm nhóm (mét): xa quá mức này là tệp hỏng,
+ *  cộng hai số khổng lồ có thể tràn thành Infinity rồi NaN khi áp hình. */
+const SHAPE_MAX_M = 1000;
+const isPt = (q: unknown): q is Vec2 =>
+  Array.isArray(q) && q.length === 2 && fin(q[0]) && fin(q[1]) && Math.abs(q[0]) <= SHAPE_MAX_M && Math.abs(q[1]) <= SHAPE_MAX_M;
 
 /** "Hình của tôi" đọc từ tệp: bỏ hình hỏng, bỏ điểm hỏng, id trùng thì giữ hình đầu. */
 export function normalizeShapes(raw: unknown): SavedShape[] {

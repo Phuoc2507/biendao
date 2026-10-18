@@ -31,7 +31,8 @@ body {
   user-select: none;
 }
 button, input, select { font: inherit; color: inherit; }
-input[type="text"], input[type="number"] { user-select: text; }
+/* textarea (ghi chú đội hình) cũng phải bôi đen được: Safari trên iPhone theo user-select: none của body */
+input[type="text"], input[type="number"], textarea { user-select: text; -webkit-user-select: text; }
 /* viền sáng khi đi bằng phím Tab */
 :focus-visible { outline: 2px solid #8ab8ff; outline-offset: 2px; }
 .seg button:focus-visible, .tabs button:focus-visible, .menu .pop button:focus-visible { outline-offset: -2px; }

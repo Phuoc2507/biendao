@@ -145,3 +145,22 @@ test("normalizeProject: Hình của tôi bỏ hình và điểm hỏng, rỗng t
   assert.equal("myShapes" in normalizeProject({ version: 1, dancers: [] })!, false);
   assert.deepEqual(normalizeShapes(undefined), []);
 });
+
+test("normalizeProject: ghi chú chỉ toàn khoảng trắng thì bỏ, có chữ thì cắt khoảng trắng hai đầu", () => {
+  // tệp cũ hay sửa tay: ghi chú "   " vẫn hiện dấu bút, khung ghi chú rỗng lúc trình chiếu và trong bản in
+  const p = normalizeProject({
+    version: 1, dancers: [],
+    formations: [
+      { id: "a", name: "A", start: 0, end: 1, pos: {}, note: "  \n " },
+      { id: "b", name: "B", start: 2, end: 3, pos: {}, note: "  quay\nnhịp 5  " },
+    ],
+  })!;
+  assert.equal("note" in p.formations[0], false);
+  assert.equal(p.formations[1].note, "quay\nnhịp 5");
+});
+
+test("normalizeShapes: bỏ điểm xa vô lý (cộng hai số khổng lồ tràn thành NaN khi áp hình)", () => {
+  const s = normalizeShapes([{ id: "h", name: "x", pts: [[1e308, 0], [1.7e308, 0], [0, 0], [1, 1]] }]);
+  assert.deepEqual(s, [{ id: "h", name: "x", pts: [[0, 0], [1, 1]] }]);
+  assert.deepEqual(normalizeShapes([{ id: "k", pts: [[1e308, 0], [1.7e308, 0]] }]), []);
+});

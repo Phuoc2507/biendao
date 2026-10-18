@@ -59,8 +59,9 @@ export function planFrame(p: Project, t: number, g: PlanGeom, o: { highlightId?:
   else if (seg.kind === "after") sub = fs[seg.k].name;
   // ghi chú của đội hình đang đứng (đang chuyển: của đội hình sắp tới), cắt ngắn cho vừa dải chữ
   const nf = seg.kind === "hold" || seg.kind === "after" ? fs[seg.k] : seg.kind === "gap" ? fs[seg.k + 1] : seg.kind === "before" ? fs[0] : null;
-  const note = nf?.note?.replace(/\s+/g, " ");
-  if (note) sub += ` · ${note.length > 60 ? `${note.slice(0, 59)}…` : note}`;
+  // cắt theo ký tự thật (Array.from) để không xẻ đôi biểu tượng cảm xúc
+  const note = nf?.note ? Array.from(nf.note.replace(/\s+/g, " ").trim()) : [];
+  if (note.length) sub += ` · ${note.length > 60 ? `${note.slice(0, 59).join("")}…` : note.join("")}`;
   const hi = o.highlightId ? ds.find((d) => d.id === o.highlightId) : undefined;
   const c = p.bpm ? countAt(t, p.bpm, p.downbeat) : null;
   const dots = ds.map((d) => {
