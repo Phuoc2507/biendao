@@ -87,3 +87,28 @@ export function tlHeight(auto: number, user: number, winH: number): number {
   const cap = user ? Math.round(winH * 0.55) : Math.min(300, Math.round(winH * (winH < 760 ? 0.38 : 0.55)));
   return Math.max(150, Math.min(user || auto, cap));
 }
+
+/** Một phần tử nổi trên sơ đồ (nhãn, nút), tính bằng px trong khung sơ đồ. */
+export type Overlay = { l: number; r: number; b: number };
+
+/**
+ * Cần chừa thêm bao nhiêu mét phía trên sơ đồ để sân không nằm dưới nút nổi.
+ * Chỉ tính phần tử đè lên bề ngang thật của sân: khung rộng mà sân hẹp thì nút
+ * nằm hai bên không làm sân nhỏ đi.
+ */
+export function topExtra(
+  o: { w: number; h: number; els: Overlay[] }, vbw: number, D: number, pads: number, sideTop: number, label: number,
+): number {
+  if (o.w <= 0 || o.h <= 0 || !o.els.length) return 0;
+  for (let e = 0; e <= 6; e += 0.1) {
+    const h = D + pads + e;
+    const k = Math.min(o.w / vbw, o.h / h);
+    const x0 = (o.w - vbw * k) / 2;
+    const x1 = x0 + vbw * k;
+    const y = (o.h - h * k) / 2 + (sideTop + e - label) * k;
+    let top = 0;
+    for (const el of o.els) if (el.r > x0 && el.l < x1) top = Math.max(top, el.b);
+    if (top <= 0 || y >= top + 4) return e;
+  }
+  return 6;
+}

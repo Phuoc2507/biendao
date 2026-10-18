@@ -70,3 +70,17 @@ test("dòng thời gian: cửa sổ thấp chỉ lấy khoảng 2/5, người d�
   assert.equal(tlHeight(400, 280, 560), 280); // đã kéo: theo người dùng
   assert.equal(tlHeight(400, 500, 560), 308); // nhưng không quá 55%
 });
+
+test("topExtra: chỉ chừa chỗ cho nút đè lên bề ngang của sân", async () => {
+  const { topExtra } = await import("./layout.ts");
+  // khung rộng thấp: sân 10 m ngang bị chiều cao giới hạn nên chỉ rộng khoảng 1/3 khung
+  const wide = { w: 800, h: 180 };
+  const right = topExtra({ ...wide, els: [{ l: 520, r: 800, b: 46 }] }, 11.4, 6, 2.8, 1.2, 0.45);
+  assert.equal(right, 0); // nút ở góc phải, không đè sân
+  const mid = topExtra({ ...wide, els: [{ l: 300, r: 500, b: 46 }] }, 11.4, 6, 2.8, 1.2, 0.45);
+  assert.ok(mid > 0); // nút giữa thì phải chừa
+  // khung hẹp: sân chiếm hết bề ngang nên nút góc phải cũng đè
+  const narrow = topExtra({ w: 400, h: 600, els: [{ l: 250, r: 400, b: 250 }] }, 11.4, 6, 2.8, 1.2, 0.45);
+  assert.ok(narrow > 0);
+  assert.equal(topExtra({ ...wide, els: [] }, 11.4, 6, 2.8, 1.2, 0.45), 0);
+});

@@ -16,7 +16,7 @@ import { dancerLegs, dancerStops, stopLabel } from "../rehearse";
 import { describePos, useWarnings } from "./hooks";
 import { Icon } from "./icons";
 import { MePicker } from "./MePicker";
-import { rememberPlanFromStage } from "../layout";
+import { rememberPlanFromStage, topExtra, type Overlay } from "../layout";
 import "./rehearse.css";
 
 const R = 0.3; // bán kính chấm người (m)
@@ -37,20 +37,6 @@ interface Drag {
   moved: boolean;
   additive: boolean;
   id?: string;
-}
-
-/** Thêm bao nhiêu mét vào lề trên để chữ sát mép sân (cao `label` m) nằm dưới các nút phía trên. */
-export function topExtra(
-  o: { w: number; h: number; top: number }, vbw: number, D: number, pads: number, sideTop: number, label: number,
-): number {
-  if (o.top <= 0 || o.w <= 0 || o.h <= 0) return 0;
-  for (let e = 0; e <= 6; e += 0.1) {
-    const h = D + pads + e;
-    const k = Math.min(o.w / vbw, o.h / h);
-    const y = (o.h - h * k) / 2 + (sideTop + e - label) * k;
-    if (y >= o.top + 4) return e;
-  }
-  return 6;
 }
 
 export function PlanView({
@@ -81,20 +67,23 @@ export function PlanView({
   const padBot = compact ? 0.9 : 1.6; // phía khán giả: chữ KHÁN GIẢ và thước số
   // phía trên: chừa đủ chỗ cho nhãn khung, chip trạng thái và nút (đo bằng px thật)
   const topBase = compact ? 0.3 : 1.2;
-  const [over, setOver] = useState<{ w: number; h: number; top: number } | null>(null);
+  const [over, setOver] = useState<{ w: number; h: number; els: Overlay[]; key: string } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root || compact) return;
     const measure = () => {
       const r = root.getBoundingClientRect();
-      let top = 0;
-      const els = [...root.querySelectorAll(".rh-plan-tools, .state-chip"), ...(root.parentElement?.querySelectorAll(":scope > .pane-label") ?? [])];
-      for (const el of els) {
+      const els: Overlay[] = [];
+      const nodes = [...root.querySelectorAll(".rh-plan-tools, .state-chip"), ...(root.parentElement?.querySelectorAll(":scope > .pane-label") ?? [])];
+      for (const el of nodes) {
         const b = el.getBoundingClientRect();
-        if (b.height && b.bottom - r.top < r.height / 2) top = Math.max(top, b.bottom - r.top);
+        if (b.height && b.bottom - r.top < r.height / 2) {
+          els.push({ l: Math.round(b.left - r.left), r: Math.round(b.right - r.left), b: Math.round(b.bottom - r.top) });
+        }
       }
-      setOver((o) => (o && o.w === r.width && o.h === r.height && o.top === top ? o : { w: r.width, h: r.height, top }));
+      const key = `${r.width}x${r.height}:${els.map((e) => `${e.l},${e.r},${e.b}`).join(";")}`;
+      setOver((o) => (o && o.key === key ? o : { w: r.width, h: r.height, els, key }));
     };
     measure();
     const ro = new ResizeObserver(measure);

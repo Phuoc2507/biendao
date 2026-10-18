@@ -99,3 +99,12 @@ select.btn.rh-me.on { border-color: #fff; color: #fff; }
     height: max(110px, calc(100% - 70px - 30px - var(--ctl-h, 90px)));
   }
 }
+
+/* cửa sổ thấp (điện thoại nằm ngang): nhãn trạng thái sang trái, nút sơ đồ cùng một hàng, chỉ còn biểu tượng */
+@media (max-height: 499.98px) {
+  .pane-label { display: none; }
+  .state-chip { left: 8px; transform: none; max-width: calc(100% - 300px); }
+  .state-chip .dim:not(:only-child) { display: none; }
+  .rh-plan-tools { top: 6px; flex-wrap: nowrap; }
+  .rh-plan-tools .btn .rh-hide-narrow { display: none; }
+}
