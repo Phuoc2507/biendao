@@ -4,11 +4,12 @@ import {
   type Project, type VDancer, type Vec2, type ShapeKind,
   PALETTE, newDancer, cloneDancer, lineup, posesAt, ensureFormationAt, setPositions,
   addFormationAfter, deleteFormation, addDancerToAll, removeDancerFromAll,
-  arrangeShape, mirrorPositions, distributeX, rotateGroup, scaleGroup, inWings, holdIndexAt, segmentAt,
+  arrangeShape, mirrorPositions, distributeX, rotateGroupMap, scaleGroupMap, inWings, holdIndexAt, segmentAt,
   fitFormationsToStage,
   snapPos, emptyProject, renameFormation, setFormationNote, wingSpot, placeClones, canonOffsets as canonPatch, SHAPE_LABEL,
   type CanonOrder, canonRanks, rightSide, type SavedShape, captureShape, fitSavedShape,
   setPersonNote as putPersonNote, cleanPersonNote, personNote, setVia,
+  type CopiedPath, pathsInto, pasteVia,
 } from "./model";
 import { defaultLens, snapTime, putCanon, fmtTime, fmtCounts } from "./timing";
 import { st, useStore, batch } from "./store";
@@ -308,10 +309,14 @@ export function currentPoses(): Record<string, Vec2> {
   return posesAt(p.formations, ids(p), clock.now(), p.stage);
 }
 
-export function setPositionsNow(moves: Record<string, Vec2>, live: boolean, mirror = false) {
+/** o.groupMap: phép xoay hay giãn cả nhóm (điểm uốn đi theo); o.dropVia: bỏ đường cong của người được dời. */
+export function setPositionsNow(
+  moves: Record<string, Vec2>, live: boolean, mirror = false,
+  o: { groupMap?: (v: Vec2) => Vec2; dropVia?: boolean } = {},
+) {
   const run = () => {
     const fid = ensureHoldNow(live);
-    const fn = (q: Project) => ({ ...q, formations: setPositions(q.formations, fid, moves, q.stage, { mirror }) });
+    const fn = (q: Project) => ({ ...q, formations: setPositions(q.formations, fid, moves, q.stage, { mirror, ...o }) });
     if (live) st().live(fn);
     else st().commit(fn);
   };
@@ -415,7 +420,8 @@ export function swapSelected() {
   const cur = currentPoses();
   const [a, b] = sel;
   const w = warnCount(p);
-  setPositionsNow({ [a]: cur[b], [b]: cur[a] }, false);
+  // đường cong cũ của hai người hết nghĩa khi đã đổi chỗ: đi thẳng lại
+  setPositionsNow({ [a]: cur[b], [b]: cur[a] }, false, false, { dropVia: true });
   const nm = (id: string) => p.dancers.find((d) => d.id === id)!.name;
   // không mời Sửa tất cả: đổi chỗ cho gần sẽ trả hai người về như cũ
   hintWarn(w, `Đã đổi chỗ ${nm(a)} và ${nm(b)}`, true, false);
@@ -438,7 +444,8 @@ export function rotateSelected(dir: 1 | -1) {
     return;
   }
   const w = warnCount(p);
-  setPositionsNow(rotateGroup(cur, g, dir, p.stage), false);
+  const r = rotateGroupMap(cur, g, dir, p.stage);
+  setPositionsNow(r.moves, false, false, { groupMap: r.map });
   hintWarn(w, `Đã xoay ${dir === 1 ? "theo" : "ngược"} chiều kim đồng hồ`);
 }
 
@@ -451,13 +458,13 @@ export function scaleSelected(grow: boolean) {
     st().notify(`Chọn ít nhất 2 người để ${grow ? "giãn" : "thu"}`);
     return;
   }
-  const moves = scaleGroup(cur, g, grow ? 1.15 : 1 / 1.15, p.stage);
-  if (!moves) {
+  const sc = scaleGroupMap(cur, g, grow ? 1.15 : 1 / 1.15, p.stage);
+  if (!sc) {
     st().notify(grow ? "Nhóm đã chạm mép sân khấu, không giãn thêm được" : "Hai người đã sát nhau, không thu thêm được");
     return;
   }
   const w = warnCount(p);
-  setPositionsNow(moves, false);
+  setPositionsNow(sc.moves, false, false, { groupMap: sc.map });
   hintWarn(w, grow ? "Đã giãn đội hình" : "Đã thu đội hình");
 }
 
@@ -480,7 +487,9 @@ export function sendToWings(side: -1 | 1) {
 
 // ---------- chép / dán chỗ đứng ----------
 
-let copied: { poses: Record<string, Vec2>; notes: Record<string, string>; from: string } | null = null;
+let copied: {
+  poses: Record<string, Vec2>; notes: Record<string, string>; paths: Record<string, CopiedPath>; from: string;
+} | null = null;
 
 /** Ctrl C: nhớ chỗ đứng lúc này của người đang chọn (không chọn ai: cả đội). */
 export function copyPositions() {
@@ -496,7 +505,9 @@ export function copyPositions() {
   // ghi chú riêng đi theo chỗ đứng (chỉ khi vạch phát nằm trong một đội hình)
   const notes: Record<string, string> = {};
   for (const id of Object.keys(poses)) if (personNote(f, id)) notes[id] = personNote(f, id);
-  copied = { poses, notes, from: f ? f.name : "vạch phát" };
+  // đường cong vào đội hình đang đứng cũng đi theo, kèm hai đầu lúc chép để dời cho khớp khi dán
+  const paths = f ? pathsInto(p.formations, f.id, Object.keys(poses)) : {};
+  copied = { poses, notes, paths, from: f ? f.name : "vạch phát" };
   const n = Object.keys(poses).length;
   st().notify(`Đã chép chỗ đứng của ${n === p.dancers.length ? "cả đội" : `${n} người`}. Tua tới chỗ khác rồi Ctrl V để dán`);
 }
@@ -517,13 +528,18 @@ export function pastePositions() {
   }
   const w = warnCount(p);
   const notes = copied.notes;
-  // dán chỗ đứng và ghi chú riêng là một bước hoàn tác; người không có ghi chú ở chỗ chép thì giữ ghi chú cũ
+  const paths: Record<string, CopiedPath> = {};
+  for (const id of Object.keys(moves)) if (copied.paths[id]) paths[id] = copied.paths[id];
+  // dán chỗ đứng, ghi chú riêng và đường cong là một bước hoàn tác; người không
+  // có ghi chú (đường cong) ở chỗ chép thì giữ ghi chú (đường) cũ ở chỗ dán
   batch(() => {
     setPositionsNow(moves, false);
     const fid = st().ui.selectedBlock;
     const put = Object.keys(moves).filter((id) => notes[id]);
     if (fid && put.length)
       st().commit((q) => ({ ...q, formations: put.reduce((fs, id) => putPersonNote(fs, fid, id, notes[id]), q.formations) }));
+    if (fid && Object.keys(paths).length)
+      st().commit((q) => ({ ...q, formations: pasteVia(q.formations, fid, paths, q.stage) }));
   });
   st().setUI({ selected: Object.keys(moves) });
   hintWarn(w, `Đã dán chỗ đứng (từ ${copied.from}) cho ${n === p.dancers.length ? "cả đội" : `${n} người`}`, true, false);

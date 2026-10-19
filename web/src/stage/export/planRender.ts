@@ -1,10 +1,11 @@
 // Vẽ sơ đồ từ trên lên canvas 2D để xuất video (không cần WebGL). Hình học và
 // nội dung khung là hàm thuần; drawPlanFrame chỉ dùng vài lệnh canvas cơ bản.
 
-import { type Project, type StageSize, WING, posesAt, segmentAt, initials } from "../model.ts";
+import { type Project, type StageSize, WING, posesAt, segmentAt, initials, dist, viaOf } from "../model.ts";
 import { countAt, fmtTime } from "../timing.ts";
 import { groupRingColors } from "../groups.ts";
 import { propCorners } from "../props.ts";
+import { MOVE_MIN } from "./printSheet.ts";
 
 export interface PlanGeom {
   w: number;
@@ -51,7 +52,7 @@ export interface PlanFrame {
   time: string;
   count: string;
   dots: FrameDot[];
-  /** Mũi tên từ chỗ đứng trước (ảnh đội hình); video không dùng. */
+  /** Mũi tên từ chỗ đứng trước (ảnh đội hình), hay mũi tên mờ đường sắp đi (video, lúc đang giữ đội hình). */
   trails?: FrameTrail[];
   /** Đạo cụ và mốc sàn (đứng yên), vẽ dưới mọi thứ khác. Không có thì bỏ trường. */
   props?: FrameProp[];
@@ -87,6 +88,8 @@ export interface FrameTrail {
   /** điểm điều khiển (điểm ảnh) nếu đường đi cong, Bézier bậc hai */
   cx?: number;
   cy?: number;
+  /** đường sắp đi (video): vẽ mờ, không có bóng chỗ cũ vì người còn đứng ở đầu mũi tên */
+  ahead?: boolean;
 }
 
 type P2 = [number, number];
@@ -150,6 +153,20 @@ export function planFrame(p: Project, t: number, g: PlanGeom, o: { highlightId?:
   // người được tô vẽ sau cùng để nằm trên
   if (hi) dots.sort((a, b) => Number(a.highlight) - Number(b.highlight));
   const props = framePropsOf(p, g);
+  // đang giữ một đội hình có đội hình kế: mũi tên mờ đường sắp đi, như ảnh đội hình
+  const trails: FrameTrail[] = [];
+  if (seg.kind === "hold" && seg.k + 1 < fs.length) {
+    const from = fs[seg.k], to = fs[seg.k + 1];
+    for (const d of ds) {
+      if (hi && d.id !== hi.id) continue; // video riêng một người: chỉ đường của người đó
+      const a = from.pos[d.id], b = to.pos[d.id], v = viaOf(to, d.id);
+      if (!a || !b || (dist(a, b) <= MOVE_MIN && !v)) continue;
+      const [x0, y0] = toPx(g, poses[d.id][0], poses[d.id][1]);
+      const [x1, y1] = toPx(g, b[0], b[1]);
+      const c = v ? toPx(g, v[0], v[1]) : null;
+      trails.push({ x0, y0, x1, y1, r: 0.3 * g.s, color: d.color, ahead: true, ...(c && { cx: c[0], cy: c[1] }) });
+    }
+  }
   return {
     title: hi ? `Vị trí của ${hi.name}` : p.title || "Bài múa",
     sub,
@@ -157,6 +174,7 @@ export function planFrame(p: Project, t: number, g: PlanGeom, o: { highlightId?:
     count: c ? `${c.beat}/8 · lượt ${c.eight}` : "",
     dots,
     ...(props.length ? { props } : {}),
+    ...(trails.length ? { trails } : {}),
   };
 }
 
@@ -342,14 +360,16 @@ export function drawPlanFrame(ctx: Ctx2D, g: PlanGeom, f: PlanFrame) {
     const len = Math.hypot(t.x1 - t.x0, t.y1 - t.y0);
     if (len < 1e-6 && !curved) continue;
     const ux = (t.x1 - t.x0) / (len || 1), uy = (t.y1 - t.y0) / (len || 1);
-    ctx.globalAlpha = 0.6;
-    ctx.strokeStyle = t.color;
     ctx.lineWidth = 2 * u;
-    ctx.setLineDash([4 * u, 4 * u]);
-    ctx.beginPath();
-    ctx.arc(t.x0, t.y0, t.r, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.globalAlpha = 0.85;
+    if (!t.ahead) {
+      ctx.globalAlpha = 0.6;
+      ctx.strokeStyle = t.color;
+      ctx.setLineDash([4 * u, 4 * u]);
+      ctx.beginPath();
+      ctx.arc(t.x0, t.y0, t.r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = t.ahead ? 0.35 : 0.85;
     ctx.strokeStyle = "#aab3c2";
     ctx.setLineDash([7 * u, 5 * u]);
     if (curved) {

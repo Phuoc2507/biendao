@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   type Vec2, type Formation, WING, initials, posesAt, prevFormation, nextFormation, segmentAt, snapPos,
-  clampToStage, NEAR_M, dist, lerp2, pathLength, pathMid, smoothstep, subPath, viaOf, viaThrough,
+  clampToStage, NEAR_M, dist, lerp2, pathLength, pathMid, smoothstep, subPath, viaOf, viaThrough, bendHandleAt,
 } from "../model";
 import { st, useProject, useUI } from "../store";
 import { groupRingColors } from "../groups";
@@ -157,7 +157,8 @@ export function PlanView({
   const canBend = (id: string) => {
     if (!bendFrom || !bendTo || !sel.has(id)) return false;
     const a = bendFrom.pos[id], b = bendTo.pos[id];
-    return !!a && !!b && (dist(a, b) >= 0.05 || !!viaOf(bendTo, id));
+    // đi dưới 0,3 m mà chưa cong thì ẩn núm (núm sẽ đè lên chấm)
+    return !!a && !!b && !!bendHandleAt(a, b, viaOf(bendTo, id));
   };
 
   const toM = (e: { clientX: number; clientY: number }): Vec2 => {
@@ -201,9 +202,14 @@ export function PlanView({
     e.stopPropagation();
     if (clock.isPlaying()) clock.pause();
     (e.target as Element).setPointerCapture(e.pointerId);
+    const a = bendFrom.pos[id], b = bendTo.pos[id], start = toM(e);
+    // điểm điều khiển tính từ vị trí núm thật (có thể đã bị đẩy ra khỏi giữa
+    // đường cho khỏi đè chấm): chỉ trừ khoảng lệch giữa chỗ bấm và tâm núm, để
+    // núm luôn nằm dưới con trỏ và đường đi qua đúng chỗ núm
+    const k = bendHandleAt(a, b, viaOf(bendTo, id)) ?? pathMid(a, b, viaOf(bendTo, id));
     drag.current = {
-      kind: "via", pointer: e.pointerId, start: toM(e), moved: false, additive: false, id, fid: bendTo.id,
-      base: { a: bendFrom.pos[id], b: bendTo.pos[id] },
+      kind: "via", pointer: e.pointerId, start, moved: false, additive: false, id, fid: bendTo.id,
+      base: { a, b, off: [start[0] - k[0], start[1] - k[1]] },
     };
   };
 
@@ -235,7 +241,8 @@ export function PlanView({
     const snap = st().ui.snap && !e.altKey;
     if (d.kind === "via" && d.id && d.fid) {
       // núm nằm giữa đường (s = 0,5): đặt điểm điều khiển cho đường đi qua chỗ con trỏ
-      setViaNow(d.fid, d.id, viaThrough(d.base.a, d.base.b, clampToStage(m, p.stage)), true);
+      const off = d.base.off ?? [0, 0];
+      setViaNow(d.fid, d.id, viaThrough(d.base.a, d.base.b, clampToStage([m[0] - off[0], m[1] - off[1]], p.stage)), true);
       return;
     }
     if (d.kind === "prop" && d.id) {
@@ -577,7 +584,7 @@ export function PlanView({
 
         {bendFrom && bendTo && vis.filter((d) => canBend(d.id)).map((d) => {
           const v = viaOf(bendTo, d.id);
-          const m = pathMid(bendFrom.pos[d.id], bendTo.pos[d.id], v);
+          const m = bendHandleAt(bendFrom.pos[d.id], bendTo.pos[d.id], v)!;
           return (
             <g
               key={`bend${d.id}`}

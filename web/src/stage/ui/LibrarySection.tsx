@@ -1,9 +1,10 @@
 // Mục "Thư viện" trong thẻ Đội hình: các hình dựng sẵn theo số người (kim cương, tam giác, so le...).
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useProject, useUI } from "../store";
 import { applyLibraryShape, saveLibraryShape, shapeGroupSize } from "../actions";
-import { LIB_MAX, LIB_MIN, libraryFor } from "../library";
+import { subscribeClock } from "../clock";
+import { LIB_MAX, LIB_MIN, libraryFor, libraryReady } from "../library";
 import type { Vec2 } from "../model";
 import { Icon } from "./icons";
 
@@ -27,10 +28,25 @@ export function LibrarySection() {
   useUI(); // vẽ lại khi đổi người đang chọn
   const [open, setOpen] = useState(false);
   const [pick, setPick] = useState<number | null>(null);
-  const group = open ? shapeGroupSize() : 0;
+  // số người trên sân đổi khi tua vạch phát (người vào, ra cánh gà): theo đồng
+  // hồ, nhưng React chỉ vẽ lại khi con số đổi (so sánh giá trị), không mỗi khung
+  const group = useSyncExternalStore(subscribeClock, () => (open ? shapeGroupSize() : 0));
   const auto = Math.min(LIB_MAX, Math.max(LIB_MIN, group || LIB_MIN));
   const n = pick ?? auto;
-  const lib = useMemo(() => (open ? libraryFor(n, p.stage) : []), [open, n, p.stage.width, p.stage.depth]);
+  const { width: sw, depth: sd } = p.stage;
+  // chỉ dựng hình cho đúng số người đang xem, và dựng sau một nhịp để mục mở ra
+  // ngay (lần đầu một số người tốn tới vài trăm ms); đã dựng thì lấy từ bộ nhớ
+  const ready = open && libraryReady(n, p.stage);
+  const [, bump] = useState(0);
+  useEffect(() => {
+    if (!open || ready) return;
+    const h = setTimeout(() => {
+      libraryFor(n, { width: sw, depth: sd });
+      bump((x) => x + 1);
+    }, 30);
+    return () => clearTimeout(h);
+  }, [open, ready, n, sw, sd]);
+  const lib = useMemo(() => (ready ? libraryFor(n, { width: sw, depth: sd }) : []), [ready, n, sw, sd]);
   // một tỉ lệ chung để hình rộng trông rộng, hình gọn trông gọn
   const scale = useMemo(() => {
     let w = 1, d = 1;
@@ -75,6 +91,7 @@ export function LibrarySection() {
               <button className="linklike" onClick={() => setPick(null)}>Xem hình {group} người</button>
             </div>
           )}
+          {!ready && <div className="dim">Đang dựng hình cho {n} người…</div>}
           <div className="lib-grid">
             {lib.map((s) => (
               <div key={s.id} className="lib-item">
