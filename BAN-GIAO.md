@@ -27,7 +27,7 @@ cd web && npm install
 ```
 
 * Chạy app: `npm run dev` trong `web/` rồi mở http://localhost:5173/ (cấu hình sẵn ở `.claude/launch.json`, tên `web`). `index.html` vào app sân khấu `src/stage/main.tsx`.
-* Test: `npm test` trong `web/` (node:test, hiện **306 test xanh**).
+* Test: `npm test` trong `web/` (node:test, hiện **328 test xanh**).
 * Kiểm kiểu (máy ít RAM, phải nâng heap): `node --max-old-space-size=2500 node_modules/typescript/bin/tsc -p .` trong `web/`.
 * Tệp được test import trực tiếp phải import có đuôi `.ts` (ví dụ `from "./timing.ts"`), `model.ts` chỉ được `import type` từ `timing.ts`.
 * Trong trình duyệt có tay cầm DEV `window.__stage.st()` để đọc và gọi store (`setUI`, `commit`, `project`…).
@@ -66,6 +66,12 @@ Video mẫu thật: `D:\bien\IMG_5116.mov` (iPhone, HEVC 1920x1080, 41,9 s, khô
 Quy ước sân: khán giả ở phía **+Z**, x dương là bên **phải khán giả**.
 
 ## 5. Đã xong gần nhất
+
+Đợt 2026-10-19, học từ đối thủ, lượt ba (merge 50e64da, 94e3155, 5072992; 3 agent song song):
+
+* **Xuất video một đoạn** (`export/videoRange.ts`): Cả bài, Vùng lặp, Đội hình tại vạch phát, Mốc đoạn nhạc, hoặc gõ Từ / tới. Sơ đồ dựng nhanh bằng WebCodecs (`export/fastPlan.ts`, đóng gói bằng `webm-muxer` có sẵn), thiếu bộ mã thì lùi về ghi thời gian thật. Đã thử: đoạn 8 giây 720p có tiếng dựng trong 1,5 giây, phát được.
+* **Thư viện đội hình theo số người** (`library.ts`, `ui/LibrarySection.tsx`, thẻ Đội hình): 3 tới 16 người, sinh bằng hàm, không ai bị che, áp như Hình của tôi, lưu được vào Hình của tôi. Còn nghi: ô số người không tự đổi khi chỉ tua; 15, 16 người thiếu chữ V, W, vòng cung trên sân 10×6.
+* **Đường đi cong** (`Formation.via`, Bézier bậc hai, `pathAt` trong `model.ts`): kéo núm giữa mũi tên của người đang chọn lúc đang giữ đội hình, bấm đúp để đi thẳng lại. Va nhau, tốc độ, đi xuyên đạo cụ tính theo đường cong; lật gương lật cả via; vẽ cong ở ảnh, ảnh từng người, bản in. Còn nghi: Ctrl C/V không chép đường cong; Xoay, Giãn, Đổi chỗ chỉ dời via theo dây cung; video sơ đồ không vẽ mũi tên; núm đè lên chấm khi người đi rất ngắn.
 
 Đợt 2026-10-19, học từ đối thủ, lượt hai (commit d120ee8 tới 5a1959d; 2 agent song song):
 
