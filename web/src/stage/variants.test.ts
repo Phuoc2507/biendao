@@ -159,6 +159,40 @@ test("variantRepo trên kho giả: thêm, đổi tên, xoá, đưa lại, media 
   assert.deepEqual((await r.list()).map((v) => v.id), [v2.id, v1.id], "đưa lại một lần, đúng chỗ theo giờ lưu");
 });
 
+test("variantRepo: hai thẻ cùng ghi một kho không mất phương án của nhau", async () => {
+  // kho chậm: đọc và ghi đều nhường lượt, như IndexedDB thật
+  const data = new Map<string, unknown>();
+  const tick = () => new Promise((r) => setTimeout(r, 1));
+  const kv = {
+    get: async (k: string) => (await tick(), structuredClone(data.get(k))),
+    set: async (k: string, v: unknown) => (await tick(), data.set(k, structuredClone(v))),
+  };
+  // khoá dùng chung như navigator.locks: một việc một lúc
+  let q: Promise<unknown> = Promise.resolve();
+  const lock = <T,>(fn: () => Promise<T>): Promise<T> => {
+    const job = q.then(fn);
+    q = job.catch(() => {});
+    return job;
+  };
+  const tabA = variantRepo(kv, lock);
+  const tabB = variantRepo(kv, lock);
+  const p = emptyProject();
+  await Promise.all([
+    tabA.add("A1", p, 1), tabB.add("B1", p, 2), tabA.add("A2", p, 3), tabB.add("B2", p, 4),
+  ]);
+  const names = (await tabA.list()).map((v) => v.name).sort();
+  assert.deepEqual(names, ["A1", "A2", "B1", "B2"]);
+  // xoá ở thẻ này, đổi tên ở thẻ kia cùng lúc: cả hai đều giữ
+  const l = await tabB.list();
+  const a1 = l.find((v) => v.name === "A1")!;
+  const b1 = l.find((v) => v.name === "B1")!;
+  await Promise.all([tabA.remove(b1.id), tabB.rename(a1.id, "A một")]);
+  assert.deepEqual((await tabA.list()).map((v) => v.name).sort(), ["A một", "A2", "B2"]);
+  // tên trùng giữa hai thẻ vẫn được thêm số
+  await Promise.all([tabA.add("Chung", p, 5), tabB.add("Chung", p, 6)]);
+  assert.deepEqual((await tabB.list()).map((v) => v.name).filter((n) => n.startsWith("Chung")).sort(), ["Chung", "Chung 2"]);
+});
+
 test("variantRepo: một lần ghi lỗi không chặn các lần sau", async () => {
   const kv = memKV();
   let fail = true;

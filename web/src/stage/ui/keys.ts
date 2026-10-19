@@ -130,6 +130,31 @@ export function modalOpen(ui: { exportOpen: boolean; variantsOpen?: boolean; bus
   return ui.exportOpen || !!ui.variantsOpen || !!ui.busy;
 }
 
+/** Esc của ngăn kéo cột trái (điện thoại): những thứ đang mở bên trên được Esc trước. */
+export interface DrawerEscIn {
+  key: string;
+  target: unknown; // phần tử nhận phím (e.target)
+  defaultPrevented?: boolean;
+  isComposing?: boolean; // đang gõ dấu tiếng Việt (bộ gõ)
+  popup: boolean; // menu bật ra (popupOpen)
+  modal: boolean; // hộp thoại che bài (modalOpen)
+  help?: boolean;
+  presenting?: boolean;
+  learning?: boolean;
+}
+
+/**
+ * Esc có đóng ngăn kéo không. Không đóng khi đang có menu, hộp thoại, Hướng dẫn,
+ * Trình chiếu, Học động tác, hoặc khi Esc đang huỷ một ô gõ chữ (đổi tên, ô số,
+ * ghi chú): lần Esc đó chỉ đóng thứ ở trên, bấm lần nữa mới đóng ngăn kéo.
+ */
+export function drawerEscCloses(k: DrawerEscIn): boolean {
+  if (k.key !== "Escape" || k.defaultPrevented || k.isComposing) return false;
+  if (k.popup || k.modal || k.help || k.presenting || k.learning) return false;
+  const kind = targetKind(k.target);
+  return kind !== "text" && kind !== "select";
+}
+
 // giữ phím thì chỉ lặp các phím di chuyển; còn lại một lần bấm một lần chạy
 const ONCE = new Set<Action["type"]>([
   "save", "selectAll", "copy", "paste", "toggle", "clear", "add", "delete", "deleteHint", "help",
