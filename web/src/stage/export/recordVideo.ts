@@ -1,19 +1,25 @@
-// Xuất video: phát bài theo thời gian thật và ghi lại khung hình (cảnh 3D hoặc
-// sơ đồ vẽ riêng) kèm nhạc bằng MediaRecorder. Xong thì trả lại trạng thái cũ.
+// Xuất video một đoạn [a, b].
+//
+// Sơ đồ: nếu có WebCodecs thì dựng từng khung theo thời gian giả, nhanh hơn thời
+// gian thực (fastPlan.ts); thiếu thì lùi về đường cũ.
+// Đường cũ (luôn dùng cho cảnh 3D): phát bài theo thời gian thật và ghi khung hình
+// kèm nhạc bằng MediaRecorder. Xong thì trả lại trạng thái cũ.
 
 import { st } from "../store";
 import * as clock from "../clock";
 import { music } from "../media";
-import { projectEnd } from "../actions";
 import { download } from "./save";
 import {
-  type VideoView, type RangeKind, type Res, pickMime, extFor, rangeFor, outputSize, bitrateFor, videoFileName,
+  type VideoView, type Res, pickMime, extFor, outputSize, bitrateFor, videoFileName,
 } from "./videoOpts";
 import { planGeometry, planFrame, drawPlanFrame } from "./planRender";
+import { hasWebCodecs, renderPlanFast } from "./fastPlan";
 
 export interface RecordOpts {
   view: VideoView;
-  range: RangeKind;
+  a: number; // từ (giây)
+  b: number; // tới (giây)
+  tag: string; // thêm vào tên tệp: tên đoạn hoặc khoảng giờ; "" là cả bài
   res: Res;
   highlightId: string | null; // chỉ cho sơ đồ: video riêng một người
 }
@@ -24,6 +30,7 @@ export interface Progress {
   b: number;
   fraction: number;
   note: string; // vd. "Cảnh 3D không ghi được, chuyển sang sơ đồ"
+  mode: "fast" | "live"; // dựng từng khung, hay phát theo thời gian thật
 }
 
 export interface RecordJob {
@@ -35,7 +42,11 @@ export interface RecordJob {
 const FPS = 30;
 const BG3D = "#07080a";
 
-export function canRecord(): string | null {
+/** Sơ đồ có thể dựng nhanh (đủ lớp WebCodecs; bộ mã cụ thể kiểm lúc bắt đầu). */
+export const canFastPlan = () => hasWebCodecs();
+
+export function canRecord(view: VideoView = "audience"): string | null {
+  if (view === "plan" && canFastPlan()) return null;
   if (typeof MediaRecorder === "undefined" || typeof HTMLCanvasElement.prototype.captureStream !== "function") {
     return "Trình duyệt này không quay được video. Hãy dùng Chrome hoặc Edge bản mới.";
   }
@@ -122,13 +133,31 @@ export function startRecording(o: RecordOpts, onProgress: (p: Progress) => void)
   return job;
 
   async function run(): Promise<string | null> {
+    const p = st().project;
+    const { a, b } = o;
+    if (!(b - a > 0)) throw new Error("Đoạn quá ngắn để ghi.");
+    const who = (id: string | null) => (id ? p.dancers.find((d) => d.id === id)?.name : undefined);
+
+    let liveNote = "";
+    if (o.view === "plan" && canFastPlan()) {
+      onProgress({ t: a, a, b, fraction: 0, note: "", mode: "fast" });
+      const blob = await renderPlanFast({
+        project: p, a, b, res: o.res, highlightId: o.highlightId, fps: FPS,
+        isCancelled: () => cancelled,
+        onProgress: (q) => onProgress({ t: q.t, a, b, fraction: q.fraction, note: "", mode: "fast" }),
+      });
+      if (cancelled || blob === null) return null;
+      if (blob !== "unsupported") {
+        const name = videoFileName(p.title, "webm", who(o.highlightId), o.tag);
+        download(blob, name);
+        return name;
+      }
+      liveNote = "Trình duyệt thiếu bộ mã để dựng nhanh, đang ghi theo thời gian thật.";
+    }
+
     const why = canRecord();
     if (why) throw new Error(why);
     const mime = recordMime()!;
-    const p = st().project;
-    const r = rangeFor(o.range, { end: projectEnd(p), loop: clock.getLoop(), t: clock.now() });
-    if ("error" in r) throw new Error(r.error);
-    const { a, b } = r;
 
     // giữ trạng thái để trả lại
     const saved = { t: clock.now(), loop: clock.getLoop(), speed: clock.getSpeed(), view: st().ui.view };
@@ -136,7 +165,7 @@ export function startRecording(o: RecordOpts, onProgress: (p: Progress) => void)
     clock.setLoop(null);
     clock.setSpeed(1);
 
-    let note = "";
+    let note = liveNote;
     let src: HTMLCanvasElement | null = null;
     if (o.view === "audience") {
       if (saved.view === "plan") st().setUI({ view: "audience" });
@@ -226,7 +255,7 @@ export function startRecording(o: RecordOpts, onProgress: (p: Progress) => void)
         if (cancelled || hiddenStop) return finish();
         const t = draw();
         if (clock.isPlaying()) started = true;
-        onProgress({ t, a, b, fraction: Math.min(1, (t - a) / (b - a)), note });
+        onProgress({ t, a, b, fraction: Math.min(1, (t - a) / (b - a)), note, mode: "live" });
         if (t >= b - 1 / FPS || (started && !clock.isPlaying())) return finish();
         requestAnimationFrame(loop);
       };
@@ -240,8 +269,7 @@ export function startRecording(o: RecordOpts, onProgress: (p: Progress) => void)
       if (hiddenStop) throw new Error("Đã dừng vì chuyển sang tab hoặc cửa sổ khác. Giữ tab này mở trong lúc xuất video.");
       const blob = new Blob(chunks, { type: mime.split(";")[0] });
       if (!blob.size) throw new Error("Không ghi được khung hình nào.");
-      const who = hl ? p.dancers.find((d) => d.id === hl)?.name : undefined;
-      const name = videoFileName(p.title, extFor(mime), who);
+      const name = videoFileName(p.title, extFor(mime), who(hl), o.tag);
       download(blob, name);
       if (note) st().notify(note, { kind: "warn" });
       return name;

@@ -1,9 +1,9 @@
-// Phần thuần của Xuất video: chọn định dạng, đoạn ghi, cỡ khung, tên tệp.
+// Phần thuần của Xuất video: chọn định dạng, cỡ khung, tên tệp, số khung, OpusHead.
+// Khoảng Từ / Tới nằm ở videoRange.ts.
 
 import { slugTitle, safeName } from "./bundle.ts";
 
 export type VideoView = "audience" | "plan";
-export type RangeKind = "all" | "loop" | "playhead";
 export type Res = 480 | 720 | 1080;
 
 /** Thứ tự ưu tiên: MP4 (mở được mọi nơi, kể cả Zalo/điện thoại) rồi WebM. */
@@ -29,25 +29,6 @@ export function pickMime(isSupported: (m: string) => boolean): string | null {
 
 export const extFor = (mime: string) => (mime.startsWith("video/mp4") ? "mp4" : "webm");
 
-export interface RangeCtx {
-  end: number; // hết bài
-  loop: { a: number; b: number } | null;
-  t: number; // vạch phát
-}
-
-/** Đoạn cần ghi [a, b], hoặc lý do không ghi được. */
-export function rangeFor(kind: RangeKind, c: RangeCtx): { a: number; b: number } | { error: string } {
-  let a = 0, b = c.end;
-  if (kind === "loop") {
-    if (!c.loop) return { error: "Chưa đặt đoạn lặp." };
-    a = c.loop.a;
-    b = Math.min(c.loop.b, c.end);
-  } else if (kind === "playhead") a = c.t;
-  a = Math.max(0, a);
-  if (b - a < 0.5) return { error: kind === "playhead" ? "Vạch phát đang ở cuối bài." : "Đoạn quá ngắn để ghi." };
-  return { a, b };
-}
-
 /** Cỡ khung chẵn (bộ mã H.264 cần), vừa trong hộp 16:9 của độ phân giải chọn. */
 export function outputSize(res: Res, aspect: number): { w: number; h: number } {
   const bh = res, bw = Math.round((res * 16) / 9);
@@ -64,10 +45,31 @@ export function outputSize(res: Res, aspect: number): { w: number; h: number } {
 /** Bit/giây theo độ phân giải. */
 export const bitrateFor = (res: Res) => (res >= 1080 ? 8e6 : res >= 720 ? 5e6 : 2.5e6);
 
-/** Tên tệp: "<tên bài>.mp4" hoặc "<tên bài>-<tên vũ công>.webm". */
-export function videoFileName(title: string, ext: string, who?: string): string {
-  const base = slugTitle(title) + (who ? `-${slugTitle(who)}` : "");
+/** Tên tệp: "<tên bài>.mp4", "<tên bài>-<đoạn>.webm", "<tên bài>-<đoạn>-<tên vũ công>.webm". */
+export function videoFileName(title: string, ext: string, who?: string, part?: string): string {
+  const has = (x?: string): x is string => !!x && /[\p{L}\p{N}]/u.test(x);
+  const base = slugTitle(title) + (has(part) ? `-${slugTitle(part)}` : "") + (has(who) ? `-${slugTitle(who)}` : "");
   return safeName(`${base}.${ext}`);
+}
+
+/** Số khung của đoạn [a, b] ở fps (ít nhất 1). */
+export const frameCount = (a: number, b: number, fps: number) => Math.max(1, Math.round((b - a) * fps));
+
+/**
+ * Khối "OpusHead" (RFC 7845 mục 5.1) làm CodecPrivate của rãnh Opus trong WebM,
+ * dùng khi AudioEncoder không trả decoderConfig.description.
+ */
+export function opusHead(channels: number, sampleRate: number, preSkip = 312): Uint8Array {
+  const b = new Uint8Array(19);
+  b.set([0x4f, 0x70, 0x75, 0x73, 0x48, 0x65, 0x61, 0x64], 0); // "OpusHead"
+  const v = new DataView(b.buffer);
+  v.setUint8(8, 1); // phiên bản
+  v.setUint8(9, channels);
+  v.setUint16(10, preSkip, true);
+  v.setUint32(12, sampleRate, true);
+  v.setInt16(16, 0, true); // tăng âm
+  v.setUint8(18, 0); // ánh xạ kênh 0: mono hoặc stereo
+  return b;
 }
 
 /** Thời gian ghi dạng "1 phút 05 giây". */

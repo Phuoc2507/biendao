@@ -20,3 +20,8 @@
 .xv-bar i { display: block; height: 100%; background: var(--accent); transition: width 0.2s linear; }
 .xv-note { margin-top: 8px; color: var(--muted); font-size: 12px; }
 @media (prefers-reduced-motion: reduce) { .xv-dot { animation: none; } .xv-bar i { transition: none; } }
+/* Khoảng Từ / Tới */
+.xv-span { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--muted); flex-wrap: wrap; }
+.xv-time-in { width: 76px; height: 28px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel2, #1c212a); color: inherit; font-variant-numeric: tabular-nums; }
+.xv-time-in:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.xv-dot.fast { background: var(--accent); }
