@@ -9,6 +9,7 @@
 // giữa hai khối là lúc mọi người TRƯỢT sang đội hình sau (smoothstep).
 
 import type { CanonSeg } from "./timing.ts";
+import { copyFacing, dropFacing, facingAt, normFacing, withFacing } from "./facing.ts";
 
 export type Vec2 = [number, number];
 
@@ -44,6 +45,9 @@ export interface Formation {
   /** Đường đi cong lúc chuyển VÀO đội hình này: điểm điều khiển Bézier bậc hai
    *  của từng người (id vũ công: điểm). Không có thì đi thẳng; đội hình đầu không có. */
   via?: Record<string, Vec2>;
+  /** Hướng mặt từng người (id vũ công: độ, facing.ts): 0 nhìn khán giả, dương quay sang
+   *  phải người múa, bội 45 trong (-180, 180]. Chỉ lưu người khác 0; không ai thì bỏ trường. */
+  facing?: Record<string, number>;
 }
 
 export interface StageSize {
@@ -428,6 +432,8 @@ export function ensureFormationAt(
   const now = posesAt(fs, ids, t, stage);
   for (const id of ids) pos[id] = [now[id][0], now[id][1]];
   let f: Formation = { id: newId, name: nextName(fs), start, end, pos };
+  // hướng mặt lúc đó (giữa khoảng chuyển thì góc đang xoay dở, làm tròn về 45 độ)
+  f = withFacing(f, Object.fromEntries(ids.map((id) => [id, facingAt(fs, id, t)])));
   let base = fs;
   // tạo giữa một đường cong: chẻ đôi đường (de Casteljau) để hình đi không đổi
   const seg = segmentAt(fs, t);
@@ -603,7 +609,10 @@ export function addFormationAfter(
   // ghi chú riêng (cầm quạt, đội nón...) thường còn đúng ở đội hình kế: chép theo, sửa sau
   const notes: Record<string, string> = {};
   for (const id of ids) if (cur.notes?.[id]) notes[id] = cur.notes[id];
-  out.push(withNotes({ id: newId, name: nextName(fs), start, end, pos }, notes));
+  // hướng mặt cũng chép theo như chỗ đứng
+  const facing: Record<string, number> = {};
+  for (const id of ids) if (cur.facing?.[id]) facing[id] = cur.facing[id];
+  out.push(withFacing(withNotes({ id: newId, name: nextName(fs), start, end, pos }, notes), facing));
   return { formations: sortFs(out), id: newId, jumpTo: start, shifted: shift };
 }
 
@@ -783,6 +792,7 @@ export function placeClones(
     // bản sao múa cùng video nên mang theo ghi chú riêng của bản gốc ở từng đội hình
     const srcNote = personNote(f, srcId);
     if (srcNote) f = withNotes(f, { ...f.notes, ...Object.fromEntries(newIds.map((id) => [id, srcNote])) });
+    f = copyFacing(f, srcId, newIds);
     const pos = { ...f.pos };
     const src = pos[srcId];
     // cánh gà gần bản gốc trước, kín thì sang bên kia
@@ -900,7 +910,7 @@ export function addDancerToAll(fs: Formation[], id: string, stage: StageSize): F
 
 export function removeDancerFromAll(fs: Formation[], id: string): Formation[] {
   return fs.map((f) => {
-    if (!(id in f.pos) && !f.notes?.[id] && !f.via?.[id]) return f;
+    if (!(id in f.pos) && !f.notes?.[id] && !f.via?.[id] && !f.facing?.[id]) return f;
     const pos = { ...f.pos };
     delete pos[id];
     let out: Formation = { ...f, pos };
@@ -914,7 +924,7 @@ export function removeDancerFromAll(fs: Formation[], id: string): Formation[] {
       delete via[id];
       out = withVia(out, via);
     }
-    return out;
+    return dropFacing(out, id);
   });
 }
 
@@ -929,6 +939,8 @@ export function checkInvariants(p: Project): string[] {
     for (const [id, v] of Object.entries(f.notes ?? {}))
       if (!ids.includes(id) || typeof v !== "string" || !v) errs.push(`${f.name}: ghi chú riêng hỏng (${id})`);
     if (f.via && k === 0) errs.push(`${f.name}: đội hình đầu có đường cong`);
+    for (const [id, v] of Object.entries(f.facing ?? {}))
+      if (!ids.includes(id) || typeof v !== "number" || !v || normFacing(v) !== v) errs.push(`${f.name}: hướng mặt hỏng (${id})`);
     for (const [id, v] of Object.entries(f.via ?? {})) {
       if (!ids.includes(id) || !Array.isArray(v) || !Number.isFinite(v[0]) || !Number.isFinite(v[1])) {
         errs.push(`${f.name}: đường cong hỏng (${id})`);

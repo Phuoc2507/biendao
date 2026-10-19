@@ -5,6 +5,7 @@ import { type Project, type Vec2, WING, posesAt, initials, dist, personNote, pat
 import { countAt, fmtCounts, fmtTime } from "../timing.ts";
 import { groupRingColors } from "../groups.ts";
 import { propCorners } from "../props.ts";
+import { faceTri, facingLabel, facingOf } from "../facing.ts";
 
 /** Mô tả vị trí bằng lời (ui/hooks.ts describePos), truyền vào để giữ thuần. */
 export type Describe = (x: number, z: number, width: number, depth: number) => string;
@@ -132,10 +133,16 @@ export function formationSvg(p: Project, k: number): string {
     const b = now[d.id];
     if (!b) continue;
     const cx = n1(X(b[0])), cy = n1(Z(b[1]));
+    // hướng mặt: tam giác ở mép chấm; quay lưng hẳn thì thêm chữ LƯNG (in đen trắng vẫn đọc được)
+    const a = facingOf(p.formations[k], d.id);
+    const tri = a
+      ? `<polygon points="${faceTri(a, R).map(([x, z]) => `${n1(X(b[0]) + x)},${n1(Z(b[1]) + z)}`).join(" ")}" fill="#fff" stroke="#222" stroke-width="1"/>`
+        + (a === 180 ? `<text x="${n1(X(b[0]) + R + 3)}" y="${n1(Z(b[1]) + 3)}" class="lbl">LƯNG</text>` : "")
+      : "";
     // viền theo nhóm nằm ngoài chấm, khi in đen trắng vẫn thấy vòng
     if (rings[d.id]) o.push(`<circle cx="${cx}" cy="${cy}" r="${n1(R + 2.5)}" fill="none" stroke="${safeColor(rings[d.id])}" stroke-width="3"/>`);
     o.push(
-      `<g class="dot"><circle cx="${cx}" cy="${cy}" r="${n1(R)}" fill="${safeColor(d.color)}" stroke="#222" stroke-width="1"/>`,
+      `<g class="dot"><circle cx="${cx}" cy="${cy}" r="${n1(R)}" fill="${safeColor(d.color)}" stroke="#222" stroke-width="1"/>${tri}`,
       `<text x="${cx}" y="${n1(Z(b[1]) + 4)}" class="ini" text-anchor="middle">${esc(initials(d.name))}</text>`,
       `<text x="${cx}" y="${n1(Z(b[1]) + R + 12)}" class="nm" text-anchor="middle">${esc(d.name)}</text></g>`,
     );
@@ -226,7 +233,9 @@ export function printHtml(p: Project, o: PrintOpts): string {
         const cells = cols.map(({ k }) => {
           const q = poses[k][d.id];
           const n = personNote(fs[k], d.id);
-          return `<td>${q ? esc(o.describe(q[0], q[1], p.stage.width, p.stage.depth)) : "–"}`
+          const face = q ? facingLabel(facingOf(fs[k], d.id)) : "";
+          return `<td>${q ? esc(o.describe(q[0], q[1], p.stage.width, p.stage.depth)) : "–"}${face ? ` · <b>${esc(face)}</b>` : ""}`
+
             + `${n ? `<span class="pnote">✎ ${esc(n)}</span>` : ""}</td>`;
         }).join("");
         return `<tr><td class="who"><span class="sw" style="background:${safeColor(d.color)}"></span>${esc(d.name)}</td>${cells}</tr>`;
