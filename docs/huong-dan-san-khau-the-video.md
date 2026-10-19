@@ -88,6 +88,33 @@ Nạp nhạc trước thì màn chào ghi tên bài nhạc, độ dài và nhị
 
 Sau này muốn làm bài khác thì **Tệp ▸ Bài mới**.
 
+### Cài lên điện thoại, dùng trong phòng tập không có mạng
+
+Bản build của app là một ứng dụng web cài được (PWA): mở được một lần khi có mạng thì app tự cất trang và mã chạy vào máy, lần sau mất wifi vẫn mở bình thường. Video và nhạc của bài vốn đã nằm trong trình duyệt nên không phải tải lại; app không cất thêm bản video nào.
+
+1. Trên máy tính, trong thư mục `web`, dựng bản build rồi mở cho các máy trong cùng mạng LAN:
+
+   ```bash
+   npm run build
+   npm run preview -- --host
+   ```
+
+   Màn hình in ra địa chỉ dạng `http://192.168.1.5:4173/`.
+2. Trình duyệt chỉ cho chạy không cần mạng trên **https** hoặc **localhost**, nên địa chỉ `http://192.168.x.x` của LAN cần một trong các cách sau:
+   * **Android, cắm cáp USB (dễ nhất):** bật Gỡ lỗi USB trên điện thoại, trên máy tính chạy `adb reverse tcp:4173 tcp:4173`, rồi trên điện thoại mở Chrome tới `http://localhost:4173/`.
+   * **Android, qua wifi:** mở `chrome://flags`, tìm *Insecure origins treated as secure*, gõ đúng địa chỉ LAN (vd. `http://192.168.1.5:4173`), chọn Enabled rồi khởi động lại Chrome.
+   * **iPhone, iPad:** Safari bắt buộc https có chứng chỉ hợp lệ. Cần đưa thư mục `web/dist` lên một chỗ có https (trang tĩnh bất kỳ) và mở từ đó một lần; sau đó dùng không cần mạng được.
+3. Mở địa chỉ trên, chờ app hiện xong (lúc này app cất mọi thứ cần thiết). Rồi cài:
+   * Chrome Android: menu ⋮ ▸ **Thêm vào màn hình chính** (hoặc **Cài đặt ứng dụng**).
+   * Safari iPhone: nút Chia sẻ ▸ **Thêm vào MH chính**.
+4. Biểu tượng *Sân khấu* hiện trên màn hình chính, mở ra toàn màn hình như app thường. Thử tắt wifi rồi mở lại để chắc chắn.
+
+Lưu ý:
+
+* Bài lưu theo **địa chỉ** đã mở: `localhost:4173` và `192.168.1.5:4173` là hai chỗ lưu khác nhau. Luôn mở cùng một địa chỉ (cài từ biểu tượng là chắc nhất); muốn chuyển bài giữa hai chỗ thì dùng **Đóng gói** rồi Mở gói.
+* Khi có bản build mới và máy đang có mạng, app báo **Có bản mới của app** kèm nút **Tải lại**. Bài đã tự lưu nên bấm Tải lại không mất gì; chưa bấm thì app cứ dùng bản cũ.
+* Lúc chạy `npm run dev` app không cài phần chạy không mạng, để khỏi lẫn với nạp lại nóng khi sửa mã.
+
 ## 4. Dùng app
 
 ### Bố cục

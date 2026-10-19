@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Biểu tượng Sân khấu thẻ video: sàn sân khấu, ba người múa và đường đi.
+       Nền phủ kín để dùng được cả làm icon "maskable" (nội dung trong vùng an toàn giữa). -->
+  <rect width="512" height="512" fill="#0f1115"/>
+  <path d="M96 352 L416 352 L376 176 L136 176 Z" fill="#1c212a" stroke="#363f4e" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M176 300 Q256 210 336 300" fill="none" stroke="#ff9f43" stroke-width="12" stroke-linecap="round" stroke-dasharray="4 26"/>
+  <circle cx="176" cy="300" r="34" fill="#4f9dff"/>
+  <circle cx="256" cy="232" r="34" fill="#ff9f43"/>
+  <circle cx="336" cy="300" r="34" fill="#4cd08a"/>
+  <rect x="96" y="372" width="320" height="18" rx="9" fill="#ff9f43" opacity="0.85"/>
+</svg>
