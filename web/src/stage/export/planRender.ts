@@ -4,7 +4,8 @@
 import { type Project, type StageSize, WING, posesAt, segmentAt, initials, dist, viaOf } from "../model.ts";
 import { countAt, fmtTime } from "../timing.ts";
 import { groupRingColors } from "../groups.ts";
-import { propCorners } from "../props.ts";
+import { layoutPropLabels, propCorners, propsAt } from "../props.ts";
+import type { StageProp } from "../model.ts";
 import { MOVE_MIN } from "./printSheet.ts";
 import { faceTri, facingAt } from "../facing.ts";
 
@@ -57,7 +58,7 @@ export interface PlanFrame {
   dots: FrameDot[];
   /** Mũi tên từ chỗ đứng trước (ảnh đội hình), hay mũi tên mờ đường sắp đi (video, lúc đang giữ đội hình). */
   trails?: FrameTrail[];
-  /** Đạo cụ và mốc sàn (đứng yên), vẽ dưới mọi thứ khác. Không có thì bỏ trường. */
+  /** Đạo cụ và mốc sàn (ở chỗ của thời điểm khung), vẽ dưới mọi thứ khác. Không có thì bỏ trường. */
   props?: FrameProp[];
 }
 
@@ -69,14 +70,26 @@ export interface FrameProp {
   y: number;
   r: number; // bán kính (tròn), nửa cạnh dấu cộng (mốc sàn)
   pts?: [number, number][]; // bốn góc (hộp)
+  /** chỗ tên (tâm ngang, chân chữ, điểm ảnh) đã xếp cho khỏi đè tên khác; null: ẩn tên vì hết chỗ */
+  label?: [number, number] | null;
 }
 
-/** Đạo cụ của dự án ra điểm ảnh theo khung g. */
-export function framePropsOf(p: Project, g: PlanGeom): FrameProp[] {
-  return (p.props ?? []).map((o) => {
+/** Cỡ chữ tên đạo cụ (điểm ảnh) trong khung g, như drawPlanFrame dùng. */
+const propFont = (g: PlanGeom) => 11 * (g.u ?? g.h / 720);
+
+/**
+ * Đạo cụ của dự án ra điểm ảnh theo khung g: ở chỗ của giây t nếu có t (đạo cụ
+ * dời theo đội hình), không thì chỗ gốc; hay đưa thẳng danh sách đã tính.
+ */
+export function framePropsOf(p: Project, g: PlanGeom, at?: number | readonly StageProp[]): FrameProp[] {
+  const list = typeof at === "number" ? propsAt(p.formations, p.props, at) : at ?? p.props ?? [];
+  const labels = layoutPropLabels(list, (x) => toPx(g, x, 0)[0], (z) => toPx(g, 0, z)[1], propFont(g));
+  return list.map((o) => {
     const [x, y] = toPx(g, o.x, o.z);
-    if (o.kind === "box") return { kind: o.kind, name: o.name, x, y, r: 0, pts: propCorners(o).map(([a, b]) => toPx(g, a, b)) };
-    return { kind: o.kind, name: o.name, x, y, r: o.kind === "round" ? (o.w / 2) * g.s : 0.16 * g.s };
+    const lb = labels.get(o.id);
+    const label: [number, number] | null = lb ? [lb.x, lb.y] : null;
+    if (o.kind === "box") return { kind: o.kind, name: o.name, x, y, r: 0, pts: propCorners(o).map(([a, b]) => toPx(g, a, b)), label };
+    return { kind: o.kind, name: o.name, x, y, r: o.kind === "round" ? (o.w / 2) * g.s : 0.16 * g.s, label };
   });
 }
 
@@ -157,7 +170,7 @@ export function planFrame(p: Project, t: number, g: PlanGeom, o: { highlightId?:
   });
   // người được tô vẽ sau cùng để nằm trên
   if (hi) dots.sort((a, b) => Number(a.highlight) - Number(b.highlight));
-  const props = framePropsOf(p, g);
+  const props = framePropsOf(p, g, t);
   // đang giữ một đội hình có đội hình kế: mũi tên mờ đường sắp đi, như ảnh đội hình
   const trails: FrameTrail[] = [];
   if (seg.kind === "hold" && seg.k + 1 < fs.length) {
@@ -356,8 +369,13 @@ export function drawPlanFrame(ctx: Ctx2D, g: PlanGeom, f: PlanFrame) {
       ctx.stroke();
       ctx.fillStyle = "#e8d27a";
       ctx.font = `700 ${Math.round(11 * u)}px ${FONT}`;
-      ctx.textAlign = "left";
-      ctx.fillText(o.name, o.x + o.r + 2 * u, o.y - o.r);
+      if (o.label) {
+        ctx.textAlign = "center";
+        ctx.fillText(o.name, o.label[0], o.label[1]);
+      } else if (o.label === undefined) {
+        ctx.textAlign = "left";
+        ctx.fillText(o.name, o.x + o.r + 2 * u, o.y - o.r);
+      }
       continue;
     }
     ctx.beginPath();
@@ -377,8 +395,9 @@ export function drawPlanFrame(ctx: Ctx2D, g: PlanGeom, f: PlanFrame) {
     ctx.font = `${Math.round(11 * u)}px ${FONT}`;
     ctx.textAlign = "center";
     const half = o.pts ? Math.max(...o.pts.map((q) => q[1])) - o.y : o.r;
-    // tên trong món lớn, dưới món nhỏ
-    ctx.fillText(o.name, o.x, half > 16 * u ? o.y : o.y + half + 9 * u);
+    // tên đã xếp khỏi đè nhau (null là ẩn); khung cũ không có thì trong món lớn, dưới món nhỏ
+    if (o.label) ctx.fillText(o.name, o.label[0], o.label[1]);
+    else if (o.label === undefined) ctx.fillText(o.name, o.x, half > 16 * u ? o.y : o.y + half + 9 * u);
   }
   ctx.globalAlpha = 1;
 

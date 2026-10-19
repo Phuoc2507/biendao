@@ -12,7 +12,8 @@ import { st, useProject, useUI } from "../store";
 import { groupRingColors } from "../groups";
 import { useTime } from "../clock";
 import * as clock from "../clock";
-import { fixAllWarnings, movePropTo, setPositionsNow, setViaNow, straightenPath } from "../actions";
+import { dragPropTo, endPropDrag, fixAllWarnings, setPositionsNow, setViaNow, straightenPath } from "../actions";
+import { propsAt } from "../props";
 import { isSoft } from "../checks";
 import { fmtTime } from "../timing";
 import { dancerLegs, dancerStops, stopLabel } from "../rehearse";
@@ -122,6 +123,11 @@ export function PlanView({
   const ids = useMemo(() => p.dancers.map((d) => d.id), [p.dancers]);
   const poses = posesAt(p.formations, ids, t, p.stage);
   const seg = segmentAt(p.formations, t);
+  // đạo cụ ở chỗ của vạch phát (đi theo đội hình nếu có chỗ riêng)
+  const shownProps = useMemo(() => propsAt(p.formations, p.props, t), [p.formations, p.props, t]);
+  const propTip = seg.kind === "hold"
+    ? `Kéo: chỉ dời ở ${p.formations[seg.k].name} · Shift kéo: dời cả bài`
+    : "Kéo: dời cả bài (vạch phát trong một đội hình thì chỉ dời ở đội hình đó)";
   const prev = ui.showGhosts ? prevFormation(p.formations, t) : null;
   const next = nextFormation(p.formations, t);
   const sel = new Set(ui.selected);
@@ -189,7 +195,7 @@ export function PlanView({
 
   const onPropDown = (e: React.PointerEvent, id: string) => {
     if (readOnly || e.button !== 0) return;
-    const o = p.props?.find((x) => x.id === id);
+    const o = shownProps.find((x) => x.id === id);
     if (!o) return;
     e.stopPropagation();
     if (st().ui.selected.length) st().setUI({ selected: [] });
@@ -250,7 +256,7 @@ export function PlanView({
       const b = d.base[d.id];
       let q: Vec2 = [b[0] + dx, b[1] + dz];
       if (snap) q = snapPos(q, 0.25);
-      movePropTo(d.id, q[0], q[1], true);
+      dragPropTo(d.id, q[0], q[1], e.shiftKey);
       return;
     }
     const moves: Record<string, Vec2> = {};
@@ -275,7 +281,11 @@ export function PlanView({
     drag.current = null;
     setTip(null);
     setDragging(false);
-    if (d.kind === "prop" || d.kind === "via") {
+    if (d.kind === "prop") {
+      if (d.moved) endPropDrag();
+      return;
+    }
+    if (d.kind === "via") {
       if (d.moved) st().endGesture();
       return;
     }
@@ -538,7 +548,8 @@ export function PlanView({
           </>
         )}
 
-        <PropLayer props={p.props ?? []} X={X} Z={Z} sel={readOnly ? null : selProp} readOnly={readOnly} compact={compact} onDown={onPropDown} />
+        <PropLayer props={shownProps} X={X} Z={Z} sel={readOnly ? null : selProp} readOnly={readOnly} compact={compact} onDown={onPropDown}
+          tip={readOnly ? undefined : propTip} />
 
         <g pointerEvents="none">
           {ghosts}

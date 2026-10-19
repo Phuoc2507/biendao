@@ -4,7 +4,7 @@
 import { type Project, type Vec2, WING, posesAt, initials, dist, personNote, pathLength, subPath, viaOf } from "../model.ts";
 import { countAt, fmtCounts, fmtTime } from "../timing.ts";
 import { groupRingColors } from "../groups.ts";
-import { propCorners } from "../props.ts";
+import { layoutPropLabels, propCorners, propsIn } from "../props.ts";
 import { faceTri, facingLabel, facingOf } from "../facing.ts";
 import { castLabelIn, showCastNote } from "../cast.ts";
 
@@ -87,22 +87,28 @@ export function formationSvg(p: Project, k: number): string {
     `<text x="${n1(X(-width / 2) + 4)}" y="${n1(top + h + 20)}" class="lbl">◀ TRÁI</text>`,
     `<text x="${n1(X(width / 2) - 4)}" y="${n1(top + h + 20)}" class="lbl" text-anchor="end">PHẢI ▶</text>`,
   );
-  // đạo cụ đứng yên: hộp, tròn xám nhạt có tên; mốc sàn là dấu cộng kèm số
-  for (const q of p.props ?? []) {
+  // đạo cụ ở chỗ của đội hình này: hộp, tròn xám nhạt có tên; mốc sàn là dấu cộng kèm số.
+  // Tên xếp cho khỏi đè nhau (chữ .lbl 10px), hết chỗ thì ẩn
+  const props = propsIn(p.formations, k, p.props);
+  const labels = layoutPropLabels(props, X, Z, 10.5);
+  const label = (q: (typeof props)[number]) => {
+    const lb = labels.get(q.id);
+    return lb ? `<text x="${n1(lb.x)}" y="${n1(lb.y)}" class="lbl" text-anchor="middle">${esc(q.name)}</text>` : "";
+  };
+  for (const q of props) {
     const cx = X(q.x), cz = Z(q.z);
     if (q.kind === "mark") {
       const m = 0.16 * S;
       o.push(
         `<path d="M${n1(cx - m)} ${n1(cz)}H${n1(cx + m)}M${n1(cx)} ${n1(cz - m)}V${n1(cz + m)}" stroke="#8a6d00" stroke-width="2.5" stroke-linecap="round"/>`,
-        `<text x="${n1(cx + m + 3)}" y="${n1(cz - m)}" class="lbl">${esc(q.name)}</text>`,
+        label(q),
       );
       continue;
     }
     o.push(q.kind === "round"
       ? `<circle cx="${n1(cx)}" cy="${n1(cz)}" r="${n1((q.w / 2) * S)}" fill="#e3e5e9" stroke="#888"/>`
       : `<polygon points="${propCorners(q).map(([x, z]) => `${n1(X(x))},${n1(Z(z))}`).join(" ")}" fill="#e3e5e9" stroke="#888"/>`);
-    const half = (Math.max(q.w, q.d) / 2) * S;
-    o.push(`<text x="${n1(cx)}" y="${n1(Math.min(q.w, q.d) < 0.7 ? cz + half + 11 : cz + 4)}" class="lbl" text-anchor="middle">${esc(q.name)}</text>`);
+    o.push(label(q));
   }
   // vũ công: bóng mờ + mũi tên từ đội hình trước, rồi chấm
   const now = holdPoses(p, k);

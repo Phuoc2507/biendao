@@ -210,3 +210,11 @@ test("diffProjects: báo đổi hướng mặt", () => {
   assert.ok(lines.some((l) => l.includes("Đội hình 2") && l.includes("Lan")), lines.join(" | "));
   assert.equal(diffProjects(a, base()).length, 0);
 });
+test("diffProjects: đạo cụ chỉ đổi chỗ trong một đội hình vẫn được báo", () => {
+  const prop = { id: "p1", kind: "box" as const, name: "Bục", x: 0, z: 0, w: 1, d: 1 };
+  const a = { ...base(), props: [prop] };
+  const b = structuredClone(a);
+  b.formations[1] = { ...b.formations[1], propPos: { p1: { x: 2, z: 1 } } };
+  assert.deepEqual(diffProjects(a, b), [{ kind: "other", what: "đạo cụ" }]);
+  assert.deepEqual(diffProjects(a, structuredClone(a)), []);
+});

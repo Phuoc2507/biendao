@@ -53,6 +53,16 @@ export interface Formation {
   /** Hướng mặt từng người (id vũ công: độ, facing.ts): 0 nhìn khán giả, dương quay sang
    *  phải người múa, bội 45 trong (-180, 180]. Chỉ lưu người khác 0; không ai thì bỏ trường. */
   facing?: Record<string, number>;
+  /** Chỗ riêng của đạo cụ ở đội hình này (id đạo cụ: chỗ, props.ts). Món không có ở đây
+   *  thì đứng ở chỗ gốc (StageProp.x, z); lúc chuyển đạo cụ trượt như người. Rỗng thì bỏ trường. */
+  propPos?: Record<string, PropSpot>;
+}
+
+/** Chỗ của một đạo cụ ở một đội hình: tâm (mét) và góc xoay riêng (độ, chỉ hộp; không có là theo góc gốc). */
+export interface PropSpot {
+  x: number;
+  z: number;
+  rot?: number;
 }
 
 export interface StageSize {
@@ -79,7 +89,7 @@ export interface Project {
   groups?: DancerGroup[];
   /** false: tắt viền màu nhóm quanh chấm (sơ đồ, ảnh, bản in, video). Không có là bật. */
   groupRings?: boolean;
-  /** Đạo cụ và mốc sàn đứng yên suốt bài (props.ts). Không có thì coi như rỗng. */
+  /** Đạo cụ và mốc sàn (props.ts): chỗ gốc ở đây, đội hình nào có propPos thì dời theo. Không có thì coi như rỗng. */
   props?: StageProp[];
   /** false: không ghi "(thay A)" cạnh tên người dự bị đang đóng (bản in, ảnh, Tôi là ai). Không có là ghi. */
   castNote?: boolean;
@@ -208,11 +218,21 @@ export function fitFormationsToStage(fs: Formation[], stage: StageSize): Formati
     }
     return out;
   };
+  const fitSpots = (m: Record<string, PropSpot> | undefined) => {
+    let out: Record<string, PropSpot> | null = null;
+    for (const [id, q] of Object.entries(m ?? {})) {
+      const [x, z] = clampToStage([q.x, q.z], stage);
+      if (x === q.x && z === q.z) continue;
+      out ??= { ...m };
+      out[id] = { ...q, x, z };
+    }
+    return out;
+  };
   const out = fs.map((f) => {
-    const pos = fit(f.pos), via = fit(f.via);
-    if (!pos && !via) return f;
+    const pos = fit(f.pos), via = fit(f.via), propPos = fitSpots(f.propPos);
+    if (!pos && !via && !propPos) return f;
     changed = true;
-    return { ...f, ...(pos && { pos }), ...(via && { via }) };
+    return { ...f, ...(pos && { pos }), ...(via && { via }), ...(propPos && { propPos }) };
   });
   return changed ? out : fs;
 }
@@ -623,7 +643,10 @@ export function addFormationAfter(
   // hướng mặt cũng chép theo như chỗ đứng
   const facing: Record<string, number> = {};
   for (const id of ids) if (cur.facing?.[id]) facing[id] = cur.facing[id];
-  out.push(withFacing(withNotes({ id: newId, name: nextName(fs), start, end, pos }, notes), facing));
+  const nf = withFacing(withNotes({ id: newId, name: nextName(fs), start, end, pos }, notes), facing);
+  // đạo cụ đứng nguyên chỗ của đội hình trước (như người)
+  if (cur.propPos) nf.propPos = Object.fromEntries(Object.entries(cur.propPos).map(([id, q]) => [id, { ...q }]));
+  out.push(nf);
   return { formations: sortFs(out), id: newId, jumpTo: start, shifted: shift };
 }
 
@@ -976,6 +999,18 @@ export function checkInvariants(p: Project): string[] {
     if (![o.x, o.z, o.w, o.d].every(Number.isFinite) || !(o.w > 0 && o.d > 0)) errs.push(`đạo cụ ${o.name}: số hỏng`);
     const c = clampToStage([o.x, o.z], p.stage);
     if (c[0] !== o.x || c[1] !== o.z) errs.push(`đạo cụ ${o.name}: ngoài sân`);
+  }
+  for (const f of p.formations) {
+    for (const [id, q] of Object.entries(f.propPos ?? {})) {
+      if (!propIds.has(id)) errs.push(`${f.name}: chỗ đạo cụ lạ (${id})`);
+      if (!q || !Number.isFinite(q.x) || !Number.isFinite(q.z) || (q.rot !== undefined && !Number.isFinite(q.rot))) {
+        errs.push(`${f.name}: chỗ đạo cụ hỏng (${id})`);
+        continue;
+      }
+      const c = clampToStage([q.x, q.z], p.stage);
+      if (c[0] !== q.x || c[1] !== q.z) errs.push(`${f.name}: đạo cụ ${id} ngoài sân`);
+    }
+    if (f.propPos && !Object.keys(f.propPos).length) errs.push(`${f.name}: propPos rỗng`);
   }
   return errs;
 }

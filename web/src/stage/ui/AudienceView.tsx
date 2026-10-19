@@ -8,7 +8,7 @@ import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { type VDancer, type Vec2, WING, poseAt, lineup, snapPos, clampToStage } from "../model";
 import { canonTime } from "../timing";
-import { propHeight } from "../props";
+import { propHeight, propMoves, propsAt } from "../props";
 import { st, useProject, useUI } from "../store";
 import * as clock from "../clock";
 import { getVideo, getDancerVideo, holdVideos } from "../media";
@@ -365,13 +365,30 @@ function StageSet({ bright = false }: { bright?: boolean }) {
   );
 }
 
-/** Đạo cụ đứng yên: hộp, trụ xám tối; mốc sàn là dấu cộng phẳng trên sàn. Không bắt sự kiện nên không chặn bấm thẻ. */
+/** Giây của vạch phát, chỉ theo đồng hồ khi on (đạo cụ có dời theo đội hình); không thì đứng yên, khỏi vẽ lại. */
+function useClockIf(on: boolean): number {
+  const [t, setT] = useState(() => clock.now());
+  useEffect(() => {
+    if (!on) return;
+    const f = () => setT(clock.now());
+    f();
+    const off = clock.subscribeClock(f);
+    return () => {
+      off();
+    };
+  }, [on]);
+  return t;
+}
+
+/** Đạo cụ: hộp, trụ xám tối; mốc sàn là dấu cộng phẳng trên sàn. Có chỗ riêng theo đội hình thì trượt theo vạch phát. Không bắt sự kiện nên không chặn bấm thẻ. */
 function PropsSet({ bright = false }: { bright?: boolean }) {
   const p = useProject();
   const color = bright ? "#5a606b" : "#2a2e36";
+  const t = useClockIf(propMoves(p.formations));
+  const shown = useMemo(() => propsAt(p.formations, p.props, t), [p.formations, p.props, t]);
   return (
     <group>
-      {(p.props ?? []).map((o) => {
+      {shown.map((o) => {
         if (o.kind === "mark")
           return (
             <group key={o.id} position={[o.x, 0.007, o.z]} rotation-x={-Math.PI / 2}>
