@@ -25,3 +25,19 @@
 .xv-time-in { width: 76px; height: 28px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel2, #1c212a); color: inherit; font-variant-numeric: tabular-nums; }
 .xv-time-in:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .xv-dot.fast { background: var(--accent); }
+/* Hộp Phương án */
+.modal.va { width: min(620px, 94vw); }
+.va-name { flex: 1; min-width: 0; height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel2, #1c212a); color: inherit; font: inherit; }
+.va-name:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.va-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.va-list > li { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.va-list > li.on { border-color: var(--accent); }
+.va-row { display: flex; align-items: center; gap: 6px; }
+.va-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.va-main b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.va-meta { color: var(--muted); font-size: 12px; }
+.va-meta em { font-style: normal; color: var(--accent); }
+.va-diff { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.5; user-select: text; }
+.va-diff ul { margin: 4px 0 0; padding-left: 18px; max-height: 40vh; overflow: auto; }
+.va-diff-head { color: var(--muted); font-size: 12px; }
+@media (max-width: 520px) { .va-row { flex-wrap: wrap; } .va-main { flex-basis: 100%; } }

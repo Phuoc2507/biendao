@@ -207,5 +207,7 @@ test("popupOpen: dò menu bật ra trong trang", () => {
 test("modalOpen: hộp Xuất video hoặc lớp Đang xử lý là đang có hộp thoại", () => {
   assert.equal(modalOpen({ exportOpen: false, busy: null }), false);
   assert.equal(modalOpen({ exportOpen: true, busy: null }), true);
+  assert.equal(modalOpen({ exportOpen: false, variantsOpen: true, busy: null }), true, "hộp Phương án");
+  assert.equal(modalOpen({ exportOpen: false, variantsOpen: false, busy: null }), false);
   assert.equal(modalOpen({ exportOpen: false, busy: { msg: "Đang nạp bài…", progress: -1 } }), true);
 });

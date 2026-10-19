@@ -225,6 +225,14 @@ Nút **Đạo cụ** ở góc trên phải sơ đồ (trên điện thoại ch�
 
 Khung 3D có các góc **Khán giả**, **Chéo**, **Trên cao** và **Sau lưng** (đứng sau đội nhìn ra khán giả, hình lật như soi gương để trái phải giống người múa, dễ tập theo). Nút **Đặt lại** đưa góc nhìn về vừa khít sân; kéo thẻ giữ **Alt** để đặt tự do không bám lưới.
 
+### Phương án song song
+
+Muốn thử một cách khác cho đoạn 2 mà không mất bản đang ổn thì mở **Tệp ▸ Phương án…**. Gõ tên (để trống thì app đặt "Phương án A", "Phương án B"...) rồi bấm **Lưu phương án hiện tại**: app chụp lại cả bài lúc đó (đội hình, vũ công, ghi chú, mốc nhạc, đạo cụ) và cất trong trình duyệt ngay cạnh bài đang mở. Video và nhạc dùng chung với bài nên phương án gần như không tốn thêm chỗ.
+
+Danh sách hiện mỗi phương án với giờ lưu, số đội hình và số người; phương án nào trùng hẳn bản đang làm thì ghi thêm "giống bản đang làm". Bấm **Mở** để chuyển cả bài sang phương án đó. Nếu bản đang làm chưa có trong danh sách, app tự cất nó thành phương án "Trước khi đổi" trước khi chuyển (lần sau là "Trước khi đổi 2"), nên không bao giờ mất bản đang làm; lỡ tay thì Ctrl Z cũng đưa lại được. Nút bút chì để đổi tên (Enter nhận, Esc bỏ), nút thùng rác để xoá: app hỏi lại trước khi xoá, và thông báo sau khi xoá có nút **Hoàn tác** để lấy lại phương án vừa xoá.
+
+Bấm **So sánh** ở một phương án để xem mở nó thì bài đổi những gì so với bản đang làm: đội hình thêm, bớt, đổi tên hay đổi giờ; ai dời chỗ ở đội hình nào và dời bao nhiêu mét; hai người đổi chỗ cho nhau thì ghi gọn một dòng "Lan đổi chỗ với Mai"; ghi chú đội hình, ghi chú từng người và đường đi cong đổi ra sao; vũ công thêm bớt, nhịp, cỡ sân. Bấm lại So sánh để gập. Phương án chỉ nằm trong trình duyệt này; muốn mang sang máy khác thì mở phương án đó rồi Lưu ra tệp hoặc Đóng gói như bình thường.
+
 ### Lưu
 
 * App **tự lưu** trong trình duyệt (góc trên có dấu ✓ "Đã lưu"; bấm vào để xem bài đang chiếm bao nhiêu chỗ), lưu ngay cả khi đóng hay chuyển thẻ.
