@@ -27,7 +27,7 @@ cd web && npm install
 ```
 
 * Chạy app: `npm run dev` trong `web/` rồi mở http://localhost:5173/ (cấu hình sẵn ở `.claude/launch.json`, tên `web`). `index.html` vào app sân khấu `src/stage/main.tsx`.
-* Test: `npm test` trong `web/` (node:test, hiện **267 test xanh**).
+* Test: `npm test` trong `web/` (node:test, hiện **288 test xanh**).
 * Kiểm kiểu (máy ít RAM, phải nâng heap): `node --max-old-space-size=2500 node_modules/typescript/bin/tsc -p .` trong `web/`.
 * Tệp được test import trực tiếp phải import có đuôi `.ts` (ví dụ `from "./timing.ts"`), `model.ts` chỉ được `import type` từ `timing.ts`.
 * Trong trình duyệt có tay cầm DEV `window.__stage.st()` để đọc và gọi store (`setUI`, `commit`, `project`…).
@@ -66,6 +66,12 @@ Video mẫu thật: `D:\bien\IMG_5116.mov` (iPhone, HEVC 1920x1080, 41,9 s, khô
 Quy ước sân: khán giả ở phía **+Z**, x dương là bên **phải khán giả**.
 
 ## 5. Đã xong gần nhất
+
+Đợt 2026-10-19, học từ đối thủ (khảo sát `docs/doi-thu-va-khoang-trong.md`, 14 app; 2 agent song song):
+
+* **Ghi chú riêng từng người trong từng đội hình** (`Formation.notes`, ô ở cuối khung vũ công, `setPersonNote`): hiện trong dòng nhắc Tôi là ai, ô của người đó ở ảnh vị trí, bản in. Chép dán chỗ đứng và + Đội hình mang theo ghi chú; xoá người thì xoá ghi chú.
+* **Mốc đoạn nhạc có tên** (`Project.marks`, `marks.ts`): dải Mốc dưới thước, nút + và Gợi ý (từ chỗ nhạc đổi mạnh, `suggestMarkTimes` trong `autoplan.ts`), bấm đúp nhãn để đổi tên, kéo để dời, phím B thêm mốc, Shift [ ] nhảy mốc. Tên đoạn hiện trên đầu màn trình chiếu và ở ảnh vị trí từng người.
+* Bẫy đã gặp: một worktree cũ còn junction trỏ vào `web/node_modules`, khi bị dọn đã xoá theo 67 gói (mất `@babel/core`, `.bin`). Cứu bằng `npm install --offline` (lấy từ cache, không tải mới). Luôn `rmdir` junction trước khi xoá worktree.
 
 Đợt 2026-10-19, phần chót (commit d683178 tới 5c1dfda; 2 agent song song):
 
