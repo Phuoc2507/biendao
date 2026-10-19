@@ -32,7 +32,8 @@ import {
   recolorGroup, removeFromGroup, renameGroup, setGroupMembers, toggleGroupPick, withGroups,
 } from "./groups";
 import {
-  PROP_PRESETS, addProp, fitPropsToStage, moveProp, propFromPreset, removeProp, renameProp, resizeProp, withProps,
+  PROP_PRESETS, addProp, clearPropSpots, fitPropsToStage, mirrorPropsIn, moveProp, propFromPreset, propMoves, propsAt,
+  removeProp, renameProp, resizeProp, rotatePropAll, seedPropSpots, setPropSpot, shiftPropAll, withProps,
 } from "./props";
 import { findIssues, isSoft } from "./checks";
 import { fixAll, reassignFix, staggerFix, widenFix } from "./fixes";
@@ -297,7 +298,9 @@ export function ensureHoldNow(live = false): string {
   const { hold } = defaultLens(p.bpm);
   const r = ensureFormationAt(p.formations, t, ids(p), p.stage, uid("f"), hold);
   if (r.created) {
-    const fn = (q: Project) => ({ ...q, formations: r.formations });
+    // đạo cụ đang trượt dở cũng đứng lại đúng chỗ đó ở khối mới
+    const formations = seedPropSpots(p.formations, r.formations, r.id, p.props, t, p.stage);
+    const fn = (q: Project) => ({ ...q, formations });
     if (live) st().live(fn);
     else st().commit(fn);
     const f = r.formations.find((x) => x.id === r.id)!;
@@ -395,11 +398,14 @@ export function mirrorSelected() {
   const cur = currentPoses();
   let sel = st().ui.selected.filter((id) => id in cur);
   if (!sel.length) sel = ids(p);
+  const all = ids(p).every((id) => sel.includes(id));
   const w = warnCount(p);
-  // lật gương: hướng mặt cũng đổi trái phải; chỗ đứng và hướng mặt là một bước hoàn tác
+  // lật gương: hướng mặt cũng đổi trái phải; lật cả đội thì đạo cụ đi theo đội hình
+  // cũng lật; chỗ đứng, hướng mặt và đạo cụ là một bước hoàn tác
   batch(() => {
     setPositionsNow(mirrorPositions(cur, sel), false, true);
     faceIn(st().ui.selectedBlock, (fs, fid) => mirrorFacing(fs, fid, sel));
+    if (all) faceIn(st().ui.selectedBlock, (fs, fid) => mirrorPropsIn(fs, fid, proj().props, proj().stage));
   });
   hintWarn(w, "Đã lật trái phải");
 }
@@ -814,7 +820,8 @@ export function addFormation() {
   const p = proj();
   const { hold, gap } = defaultLens(p.bpm);
   const r = addFormationAfter(p.formations, clock.now(), ids(p), p.stage, uid("f"), hold, gap);
-  st().commit((q) => ({ ...q, formations: r.formations }));
+  const formations = seedPropSpots(p.formations, r.formations, r.id, p.props, clock.now(), p.stage);
+  st().commit((q) => ({ ...q, formations }));
   clock.seek(r.jumpTo + 0.001);
   st().setUI({ selectedBlock: r.id });
   const f = r.formations.find((x) => x.id === r.id)!;
@@ -948,11 +955,88 @@ export function addPropPreset(key: string): string | null {
   return id;
 }
 
-/** Dời đạo cụ (kéo trên sơ đồ dùng st().live trong một cử chỉ). */
+/** Dời chỗ gốc của đạo cụ (cả bài, không đụng chỗ riêng ở các đội hình). */
 export function movePropTo(id: string, x: number, z: number, live = false) {
   const f = (q: Project) => withProps(q, moveProp(q.props, id, x, z, q.stage));
   if (live) st().live(f);
   else st().commit(f);
+}
+
+/** Đội hình mà đạo cụ sẽ đổi riêng nếu sửa lúc này (vạch phát nằm trong một khối), không thì null: sửa cả bài. */
+export function propScopeNow(p: Project = proj()): { id: string; name: string } | null {
+  const seg = segmentAt(p.formations, clock.now());
+  if (seg.kind !== "hold") return null;
+  const f = p.formations[seg.k];
+  return { id: f.id, name: f.name };
+}
+
+let propHint: string | null = null;
+
+/**
+ * Kéo đạo cụ tới (x, z) là chỗ đang THẤY ở vạch phát, trong một cử chỉ (gọi
+ * st().beginGesture trước). Vạch phát trong một khối thì chỉ dời ở đội hình đó;
+ * all (giữ Shift) hay vạch ở khoảng chuyển thì dời cả bài, chỗ riêng ở các đội
+ * hình dời theo cùng độ lệch. Luôn tính lại từ bản trước cử chỉ nên đổi phím
+ * giữa chừng hay chạm mép sân không làm lệch dần.
+ */
+export function dragPropTo(id: string, x: number, z: number, all: boolean) {
+  const base = st().gestureBase ?? proj();
+  const home = base.props?.find((o) => o.id === id);
+  if (!home) return;
+  const t = clock.now();
+  const shown = propsAt(base.formations, base.props, t).find((o) => o.id === id) ?? home;
+  const scope = all ? null : propScopeNow(base);
+  if (scope) {
+    const formations = setPropSpot(base.formations, scope.id, home, { x, z, rot: shown.rot ?? 0 }, base.stage);
+    propHint = !propMoves(base.formations, id) && propMoves(formations, id)
+      ? `Đã dời "${home.name}" chỉ ở ${scope.name}: giữ Shift khi kéo để dời cả bài`
+      : null;
+    st().live((q) => withProps({ ...q, formations }, base.props ?? []));
+    return;
+  }
+  propHint = null;
+  const r = shiftPropAll(base.props, base.formations, id, home.x + (x - shown.x), home.z + (z - shown.z), base.stage);
+  st().live((q) => withProps({ ...q, formations: r.formations }, r.props));
+}
+
+/** Thả đạo cụ sau khi kéo: một bước hoàn tác; lần đầu đạo cụ rời chỗ ở một đội hình thì nhắc phím Shift. */
+export function endPropDrag() {
+  st().endGesture();
+  if (propHint) st().notify(propHint, { undo: true });
+  propHint = null;
+}
+
+/** Xoay hộp 90 độ: trong một khối thì chỉ ở đội hình đó, all hay ngoài khối thì cả bài. */
+export function turnPropNow(id: string, all: boolean) {
+  const p = proj();
+  const home = p.props?.find((o) => o.id === id);
+  if (!home || home.kind !== "box") return;
+  const scope = all ? null : propScopeNow(p);
+  if (scope) {
+    const shown = propsAt(p.formations, p.props, clock.now()).find((o) => o.id === id) ?? home;
+    st().commit((q) => ({ ...q, formations: setPropSpot(q.formations, scope.id, home, { x: shown.x, z: shown.z, rot: (shown.rot ?? 0) + 90 }, q.stage) }));
+    return;
+  }
+  st().commit((q) => {
+    const r = rotatePropAll(q.props, q.formations, id, 90, q.stage);
+    return withProps({ ...q, formations: r.formations }, r.props);
+  });
+}
+
+/**
+ * "Giữ yên cả bài": đạo cụ đứng ở chỗ đang thấy tại vạch phát suốt bài, bỏ mọi
+ * chỗ riêng theo đội hình. Một bước hoàn tác.
+ */
+export function holdPropStill(id: string) {
+  const p = proj();
+  const home = p.props?.find((o) => o.id === id);
+  if (!home || !propMoves(p.formations, id)) return;
+  const shown = propsAt(p.formations, p.props, clock.now()).find((o) => o.id === id) ?? home;
+  st().commit((q) => {
+    const props = resizeProp(moveProp(q.props, id, shown.x, shown.z, q.stage), id, { rot: shown.rot ?? 0 }, q.stage);
+    return withProps({ ...q, formations: clearPropSpots(q.formations, id) }, props);
+  });
+  st().notify(`"${home.name}" đứng yên cả bài ở chỗ đang thấy`, { undo: true });
 }
 
 export function renamePropTo(id: string, name: string) {
@@ -969,7 +1053,7 @@ export function resizePropTo(id: string, ch: { w?: number; d?: number; rot?: num
 export function removePropById(id: string) {
   const o = proj().props?.find((x) => x.id === id);
   if (!o) return;
-  st().commit((q) => withProps(q, removeProp(q.props, id)));
+  st().commit((q) => withProps({ ...q, formations: clearPropSpots(q.formations, id) }, removeProp(q.props, id)));
   st().notify(`Đã xoá ${o.kind === "mark" ? `mốc sàn ${o.name}` : `"${o.name}"`}`, { undo: true });
 }
 

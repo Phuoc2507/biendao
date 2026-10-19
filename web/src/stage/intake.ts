@@ -8,7 +8,7 @@ import {
 import { cleanFacing, withFacing } from "./facing.ts";
 import { cleanMarks } from "./marks.ts";
 import { cleanGroups } from "./groups.ts";
-import { cleanProps } from "./props.ts";
+import { cleanPropPos, cleanProps, withPropPos } from "./props.ts";
 
 export const stripName = (name: string): string =>
   name.replace(/\.[^.]+$/, "").replace(/\.card$/i, "");
@@ -126,6 +126,11 @@ export function normalizeProject(raw: unknown): Project | null {
   const props = cleanProps(j.props, stage);
   if (props.length) out.props = props;
   else delete out.props;
+  // chỗ đạo cụ theo đội hình (tệp cũ không có trường này): chỉ giữ món còn trong danh sách
+  out.formations = out.formations.map((f) => {
+    const raw = (f as { propPos?: unknown }).propPos;
+    return raw === undefined ? f : withPropPos(f, cleanPropPos(raw, props, stage));
+  });
   return out;
 }
 

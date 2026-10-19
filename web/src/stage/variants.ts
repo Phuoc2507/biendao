@@ -117,6 +117,11 @@ const close = (a: Vec2 | undefined, b: Vec2 | undefined) => !!a && !!b && dist(a
  * đổi thế này). Ghép đội hình và vũ công theo id (phương án chụp từ cùng bài
  * nên id giữ nguyên). Hai người đổi chỗ cho nhau ghi một dòng "đổi chỗ".
  */
+const propsKey = (p: Project) => ({
+  props: p.props ?? [],
+  at: p.formations.filter((f) => f.propPos).map((f) => [f.id, f.propPos]),
+});
+
 export function diffProjects(a: Project, b: Project): Change[] {
   const out: Change[] = [];
   if (a.title !== b.title) out.push({ kind: "title", from: a.title, to: b.title });
@@ -156,7 +161,8 @@ export function diffProjects(a: Project, b: Project): Change[] {
   const extra: [string, unknown, unknown][] = [
     ["mốc đoạn nhạc", a.marks ?? [], b.marks ?? []],
     ["nhóm", a.groups ?? [], b.groups ?? []],
-    ["đạo cụ", a.props ?? [], b.props ?? []],
+    // đạo cụ: cả chỗ gốc lẫn chỗ riêng theo đội hình (Formation.propPos)
+    ["đạo cụ", propsKey(a), propsKey(b)],
     ["Hình của tôi", a.myShapes ?? [], b.myShapes ?? []],
   ];
   for (const [what, x, y] of extra) if (stableJson(x) !== stableJson(y)) out.push({ kind: "other", what });

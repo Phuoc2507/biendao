@@ -7,7 +7,7 @@ import {
   type Formation, type StageProp, type StageSize, type Vec2, type Warning,
   NEAR_M, dist, findWarnings, inWings, lerp2, pathAt, pathLength, pathPeak, smoothstep, viaOf,
 } from "./model.ts";
-import { PROP_PAD, isSolid, propDist } from "./props.ts";
+import { PROP_PAD, isSolid, lerpProp, propDist, propIn } from "./props.ts";
 import { CLEAR_M, VMAX, pairClearance } from "./autoplan.ts";
 import { fmtCounts } from "./timing.ts";
 
@@ -192,11 +192,13 @@ export function blockedIssues(
  *  cộng va nhau và chạy quá nhanh trong lúc chuyển (bản tính đúng, ngưỡng của tự chia). */
 // ---------- đi xuyên đạo cụ ----------
 //
-// Đạo cụ đứng yên suốt bài (props.ts). Bục, ghế, micro (không tính mốc sàn)
-// chặn người: báo khi ai ĐỨNG trong đạo cụ lúc giữ một đội hình, hoặc đường đi
-// thẳng lúc chuyển cắt qua đạo cụ. Đường lấy mẫu dày (mỗi 5 cm) nên micro nhỏ
-// cũng không lọt. Đầu nào đã nằm trong đạo cụ đó thì không báo thêm lúc chuyển
-// (đã có dòng "đứng trong"). Báo nhẹ: có khi cố ý (bước lên bục, ngồi ghế).
+// Đạo cụ (props.ts), ở chỗ của từng đội hình và trượt theo người lúc chuyển.
+// Bục, ghế, micro (không tính mốc sàn) chặn người: báo khi ai ĐỨNG trong đạo cụ
+// lúc giữ một đội hình, hoặc lúc chuyển người và đạo cụ chạm nhau (người đi
+// xuyên, hay đạo cụ dời qua chỗ người đứng yên). Người và đạo cụ cùng lấy mẫu
+// theo một tham số đường, dày mỗi 5 cm theo quãng dài hơn, nên micro nhỏ cũng
+// không lọt. Đầu nào đã nằm trong đạo cụ đó thì không báo thêm lúc chuyển (đã
+// có dòng "đứng trong"). Báo nhẹ: có khi cố ý (bước lên bục, ngồi ghế).
 
 const PROP_STEP = 0.05;
 
@@ -211,10 +213,11 @@ export function propIssues(
   const inside = (o: StageProp, q: Vec2) => propDist(o, q) < PROP_PAD;
   const out: Issue[] = [];
   fs.forEach((f, k) => {
+    const here = solid.map((o) => propIn(f, o));
     for (const d of vis) {
       const a = f.pos[d.id];
       if (!a) continue;
-      for (const o of solid)
+      for (const o of here)
         if (inside(o, a))
           out.push({
             kind: "prop", formation: f.id, from: null, ids: [d.id], t: f.start, at: a, paths: [], value: propDist(o, a),
@@ -224,26 +227,33 @@ export function propIssues(
     const g = fs[k + 1];
     if (!g) return;
     const dur = Math.max(0, g.start - f.end);
+    const there = solid.map((o) => propIn(g, o));
     for (const d of vis) {
       const a = f.pos[d.id], b = g.pos[d.id];
       if (!a || !b) continue;
       const c = viaOf(g, d.id);
       // đường cong: bước theo s không đều, lấy dày gấp đôi cho chắc mỗi bước dưới 5 cm
-      const n = Math.ceil((pathLength(a, b, c) * (c ? 2 : 1)) / PROP_STEP);
-      if (n < 1) continue;
-      for (const o of solid) {
-        if (inside(o, a) || inside(o, b)) continue;
+      const walk = pathLength(a, b, c) * (c ? 2 : 1);
+      here.forEach((oa, j) => {
+        const ob = there[j];
+        if (inside(oa, a) || inside(ob, b)) return;
+        // đạo cụ dời trong lúc chuyển: đồng hồ chung với người, lấy mẫu theo quãng dài hơn
+        const slide = Math.hypot(ob.x - oa.x, ob.z - oa.z) + Math.abs((ob.rot ?? 0) - (oa.rot ?? 0)) / 90 * Math.max(oa.w, oa.d);
+        const n = Math.ceil(Math.max(walk, slide) / PROP_STEP);
+        if (n < 1) return;
         for (let i = 1; i < n; i++) {
-          const u = i / n, q = pathAt(a, b, c, u);
+          const u = i / n, q = pathAt(a, b, c, u), o = lerpProp(oa, ob, u);
           if (!inside(o, q)) continue;
+          // người gần như đứng yên mà đạo cụ đi tới: lỗi nằm ở đường của đạo cụ
+          const still = Math.hypot(b[0] - a[0], b[1] - a[1]) < 0.05 && !c;
           out.push({
             kind: "prop", formation: g.id, from: f.id, ids: [d.id], t: f.end + dur * invSmoothstep(u), at: q,
             paths: [[a, b]], ...(c && { ctrl: [c] }), value: propDist(o, q),
-            msg: `${d.name} đi xuyên ${o.name} khi sang ${g.name}`,
+            msg: still ? `${o.name} dời qua chỗ ${d.name} khi sang ${g.name}` : `${d.name} đi xuyên ${o.name} khi sang ${g.name}`,
           });
           break;
         }
-      }
+      });
     }
   });
   return out;
