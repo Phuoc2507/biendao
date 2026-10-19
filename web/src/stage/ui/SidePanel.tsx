@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import {
   type Project, type ShapeKind, type VDancer, type Vec2, type CanonOrder, SHAPE_LABEL, CANON_ORDER_LABEL, shapePoints, initials, PALETTE,
-  segmentAt,
+  segmentAt, personNote, PERSON_NOTE_MAX,
 } from "../model";
 import { fmtCounts, fmtTime, tapTempo } from "../timing";
 import { st, useProject, useUI } from "../store";
@@ -11,10 +11,10 @@ import * as clock from "../clock";
 import {
   addDancer, duplicateDancer, canonOffsets, updateDancer, removeDancer, moveDancerOrder, realign, realignAll, replaceVideo,
   importFiles, applyShape, mirrorSelected, distributeSelected, swapSelected, rotateSelected, scaleSelected, sendToWings,
-  addFormation, removeFormation, renameBlock, setNote, setStage, setBpm, saveMyShape, applyMyShape, removeMyShape,
+  addFormation, removeFormation, renameBlock, setNote, setPersonNote, setStage, setBpm, saveMyShape, applyMyShape, removeMyShape,
   canonSection, clearCanonSection, mirrorGroup, setFlip, fixReassign, fixWiden, fixStagger, fixAllWarnings,
 } from "../actions";
-import { rowKeys, useHoldIndex, useWarnings } from "./hooks";
+import { rowKeys, useHoldIndex, useNoteIndex, useWarnings } from "./hooks";
 import { reassignFix, staggerFix, widenFix } from "../fixes";
 import { isSoft } from "../checks";
 import { AutoPlanSection } from "./AutoPlanSection";
@@ -197,6 +197,43 @@ function DancerRow({ d, sel }: { d: VDancer; sel: boolean }) {
   );
 }
 
+/**
+ * Ghi chú riêng của người d ở đội hình tại vạch phát (đang chuyển: đội hình sắp
+ * tới). Đang gõ thì giữ chặt đội hình lúc bấm vào ô, để nhạc chạy sang khối
+ * khác không làm mất chữ đang gõ hay ghi nhầm chỗ.
+ */
+function PersonNoteField({ d }: { d: VDancer }) {
+  const p = useProject();
+  const k = useNoteIndex(p.formations);
+  const [pin, setPin] = useState<string | null>(null);
+  const f = (pin && p.formations.find((x) => x.id === pin)) || (k >= 0 ? p.formations[k] : null);
+  if (!f) return null;
+  const note = personNote(f, d.id);
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div className="dim">Ghi chú riêng ở {f.name}</div>
+      <label className="field note-field" style={{ marginTop: 2 }}>
+        <textarea
+          key={f.id + d.id + note} defaultValue={note} rows={2} maxLength={PERSON_NOTE_MAX}
+          aria-label={`Ghi chú riêng cho ${d.name} ở ${f.name}`}
+          placeholder="Ghi chú riêng cho bạn này ở đội hình này (cầm quạt, quỳ nhịp 7...)"
+          onFocus={() => setPin(f.id)}
+          onBlur={(e) => {
+            setPersonNote(f.id, d.id, e.currentTarget.value);
+            setPin(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              e.currentTarget.blur();
+            }
+          }}
+        />
+      </label>
+    </div>
+  );
+}
+
 function DancerInspector({ d }: { d: VDancer }) {
   const [copies, setCopies] = useState(2);
   const drag = useRef(false);
@@ -306,6 +343,7 @@ function DancerInspector({ d }: { d: VDancer }) {
           />
         ))}
       </div>
+      <PersonNoteField d={d} />
     </div>
   );
 }

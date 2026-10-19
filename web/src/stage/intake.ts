@@ -3,7 +3,7 @@
 
 import {
   type Project, type VDancer, type SavedShape, type Vec2, type Formation, type StageSize,
-  clampToStage, emptyProject, newDancer, wingSpot,
+  clampToStage, emptyProject, newDancer, wingSpot, withNotes, cleanPersonNote,
 } from "./model.ts";
 
 export const stripName = (name: string): string =>
@@ -129,7 +129,7 @@ function cleanStage(raw: unknown, def: StageSize): StageSize {
  * (không phải object, id không phải chữ, trùng id, không có giờ nào), thiếu một
  * đầu thì lấy đầu kia, ngược thì đảo, xếp theo giờ rồi đẩy khối đè sang sau;
  * chỗ đứng chỉ giữ của người có trong danh sách, kẹp vào sân, ai thiếu thì đứng
- * trong cánh gà như khi thêm người mới.
+ * trong cánh gà như khi thêm người mới. Ghi chú riêng từng người dọn bằng cleanNotes.
  */
 function cleanFormations(raw: unknown, ids: string[], stage: StageSize): Formation[] {
   if (!Array.isArray(raw)) return [];
@@ -155,7 +155,8 @@ function cleanFormations(raw: unknown, ids: string[], stage: StageSize): Formati
         pos[id] = clampToStage([q[0], q[1]], stage);
     }
     for (const id of ids) if (!pos[id]) pos[id] = wingSpot(Object.values(pos), stage);
-    out.push(cleanNote({ ...r, id: r.id, name: typeof r.name === "string" ? r.name : `Đội hình ${k + 1}`, start: s, end: e, pos } as Formation));
+    const f = cleanNote({ ...r, id: r.id, name: typeof r.name === "string" ? r.name : `Đội hình ${k + 1}`, start: s, end: e, pos } as Formation);
+    out.push(withNotes(f, cleanNotes(r.notes, ids)));
   });
   out.sort((a, b) => a.start - b.start);
   for (let k = 1; k < out.length; k++) {
@@ -174,6 +175,20 @@ function cleanNote<F>(f: F): F {
   const { note, ...rest } = f as F & { note: unknown };
   const v = typeof note === "string" ? note.trim() : "";
   return (v ? { ...rest, note: v } : rest) as F;
+}
+
+/** Ghi chú riêng đọc từ tệp: chỉ giữ của người có trong danh sách, phải là chữ, làm sạch và
+ *  cắt độ dài như khi gõ (cleanPersonNote); chỉ còn khoảng trắng thì bỏ. */
+function cleanNotes(raw: unknown, ids: string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  const src = raw as Record<string, unknown>;
+  for (const id of ids) {
+    const v = Object.prototype.hasOwnProperty.call(src, id) ? src[id] : undefined;
+    const c = typeof v === "string" ? cleanPersonNote(v) : "";
+    if (c) out[id] = c;
+  }
+  return out;
 }
 
 /** Điểm của hình tự lưu là độ lệch so với tâm nhóm (mét): xa quá mức này là tệp hỏng,

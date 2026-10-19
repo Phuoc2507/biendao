@@ -69,3 +69,20 @@ test("meCue: dòng nhắc theo từng đoạn", () => {
   assert.equal(meCue(fs, "a", 20, null, desc), "Đội hình 3 · bạn đứng: 1.5/1");
   assert.equal(meCue(fs, "zz", 3, null, desc), null);
 });
+
+test("meCue: ghi chú riêng nối vào cuối, đang chuyển thì của đội hình sắp tới, dài thì cắt", () => {
+  const g: Formation[] = [
+    { ...fs[0], notes: { a: "cầm quạt đỏ" } },
+    { ...fs[1], notes: { a: "quỳ nhịp 7" } },
+    fs[2],
+  ];
+  assert.equal(meCue(g, "a", 0, null, desc), "Chuẩn bị · vào chỗ: 1.5/1 · ✎ cầm quạt đỏ");
+  assert.equal(meCue(g, "a", 3, null, desc), "Đội hình 1 · bạn đứng: 1.5/1 · còn 3 s thì đi tới -1/0 · ✎ cầm quạt đỏ");
+  assert.equal(meCue(g, "a", 7, 120, desc), "→ Đội hình 2 · đi tới: -1/0 · còn 2 phách · ✎ quỳ nhịp 7");
+  assert.equal(meCue(g, "b", 3, null, desc), "Đội hình 1 · bạn đứng: -1/0 · Đội hình 2: đứng yên");
+  assert.equal(meCue(g, "a", 20, null, desc), "Đội hình 3 · bạn đứng: 1.5/1");
+  const long = [{ ...fs[0], notes: { a: "🪭".repeat(100) } }];
+  const cue = meCue(long, "a", 3, null, desc)!;
+  assert.ok(cue.endsWith("…"));
+  assert.equal(Array.from(cue.split("✎ ")[1]).length, 80);
+});

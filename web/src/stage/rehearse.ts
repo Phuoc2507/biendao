@@ -1,7 +1,7 @@
 // Chế độ tập: đếm vào "5 6 7 8", chữ "còn bao lâu" không nhảy mỗi khung hình,
 // đường đi và dòng nhắc riêng của "Tôi là ai". THUẦN, chỉ import model/timing.
 
-import { type Formation, type Vec2, dist, segmentAt } from "./model.ts";
+import { type Formation, type Vec2, clipChars, dist, personNote, segmentAt } from "./model.ts";
 import { beatLen, fmtCounts } from "./timing.ts";
 
 export const COUNT_IN = ["5", "6", "7", "8"];
@@ -75,9 +75,19 @@ export function dancerLegs(fs: Formation[], id: string): { k: number; a: Vec2; b
   return out;
 }
 
+/** Dòng nhắc trình chiếu dài vừa phải: ghi chú riêng dài hơn thì cắt (theo ký tự thật). */
+export const CUE_NOTE_MAX = 80;
+
+/** " · ✎ cầm quạt đỏ" nếu người id có ghi chú riêng ở đội hình f, không thì "". */
+const noteTail = (f: Formation, id: string) => {
+  const n = personNote(f, id);
+  return n ? ` · ✎ ${clipChars(n, CUE_NOTE_MAX)}` : "";
+};
+
 /** Dòng nhắc riêng cho một người tại t, ví dụ
  *  "Đội hình 3 · bạn đứng: phải 1,5 m · cách mép 2 m · còn 1×8 thì đi tới …".
- *  describe mô tả một chỗ đứng (bên gọi lo việc lật trái phải khi soi gương). */
+ *  describe mô tả một chỗ đứng (bên gọi lo việc lật trái phải khi soi gương).
+ *  Có ghi chú riêng ở đội hình đang đứng (đang chuyển: đội hình sắp tới) thì nối vào cuối. */
 export function meCue(
   fs: Formation[], id: string, t: number, bpm: number | null, describe: (q: Vec2) => string,
 ): string | null {
@@ -85,12 +95,12 @@ export function meCue(
   if (s.kind === "none") return null;
   if (s.kind === "before") {
     const q = fs[0].pos[id];
-    return q ? `Chuẩn bị · vào chỗ: ${describe(q)}` : null;
+    return q ? `Chuẩn bị · vào chỗ: ${describe(q)}${noteTail(fs[0], id)}` : null;
   }
   if (s.kind === "gap") {
     const g = fs[s.k + 1];
     const q = g.pos[id];
-    return q ? `→ ${g.name} · đi tới: ${describe(q)} · ${untilText(g.start - t, bpm)}` : null;
+    return q ? `→ ${g.name} · đi tới: ${describe(q)} · ${untilText(g.start - t, bpm)}${noteTail(g, id)}` : null;
   }
   const f = fs[s.k];
   const q = f.pos[id];
@@ -102,5 +112,5 @@ export function meCue(
     out += dist(q, r) < 0.05
       ? ` · ${g.name}: đứng yên`
       : ` · ${untilText(f.end - t, bpm)} thì đi tới ${describe(r)}`;
-  return out;
+  return out + noteTail(f, id);
 }

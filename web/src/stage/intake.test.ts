@@ -218,3 +218,22 @@ test("normalizeProject: đội hình hỏng, trùng id, chồng giờ, thiếu n
   assert.equal("ma" in f2.pos, false, "bỏ chỗ của người không có trong danh sách");
   assert.ok(f3.pos.a && f3.pos.b);
 });
+
+test("normalizeProject: ghi chú riêng bỏ chữ trống, bỏ người không còn, không phải chữ thì bỏ, cắt độ dài", () => {
+  const p = normalizeProject({
+    version: 1,
+    dancers: [{ id: "a", name: "Lan" }, { id: "b", name: "Mai" }],
+    formations: [
+      { id: "f1", name: "A", start: 0, end: 1, pos: {}, notes: { a: "  cầm  quạt ", b: "   ", zz: "người đã xoá" } },
+      { id: "f2", name: "B", start: 2, end: 3, pos: {}, notes: { a: 5, b: "🪭".repeat(300) } },
+      { id: "f3", name: "C", start: 4, end: 5, pos: {}, notes: "hỏng" },
+      { id: "f4", name: "D", start: 6, end: 7, pos: {}, notes: { b: "" } },
+    ],
+  })!;
+  assert.deepEqual(p.formations[0].notes, { a: "cầm quạt" });
+  assert.deepEqual(Object.keys(p.formations[1].notes!), ["b"]);
+  assert.equal(Array.from(p.formations[1].notes!.b).length, 200);
+  assert.equal("notes" in p.formations[2], false);
+  assert.equal("notes" in p.formations[3], false);
+  assert.deepEqual(checkInvariants(p), []);
+});
