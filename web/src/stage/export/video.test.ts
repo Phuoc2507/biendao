@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pickMime, extFor, rangeFor, outputSize, videoFileName, fmtDuration, bitrateFor } from "./videoOpts.ts";
+import { pickMime, extFor, outputSize, videoFileName, fmtDuration, bitrateFor, frameCount, opusHead } from "./videoOpts.ts";
 import { planGeometry, planFrame, drawPlanFrame, toPx, type Ctx2D } from "./planRender.ts";
 import { type Project, emptyProject, newDancer, WING } from "../model.ts";
 
@@ -14,13 +14,19 @@ test("chọn định dạng: MP4 trước, rồi WebM, không có thì null", ()
   assert.equal(bitrateFor(720), 5e6);
 });
 
-test("đoạn ghi: cả bài, đoạn lặp, từ vạch phát", () => {
-  const c = { end: 60, loop: { a: 10, b: 70 }, t: 20 };
-  assert.deepEqual(rangeFor("all", c), { a: 0, b: 60 });
-  assert.deepEqual(rangeFor("loop", c), { a: 10, b: 60 });
-  assert.deepEqual(rangeFor("playhead", c), { a: 20, b: 60 });
-  assert.deepEqual(rangeFor("loop", { ...c, loop: null }), { error: "Chưa đặt đoạn lặp." });
-  assert.ok("error" in rangeFor("playhead", { ...c, t: 59.8 }));
+test("số khung và khối OpusHead", () => {
+  assert.equal(frameCount(10, 20, 30), 300);
+  assert.equal(frameCount(0, 0.01, 30), 1);
+  assert.equal(frameCount(1.5, 2.25, 30), 23);
+  const h = opusHead(2, 48000);
+  assert.equal(h.length, 19);
+  assert.equal(new TextDecoder().decode(h.slice(0, 8)), "OpusHead");
+  assert.equal(h[8], 1);
+  assert.equal(h[9], 2);
+  assert.deepEqual([...h.slice(10, 12)], [312 & 255, 312 >> 8]); // pre-skip LE
+  assert.deepEqual([...h.slice(12, 16)], [0x80, 0xbb, 0x00, 0x00]); // 48000 LE
+  assert.deepEqual([...h.slice(16)], [0, 0, 0]);
+  assert.equal(opusHead(1, 48000)[9], 1);
 });
 
 test("cỡ khung chẵn, vừa hộp 16:9", () => {
@@ -37,6 +43,9 @@ test("cỡ khung chẵn, vừa hộp 16:9", () => {
 test("tên tệp và thời lượng", () => {
   assert.equal(videoFileName("Bài múa: Hương Sen", "mp4"), "Bài-múa-Hương-Sen.mp4");
   assert.equal(videoFileName("Hoa", "webm", "Thị Lan"), "Hoa-Thị-Lan.webm");
+  assert.equal(videoFileName("Hoa", "webm", undefined, "Điệp khúc"), "Hoa-Điệp-khúc.webm");
+  assert.equal(videoFileName("Hoa", "webm", "Lan", "0m05s-0m20s"), "Hoa-0m05s-0m20s-Lan.webm");
+  assert.equal(videoFileName("Hoa", "mp4", "", "  "), "Hoa.mp4");
   assert.equal(fmtDuration(65), "1 phút 05 giây");
   assert.equal(fmtDuration(9.6), "10 giây");
 });
