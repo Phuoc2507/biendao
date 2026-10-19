@@ -16,7 +16,7 @@
 //    Không nằm trong fixAll: che là chuyện bố cục, có khi cố ý (đứng nấp, hiện
 //    ra sau), nên chỉ sửa khi người dùng bấm từng dòng.
 
-import { type Formation, type StageSize, type Vec2, assignNearest, dist, findWarnings } from "./model.ts";
+import { type Formation, type StageSize, type Vec2, assignNearest, findWarnings, pathPeak, withVia } from "./model.ts";
 import { VMAX } from "./autoplan.ts";
 import { BLOCK_X_M, type Issue, blockedIssues, transitionIssues } from "./checks.ts";
 import { beatLen } from "./timing.ts";
@@ -55,10 +55,20 @@ export function reassignFix(
     pos[id] = [to[0], to[1]];
   });
   if (!moved) return null;
-  const out = fs.map((x, j) => (j === k ? { ...x, pos } : x));
+  // ai đổi chỗ thì bỏ đường cong vào và ra khỏi đội hình k (dáng cũ vẽ cho chỗ cũ)
+  const swapped = ids.filter((_, i) => asg[i] !== i);
+  const dropVia = (x: Formation) => {
+    if (!x.via || !swapped.some((id) => x.via![id])) return x;
+    const via = { ...x.via };
+    for (const id of swapped) delete via[id];
+    return withVia(x, via);
+  };
+  const out = fs.map((x, j) => (j === k ? dropVia({ ...x, pos }) : j === k + 1 ? dropVia(x) : x));
   const before = around(fs, k, dancers, stage, bpm), after = around(out, k, dancers, stage, bpm);
   if (after < before) return { fs: out, before, after };
   // đổi vai từ k về sau: ids[i] nhận chỗ của ids[asg[i]] ở mọi đội hình j >= k
+  // đường cong các khoảng chuyển sau đổi tên theo (hình giữ y nguyên); khoảng
+  // chuyển vào k đổi hình nên ai đổi chỗ thì bỏ đường cong
   const carried = fs.map((x, j) => {
     if (j < k) return x;
     const q = { ...x.pos };
@@ -67,7 +77,14 @@ export function reassignFix(
       if (src) q[id] = [src[0], src[1]];
       else delete q[id];
     });
-    return { ...x, pos: q };
+    if (!x.via) return { ...x, pos: q };
+    const via = { ...x.via };
+    ids.forEach((id, i) => {
+      const src = j === k ? (asg[i] === i ? x.via![id] : undefined) : x.via![ids[asg[i]]];
+      if (src) via[id] = [src[0], src[1]];
+      else delete via[id];
+    });
+    return withVia({ ...x, pos: q }, via);
   });
   const b2 = transitionIssues(fs, dancers, stage, bpm).length;
   const a2 = transitionIssues(carried, dancers, stage, bpm).length;
@@ -92,8 +109,9 @@ export function widenFix(
   const f = fs[k - 1], g = fs[k];
   const fast = transitionIssues([f, g], dancers, stage, bpm, { vmax }).filter((i: Issue) => i.kind === "fast");
   if (!fast.length) return null;
-  const len = Math.max(...fast.map((i) => dist(i.paths[0][0], i.paths[0][1])));
-  const need = (1.5 * len) / vmax;
+  // tốc độ đỉnh nhân thời gian chuyển: đường thẳng là 1,5 lần độ dài, đường cong theo pathPeak
+  const peak = Math.max(...fast.map((i) => pathPeak(i.paths[0][0], i.paths[0][1], i.ctrl?.[0])));
+  const need = peak / vmax;
   let end = g.start - need;
   const b = bpm && bpm > 0 ? beatLen(bpm) : 0;
   if (b) end = downbeat + Math.floor((end - downbeat) / b + 1e-6) * b;

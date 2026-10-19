@@ -4,14 +4,14 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
-  type Vec2, WING, initials, posesAt, prevFormation, nextFormation, segmentAt, snapPos,
-  clampToStage, NEAR_M, dist,
+  type Vec2, type Formation, WING, initials, posesAt, prevFormation, nextFormation, segmentAt, snapPos,
+  clampToStage, NEAR_M, dist, lerp2, pathLength, pathMid, smoothstep, subPath, viaOf, viaThrough,
 } from "../model";
 import { st, useProject, useUI } from "../store";
 import { groupRingColors } from "../groups";
 import { useTime } from "../clock";
 import * as clock from "../clock";
-import { fixAllWarnings, movePropTo, setPositionsNow } from "../actions";
+import { fixAllWarnings, movePropTo, setPositionsNow, setViaNow, straightenPath } from "../actions";
 import { isSoft } from "../checks";
 import { fmtTime } from "../timing";
 import { dancerLegs, dancerStops, stopLabel } from "../rehearse";
@@ -32,14 +32,24 @@ function shorten(a: Vec2, b: Vec2, cut: number): [Vec2, Vec2] {
   return [[a[0] + ux * c, a[1] + uz * c], [b[0] - ux * c, b[1] - uz * c]];
 }
 
+/** Như shorten nhưng cho đường có thể cong (c là điểm điều khiển): trả hai đầu mới và điểm điều khiển mới. */
+function shortenPath(a: Vec2, b: Vec2, c: Vec2 | null, cut: number): [Vec2, Vec2, Vec2 | null] {
+  if (!c) return [...shorten(a, b, cut), null];
+  const l = pathLength(a, b, c);
+  const s = l > 1e-9 ? Math.min(cut, l / 3) / l : 0;
+  return subPath(a, b, c, s, 1 - s);
+}
+
 interface Drag {
-  kind: "move" | "box" | "prop";
+  kind: "move" | "box" | "prop" | "via";
   pointer: number;
   start: Vec2; // điểm bấm (m)
   base: Record<string, Vec2>;
   moved: boolean;
   additive: boolean;
   id?: string;
+  /** kéo núm đường cong: đội hình đích của khoảng chuyển */
+  fid?: string;
 }
 
 export function PlanView({
@@ -125,6 +135,31 @@ export function PlanView({
         near.add(vis[j].id);
       }
 
+  // đường từ chỗ đứng hiện tại tới đội hình fs[ti]: điểm điều khiển (null nếu thẳng).
+  // Đang chuyển thì lấy phần đường cong còn lại (de Casteljau).
+  const legCtrl = (ti: number, id: string): Vec2 | null => {
+    const g = p.formations[ti];
+    const v = viaOf(g, id);
+    if (!v || !g.pos[id]) return null;
+    if (seg.kind === "gap" && seg.k + 1 === ti) return lerp2(v, g.pos[id], smoothstep(seg.u));
+    if ((seg.kind === "hold" && seg.k + 1 === ti) || (seg.kind === "before" && ti === 1)) return v;
+    return null;
+  };
+  /** SVG path của đường a→b (c: điểm điều khiển, null là thẳng), đã đổi sang toạ độ vẽ. */
+  const pathD = (a: Vec2, b: Vec2, c: Vec2 | null | undefined) =>
+    c
+      ? `M${X(a[0])} ${Z(a[1])}Q${X(c[0])} ${Z(c[1])} ${X(b[0])} ${Z(b[1])}`
+      : `M${X(a[0])} ${Z(a[1])}L${X(b[0])} ${Z(b[1])}`;
+  // núm uốn đường: người đang chọn, lúc đang đứng một đội hình có đội hình kế
+  const bendK = !readOnly && !compact && seg.kind === "hold" && seg.k + 1 < p.formations.length ? seg.k : -1;
+  const bendFrom: Formation | null = bendK >= 0 ? p.formations[bendK] : null;
+  const bendTo: Formation | null = bendK >= 0 ? p.formations[bendK + 1] : null;
+  const canBend = (id: string) => {
+    if (!bendFrom || !bendTo || !sel.has(id)) return false;
+    const a = bendFrom.pos[id], b = bendTo.pos[id];
+    return !!a && !!b && (dist(a, b) >= 0.05 || !!viaOf(bendTo, id));
+  };
+
   const toM = (e: { clientX: number; clientY: number }): Vec2 => {
     const svg = svgRef.current!;
     const pt = svg.createSVGPoint();
@@ -161,6 +196,17 @@ export function PlanView({
     drag.current = { kind: "prop", pointer: e.pointerId, start: toM(e), base: { [id]: [o.x, o.z] }, moved: false, additive: false, id };
   };
 
+  const onViaDown = (e: React.PointerEvent, id: string) => {
+    if (readOnly || e.button !== 0 || !bendFrom || !bendTo) return;
+    e.stopPropagation();
+    if (clock.isPlaying()) clock.pause();
+    (e.target as Element).setPointerCapture(e.pointerId);
+    drag.current = {
+      kind: "via", pointer: e.pointerId, start: toM(e), moved: false, additive: false, id, fid: bendTo.id,
+      base: { a: bendFrom.pos[id], b: bendTo.pos[id] },
+    };
+  };
+
   const onBgDown = (e: React.PointerEvent) => {
     if (readOnly || e.button !== 0) return;
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
@@ -187,6 +233,11 @@ export function PlanView({
       return;
     }
     const snap = st().ui.snap && !e.altKey;
+    if (d.kind === "via" && d.id && d.fid) {
+      // núm nằm giữa đường (s = 0,5): đặt điểm điều khiển cho đường đi qua chỗ con trỏ
+      setViaNow(d.fid, d.id, viaThrough(d.base.a, d.base.b, clampToStage(m, p.stage)), true);
+      return;
+    }
     if (d.kind === "prop" && d.id) {
       const b = d.base[d.id];
       let q: Vec2 = [b[0] + dx, b[1] + dz];
@@ -216,7 +267,7 @@ export function PlanView({
     drag.current = null;
     setTip(null);
     setDragging(false);
-    if (d.kind === "prop") {
+    if (d.kind === "prop" || d.kind === "via") {
       if (d.moved) st().endGesture();
       return;
     }
@@ -293,10 +344,11 @@ export function PlanView({
       const a = poses[d.id];
       const b = nextF.pos[d.id];
       if (!b) continue;
-      if (a && dist(a, b) >= 0.05) {
-        const [s, e] = shorten(a, b, R + 0.05);
+      const c = legCtrl(nk, d.id);
+      if (a && (dist(a, b) >= 0.05 || c)) {
+        const [s, e, cc] = shortenPath(a, b, c, R + 0.05);
         paths.push(
-          <line key={`np${d.id}`} x1={X(s[0])} y1={Z(s[1])} x2={X(e[0])} y2={Z(e[1])} stroke={d.color} strokeOpacity={0.6}
+          <path key={`np${d.id}`} d={pathD(s, e, cc)} fill="none" stroke={d.color} strokeOpacity={0.6}
             strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeDasharray="5 3" markerEnd="url(#rhArrG)" />,
         );
       }
@@ -308,13 +360,16 @@ export function PlanView({
       );
     }
   } else if (next && (seg.kind === "hold" || seg.kind === "gap" || seg.kind === "before")) {
+    const ni = p.formations.indexOf(next);
     for (const d of vis) {
       const a = poses[d.id];
       const b = next.pos[d.id];
-      if (!a || !b || dist(a, b) < 0.05) continue;
-      if (ui.showPaths)
+      const c = a && b ? legCtrl(ni, d.id) : null;
+      if (!a || !b || (dist(a, b) < 0.05 && !c)) continue;
+      // người đang chọn có núm uốn đường thì luôn vẽ đường để thấy dáng cong
+      if (ui.showPaths || canBend(d.id))
         paths.push(
-          <line key={`p${d.id}`} x1={X(a[0])} y1={Z(a[1])} x2={X(b[0])} y2={Z(b[1])} stroke={d.color} strokeOpacity={0.55}
+          <path key={`p${d.id}`} d={pathD(a, b, c)} fill="none" stroke={d.color} strokeOpacity={0.55}
             strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeDasharray="4 3" markerEnd="url(#arr)" />,
         );
       targets.push(
@@ -330,9 +385,9 @@ export function PlanView({
   if (meD) {
     const curK = seg.kind === "hold" ? seg.k : -1;
     for (const l of dancerLegs(p.formations, meD.id)) {
-      const [s, e] = shorten(l.a, l.b, 0.2);
+      const [s, e, c] = shortenPath(l.a, l.b, l.c ?? null, 0.2);
       meLayer.push(
-        <line key={`ml${l.k}`} x1={X(s[0])} y1={Z(s[1])} x2={X(e[0])} y2={Z(e[1])} stroke="#fff" strokeOpacity={0.85}
+        <path key={`ml${l.k}`} d={pathD(s, e, c)} fill="none" stroke="#fff" strokeOpacity={0.85}
           strokeWidth={2} vectorEffect="non-scaling-stroke" markerEnd="url(#rhArrMe)" />,
       );
     }
@@ -379,7 +434,7 @@ export function PlanView({
       else
         w.paths.forEach(([a, b], j) =>
           issueLayer.push(
-            <line key={`io${i}-${j}`} x1={X(a[0])} y1={Z(a[1])} x2={X(b[0])} y2={Z(b[1])} stroke="#e8a33a" strokeOpacity={0.8}
+            <path key={`io${i}-${j}`} d={pathD(a, b, w.ctrl?.[j])} fill="none" stroke="#e8a33a" strokeOpacity={0.8}
               strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeDasharray="2 3" />,
           ),
         );
@@ -390,7 +445,7 @@ export function PlanView({
       if (w.kind === "collide") {
         w.paths.forEach(([a, b], j) =>
           issueLayer.push(
-            <line key={`ip${i}-${j}`} x1={X(a[0])} y1={Z(a[1])} x2={X(b[0])} y2={Z(b[1])} stroke="#ff5d6c" strokeOpacity={0.8}
+            <path key={`ip${i}-${j}`} d={pathD(a, b, w.ctrl?.[j])} fill="none" stroke="#ff5d6c" strokeOpacity={0.8}
               strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeDasharray="3 3" />,
           ),
         );
@@ -403,7 +458,7 @@ export function PlanView({
       } else if (w.kind === "fast") {
         w.paths.forEach(([a, b], j) =>
           issueLayer.push(
-            <line key={`ip${i}-${j}`} x1={X(a[0])} y1={Z(a[1])} x2={X(b[0])} y2={Z(b[1])} stroke="#ff5d6c" strokeOpacity={0.75}
+            <path key={`ip${i}-${j}`} d={pathD(a, b, w.ctrl?.[j])} fill="none" stroke="#ff5d6c" strokeOpacity={0.75}
               strokeWidth={4} vectorEffect="non-scaling-stroke" strokeLinecap="round" />,
           ),
         );
@@ -516,6 +571,28 @@ export function PlanView({
                   {d.name}
                 </text>
               )}
+            </g>
+          );
+        })}
+
+        {bendFrom && bendTo && vis.filter((d) => canBend(d.id)).map((d) => {
+          const v = viaOf(bendTo, d.id);
+          const m = pathMid(bendFrom.pos[d.id], bendTo.pos[d.id], v);
+          return (
+            <g
+              key={`bend${d.id}`}
+              className="bend-handle"
+              transform={`translate(${X(m[0])} ${Z(m[1])})`}
+              onPointerDown={(e) => onViaDown(e, d.id)}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                straightenPath(bendTo.id, d.id);
+              }}
+            >
+              <title>{v ? "Kéo để uốn đường đi; nhấp đúp để đi thẳng lại" : "Kéo để uốn đường đi sang đội hình sau"}</title>
+              {/* vùng bấm rộng hơn chấm cho dễ trúng trên điện thoại */}
+              <circle r={0.22} fill="transparent" />
+              <circle r={0.1} fill={v ? d.color : "#0b0d10"} stroke={d.color} strokeWidth={2} vectorEffect="non-scaling-stroke" />
             </g>
           );
         })}

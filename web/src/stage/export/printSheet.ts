@@ -1,7 +1,7 @@
 // Tờ đội hình để in (A4 dọc, 2 đội hình mỗi trang). Thuần: chỉ tạo chuỗi
 // HTML/SVG, không đụng DOM, để kiểm thử bằng node.
 
-import { type Project, type Vec2, WING, posesAt, initials, dist, personNote } from "../model.ts";
+import { type Project, type Vec2, WING, posesAt, initials, dist, personNote, pathLength, subPath, viaOf } from "../model.ts";
 import { countAt, fmtCounts, fmtTime } from "../timing.ts";
 import { groupRingColors } from "../groups.ts";
 import { propCorners } from "../props.ts";
@@ -108,12 +108,22 @@ export function formationSvg(p: Project, k: number): string {
   const R = 0.3 * S;
   for (const d of shown(p)) {
     const a = prev?.[d.id], b = now[d.id];
-    if (!a || !b || dist(a, b) <= MOVE_MIN) continue;
+    const v = viaOf(p.formations[k], d.id);
+    if (!a || !b || (dist(a, b) <= MOVE_MIN && !v)) continue;
+    const c = safeColor(d.color);
+    const ring = `<circle cx="${n1(X(a[0]))}" cy="${n1(Z(a[1]))}" r="${n1(R)}" fill="none" stroke="${c}" stroke-opacity=".55" stroke-dasharray="3 3"/>`;
+    if (v) {
+      // đường cong: rút hai đầu theo độ dài đường (mét), vẽ Bézier bậc hai
+      const L = pathLength(a, b, v);
+      const s0 = Math.min(0.3, L / 3) / L, s1 = 1 - Math.min(0.3 + 2 / S, L / 3) / L;
+      const [q0, q1, cc] = subPath(a, b, v, s0, s1);
+      o.push(ring, `<path d="M${n1(X(q0[0]))} ${n1(Z(q0[1]))}Q${n1(X(cc![0]))} ${n1(Z(cc![1]))} ${n1(X(q1[0]))} ${n1(Z(q1[1]))}" fill="none" stroke="#666" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#a${k})"/>`);
+      continue;
+    }
     const len = dist(a, b) * S;
     const ux = (X(b[0]) - X(a[0])) / len, uz = (Z(b[1]) - Z(a[1])) / len;
-    const c = safeColor(d.color);
     o.push(
-      `<circle cx="${n1(X(a[0]))}" cy="${n1(Z(a[1]))}" r="${n1(R)}" fill="none" stroke="${c}" stroke-opacity=".55" stroke-dasharray="3 3"/>`,
+      ring,
       `<line x1="${n1(X(a[0]) + ux * R)}" y1="${n1(Z(a[1]) + uz * R)}" x2="${n1(X(b[0]) - ux * (R + 2))}" y2="${n1(Z(b[1]) - uz * (R + 2))}" stroke="#666" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#a${k})"/>`,
     );
   }

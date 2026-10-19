@@ -84,7 +84,41 @@ export interface FrameTrail {
   y1: number;
   r: number;
   color: string;
+  /** điểm điều khiển (điểm ảnh) nếu đường đi cong, Bézier bậc hai */
+  cx?: number;
+  cy?: number;
 }
+
+type P2 = [number, number];
+
+/** Bỏ đi một đoạn dài d (điểm ảnh) ở đầu đường gấp khúc. */
+function trimStart(pts: P2[], d: number): P2[] {
+  let acc = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i];
+    const l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (acc + l >= d) {
+      const f = l > 1e-9 ? (d - acc) / l : 0;
+      return [[a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f], ...pts.slice(i)];
+    }
+    acc += l;
+  }
+  return [pts[pts.length - 1]];
+}
+
+/** Đường cong của một mũi tên, lấy mẫu thành đường gấp khúc (ctx không cần quadraticCurveTo). */
+function trailPoints(t: FrameTrail): P2[] {
+  const cx = t.cx ?? (t.x0 + t.x1) / 2, cy = t.cy ?? (t.y0 + t.y1) / 2;
+  const N = 40;
+  const pts: P2[] = [];
+  for (let i = 0; i <= N; i++) {
+    const s = i / N, r = 1 - s;
+    pts.push([r * r * t.x0 + 2 * r * s * cx + s * s * t.x1, r * r * t.y0 + 2 * r * s * cy + s * s * t.y1]);
+  }
+  return pts;
+}
+
+const polyLen = (pts: P2[]) => pts.slice(1).reduce((m, q, i) => m + Math.hypot(q[0] - pts[i][0], q[1] - pts[i][1]), 0);
 
 /** Nội dung một khung tại thời điểm t. highlightId: video riêng cho một người. */
 export function planFrame(p: Project, t: number, g: PlanGeom, o: { highlightId?: string | null } = {}): PlanFrame {
@@ -152,6 +186,33 @@ export interface Ctx2D {
 }
 
 const FONT = '"Segoe UI", system-ui, Arial, sans-serif';
+
+/** Mũi tên theo đường cong: rút hai đầu khỏi chấm, đầu mũi tên theo hướng tiếp tuyến cuối. */
+function drawCurvedArrow(ctx: Ctx2D, t: FrameTrail, u: number) {
+  const all = trailPoints(t);
+  const L = polyLen(all);
+  if (L < 1e-6) return;
+  const hl = Math.min(12 * u, L * 0.4);
+  let pts = trimStart(all, Math.min(t.r, L / 3));
+  pts = trimStart(pts.reverse(), Math.min(t.r + 3 * u, L / 3)); // ngược: pts[0] là đầu mũi tên
+  const [ax, ay] = pts[0];
+  // hướng tới: từ điểm cách đầu mũi tên một khúc ngắn
+  const back = trimStart(pts, Math.max(hl * 0.6, 1e-3))[0];
+  const dl = Math.hypot(ax - back[0], ay - back[1]) || 1;
+  const ux = (ax - back[0]) / dl, uy = (ay - back[1]) / dl;
+  const body = trimStart(pts, hl * 0.6).reverse();
+  ctx.beginPath();
+  ctx.moveTo(body[0][0], body[0][1]);
+  for (const q of body.slice(1)) ctx.lineTo(q[0], q[1]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = "#aab3c2";
+  ctx.beginPath();
+  ctx.moveTo(ax, ay);
+  ctx.lineTo(ax - ux * hl - uy * hl * 0.5, ay - uy * hl + ux * hl * 0.5);
+  ctx.lineTo(ax - ux * hl + uy * hl * 0.5, ay - uy * hl - ux * hl * 0.5);
+  ctx.fill();
+}
 
 export function drawPlanFrame(ctx: Ctx2D, g: PlanGeom, f: PlanFrame) {
   const { w, h, s } = g;
@@ -277,9 +338,10 @@ export function drawPlanFrame(ctx: Ctx2D, g: PlanGeom, f: PlanFrame) {
 
   // bóng chỗ cũ và mũi tên, vẽ dưới chấm
   for (const t of f.trails ?? []) {
+    const curved = t.cx !== undefined && t.cy !== undefined;
     const len = Math.hypot(t.x1 - t.x0, t.y1 - t.y0);
-    if (len < 1e-6) continue;
-    const ux = (t.x1 - t.x0) / len, uy = (t.y1 - t.y0) / len;
+    if (len < 1e-6 && !curved) continue;
+    const ux = (t.x1 - t.x0) / (len || 1), uy = (t.y1 - t.y0) / (len || 1);
     ctx.globalAlpha = 0.6;
     ctx.strokeStyle = t.color;
     ctx.lineWidth = 2 * u;
@@ -290,6 +352,10 @@ export function drawPlanFrame(ctx: Ctx2D, g: PlanGeom, f: PlanFrame) {
     ctx.globalAlpha = 0.85;
     ctx.strokeStyle = "#aab3c2";
     ctx.setLineDash([7 * u, 5 * u]);
+    if (curved) {
+      drawCurvedArrow(ctx, t, u);
+      continue;
+    }
     const ax = t.x1 - ux * (t.r + 3 * u), ay = t.y1 - uy * (t.r + 3 * u);
     const hl = Math.min(12 * u, len * 0.4);
     ctx.beginPath();

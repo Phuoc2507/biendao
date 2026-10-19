@@ -41,6 +41,9 @@ export interface Formation {
   note?: string;
   /** Ghi chú riêng từng người ở đội hình này (id vũ công: chữ), vd "cầm quạt đỏ". Không có ai thì bỏ trường. */
   notes?: Record<string, string>;
+  /** Đường đi cong lúc chuyển VÀO đội hình này: điểm điều khiển Bézier bậc hai
+   *  của từng người (id vũ công: điểm). Không có thì đi thẳng; đội hình đầu không có. */
+  via?: Record<string, Vec2>;
 }
 
 export interface StageSize {
@@ -179,22 +182,122 @@ export function clampToStage(p: Vec2, stage: StageSize): Vec2 {
   return [Math.min(hx, Math.max(-hx, p[0])), Math.min(hz, Math.max(-hz, p[1]))];
 }
 
-/** Kéo mọi chỗ đứng vào sân + cánh gà (sau khi thu nhỏ sân). Khối không đổi thì giữ đúng đối tượng cũ. */
+/** Kéo mọi chỗ đứng (và điểm uốn đường cong) vào sân + cánh gà (sau khi thu nhỏ sân). Khối không đổi thì giữ đúng đối tượng cũ. */
 export function fitFormationsToStage(fs: Formation[], stage: StageSize): Formation[] {
   let changed = false;
-  const out = fs.map((f) => {
-    let pos: Record<string, Vec2> | null = null;
-    for (const [id, q] of Object.entries(f.pos)) {
+  const fit = (m: Record<string, Vec2> | undefined) => {
+    let out: Record<string, Vec2> | null = null;
+    for (const [id, q] of Object.entries(m ?? {})) {
       const c = clampToStage(q, stage);
       if (c[0] === q[0] && c[1] === q[1]) continue;
-      pos ??= { ...f.pos };
-      pos[id] = c;
+      out ??= { ...m };
+      out[id] = c;
     }
-    if (!pos) return f;
+    return out;
+  };
+  const out = fs.map((f) => {
+    const pos = fit(f.pos), via = fit(f.via);
+    if (!pos && !via) return f;
     changed = true;
-    return { ...f, pos };
+    return { ...f, ...(pos && { pos }), ...(via && { via }) };
   });
   return changed ? out : fs;
+}
+
+// ---------- đường đi cong (Bézier bậc hai) ----------
+//
+// Lúc chuyển từ P (đội hình trước) sang Q (đội hình sau), người có điểm điều
+// khiển V trong `via` của đội hình sau đi theo B(s) = (1-s)²P + 2(1-s)sV + s²Q,
+// với s = smoothstep(phần thời gian) như đường thẳng. Không có V thì đi thẳng.
+
+/** Điểm trên đường đi tại tham số s (0..1): thẳng nếu không có điểm điều khiển c. */
+export function pathAt(a: Vec2, b: Vec2, c: Vec2 | null | undefined, s: number): Vec2 {
+  if (!c) return lerp2(a, b, s);
+  const r = 1 - s;
+  return [r * r * a[0] + 2 * r * s * c[0] + s * s * b[0], r * r * a[1] + 2 * r * s * c[1] + s * s * b[1]];
+}
+
+/** Đạo hàm dB/ds. */
+export function pathTangent(a: Vec2, b: Vec2, c: Vec2 | null | undefined, s: number): Vec2 {
+  if (!c) return [b[0] - a[0], b[1] - a[1]];
+  const r = 1 - s;
+  return [2 * r * (c[0] - a[0]) + 2 * s * (b[0] - c[0]), 2 * r * (c[1] - a[1]) + 2 * s * (b[1] - c[1])];
+}
+
+/** Độ dài đường đi (m). */
+export function pathLength(a: Vec2, b: Vec2, c: Vec2 | null | undefined): number {
+  if (!c) return dist(a, b);
+  const N = 48;
+  let len = 0;
+  let p = a;
+  for (let i = 1; i <= N; i++) {
+    const q = pathAt(a, b, c, i / N);
+    len += dist(p, q);
+    p = q;
+  }
+  return len;
+}
+
+/** Tốc độ đỉnh nhân với thời gian chuyển: chia cho dur ra m/s. Đường thẳng
+ *  theo smoothstep thì đúng bằng 1,5 lần độ dài. */
+export function pathPeak(a: Vec2, b: Vec2, c: Vec2 | null | undefined): number {
+  if (!c) return 1.5 * dist(a, b);
+  const N = 96;
+  let m = 0;
+  for (let i = 1; i < N; i++) {
+    const u = i / N;
+    const d = pathTangent(a, b, c, smoothstep(u));
+    m = Math.max(m, Math.hypot(d[0], d[1]) * 6 * u * (1 - u));
+  }
+  return m;
+}
+
+/** Đoạn s0..s1 của đường đi, vẫn là Bézier bậc hai: hai đầu và điểm điều
+ *  khiển (null nếu đường thẳng). Dùng để vẽ mũi tên rút bớt hai đầu, hay phần
+ *  đường còn lại khi đang chuyển. */
+export function subPath(a: Vec2, b: Vec2, c: Vec2 | null | undefined, s0: number, s1: number): [Vec2, Vec2, Vec2 | null] {
+  const p0 = pathAt(a, b, c, s0), p1 = pathAt(a, b, c, s1);
+  if (!c) return [p0, p1, null];
+  const d = pathTangent(a, b, c, s0), h = (s1 - s0) / 2;
+  return [p0, p1, [p0[0] + h * d[0], p0[1] + h * d[1]]];
+}
+
+/** Điểm giữa đường cong (s = 0,5), chỗ đặt núm kéo. */
+export const pathMid = (a: Vec2, b: Vec2, c: Vec2 | null | undefined): Vec2 => pathAt(a, b, c, 0.5);
+
+/** Điểm điều khiển để đường cong đi qua m ở giữa (s = 0,5). */
+export const viaThrough = (a: Vec2, b: Vec2, m: Vec2): Vec2 => [
+  2 * m[0] - (a[0] + b[0]) / 2,
+  2 * m[1] - (a[1] + b[1]) / 2,
+];
+
+/** Điểm điều khiển của người id cho khoảng chuyển vào đội hình g. */
+export const viaOf = (g: Formation | null | undefined, id: string): Vec2 | null => g?.via?.[id] ?? null;
+
+/** Gắn bảng điểm uốn mới vào đội hình: rỗng thì bỏ trường. */
+export function withVia(f: Formation, via: Record<string, Vec2>): Formation {
+  const { via: _old, ...rest } = f;
+  return Object.keys(via).length ? { ...rest, via } : rest;
+}
+
+/** Đổi điểm điều khiển khi hai đầu đường dời từ (p0, q0) sang (p1, q1): giữ
+ *  vị trí tương đối với dây cung (dọc và vuông góc, theo độ dài dây). mirror
+ *  lật phía vuông góc, đúng ảnh gương khi cả hai đầu cùng lật. */
+export function remapVia(v: Vec2, p0: Vec2, q0: Vec2, p1: Vec2, q1: Vec2, mirror = false): Vec2 {
+  const dx0 = q0[0] - p0[0], dz0 = q0[1] - p0[1];
+  const dx1 = q1[0] - p1[0], dz1 = q1[1] - p1[1];
+  const L0 = dx0 * dx0 + dz0 * dz0, L1 = dx1 * dx1 + dz1 * dz1;
+  const m0: Vec2 = [(p0[0] + q0[0]) / 2, (p0[1] + q0[1]) / 2];
+  const m1: Vec2 = [(p1[0] + q1[0]) / 2, (p1[1] + q1[1]) / 2];
+  if (L0 < 1e-12 || L1 < 1e-12) {
+    const ox = v[0] - m0[0], oz = v[1] - m0[1];
+    return [m1[0] + (mirror ? -ox : ox), m1[1] + oz];
+  }
+  const rx = v[0] - p0[0], rz = v[1] - p0[1];
+  const lam = (rx * dx0 + rz * dz0) / L0;
+  let mu = (rx * -dz0 + rz * dx0) / L0;
+  if (mirror) mu = -mu;
+  return [p1[0] + lam * dx1 - mu * dz1, p1[1] + lam * dz1 + mu * dx1];
 }
 
 export function snapPos(p: Vec2, step: number): Vec2 {
@@ -260,7 +363,7 @@ export function poseAt(fs: Formation[], id: string, t: number): Vec2 | null {
       const a = fs[s.k].pos[id];
       const b = fs[s.k + 1].pos[id];
       if (!a || !b) return a ?? b ?? null;
-      return lerp2(a, b, smoothstep(s.u));
+      return pathAt(a, b, viaOf(fs[s.k + 1], id), smoothstep(s.u));
     }
   }
 }
@@ -324,19 +427,66 @@ export function ensureFormationAt(
   const pos: Record<string, Vec2> = {};
   const now = posesAt(fs, ids, t, stage);
   for (const id of ids) pos[id] = [now[id][0], now[id][1]];
-  const f: Formation = { id: newId, name: nextName(fs), start, end, pos };
-  return { formations: sortFs([...fs, f]), id: newId, created: true };
+  let f: Formation = { id: newId, name: nextName(fs), start, end, pos };
+  let base = fs;
+  // tạo giữa một đường cong: chẻ đôi đường (de Casteljau) để hình đi không đổi
+  const seg = segmentAt(fs, t);
+  const g = seg.kind === "gap" ? fs[seg.k + 1] : null;
+  if (seg.kind === "gap" && g?.via) {
+    const s = smoothstep(seg.u), P = fs[seg.k].pos;
+    const v1: Record<string, Vec2> = {}, v2: Record<string, Vec2> = {};
+    for (const [id, v] of Object.entries(g.via)) {
+      if (!P[id] || !g.pos[id]) continue;
+      if (pos[id]) v1[id] = lerp2(P[id], v, s);
+      v2[id] = lerp2(v, g.pos[id], s);
+    }
+    f = withVia(f, v1);
+    base = fs.map((x) => (x === g ? withVia(x, v2) : x));
+  }
+  return { formations: sortFs([...base, f]), id: newId, created: true };
 }
 
+/** Dời chỗ đứng ở đội hình fid. Đường cong vào và ra khỏi đội hình đó giữ
+ *  dáng theo hai đầu mới (remapVia); mirror: các chỗ mới là ảnh gương, lật luôn
+ *  phía cong. */
 export function setPositions(
   fs: Formation[], fid: string, moves: Record<string, Vec2>, stage: StageSize,
+  o: { mirror?: boolean } = {},
 ): Formation[] {
-  return fs.map((f) => {
-    if (f.id !== fid) return f;
-    const pos = { ...f.pos };
-    for (const [id, p] of Object.entries(moves)) pos[id] = clampToStage(p, stage);
-    return { ...f, pos };
-  });
+  const i = fs.findIndex((f) => f.id === fid);
+  if (i < 0) return fs;
+  const f = fs[i], prev = fs[i - 1], next = fs[i + 1];
+  const pos = { ...f.pos };
+  for (const [id, p] of Object.entries(moves)) pos[id] = clampToStage(p, stage);
+  const remap = (g: Formation, ends: (id: string) => [Vec2, Vec2, Vec2, Vec2] | null) => {
+    if (!g.via) return g;
+    let via: Record<string, Vec2> | null = null;
+    for (const [id, v] of Object.entries(g.via)) {
+      if (!(id in moves)) continue;
+      const e = ends(id);
+      via ??= { ...g.via };
+      if (!e) delete via[id];
+      else via[id] = clampToStage(remapVia(v, e[0], e[1], e[2], e[3], o.mirror), stage);
+    }
+    return via ? withVia(g, via) : g;
+  };
+  const into = remap({ ...f, pos }, (id) =>
+    prev?.pos[id] && f.pos[id] ? [prev.pos[id], f.pos[id], prev.pos[id], pos[id]] : null);
+  const out = next && remap(next, (id) =>
+    f.pos[id] && next.pos[id] ? [f.pos[id], next.pos[id], pos[id], next.pos[id]] : null);
+  return fs.map((x, j) => (j === i ? into : j === i + 1 && out ? out : x));
+}
+
+/** Đặt (hoặc bỏ, v = null) điểm điều khiển đường cong của người id lúc chuyển vào đội hình fid. */
+export function setVia(fs: Formation[], fid: string, id: string, v: Vec2 | null, stage: StageSize): Formation[] {
+  const i = fs.findIndex((f) => f.id === fid);
+  if (i < 1) return fs;
+  const f = fs[i];
+  if (!v && !f.via?.[id]) return fs;
+  const via = { ...f.via };
+  if (v) via[id] = clampToStage(v, stage);
+  else delete via[id];
+  return fs.map((x, j) => (j === i ? withVia(x, via) : x));
 }
 
 /**
@@ -414,7 +564,21 @@ export function moveBlock(fs: Formation[], id: string, newStart: number): Format
 }
 
 export function deleteFormation(fs: Formation[], id: string): Formation[] {
-  return fs.filter((f) => f.id !== id);
+  const i = fs.findIndex((f) => f.id === id);
+  if (i < 0) return fs;
+  const gone = fs[i], prev = fs[i - 1], next = fs[i + 1];
+  let nx = next;
+  // đường cong vào đội hình sau giờ đi từ đội hình trước: giữ dáng theo đầu mới
+  if (next?.via) {
+    const via: Record<string, Vec2> = {};
+    if (prev)
+      for (const [d, v] of Object.entries(next.via)) {
+        const p0 = gone.pos[d], p1 = prev.pos[d], q = next.pos[d];
+        if (p0 && p1 && q) via[d] = remapVia(v, p0, q, p1, q);
+      }
+    nx = withVia(next, via);
+  }
+  return fs.filter((f) => f !== gone).map((f) => (f === next ? nx : f));
 }
 
 export function renameFormation(fs: Formation[], id: string, name: string): Formation[] {
@@ -546,7 +710,7 @@ export function spotNear(near: Vec2, taken: Vec2[], stage: StageSize, gap = MIN_
 export function placeClones(
   fs: Formation[], srcId: string, newIds: string[], stage: StageSize, gap = MIN_GAP,
 ): Formation[] {
-  return fs.map((f) => {
+  const placed = fs.map((f) => {
     // bản sao múa cùng video nên mang theo ghi chú riêng của bản gốc ở từng đội hình
     const srcNote = personNote(f, srcId);
     if (srcNote) f = withNotes(f, { ...f.notes, ...Object.fromEntries(newIds.map((id) => [id, srcNote])) });
@@ -563,7 +727,26 @@ export function placeClones(
     }
     return { ...f, pos };
   });
+  // bản gốc đi đường cong: bản sao đứng cạnh ở cả hai đầu thì đi đường cong
+  // song song (dời theo độ lệch trung bình hai đầu); đứng xa thì đi thẳng
+  return placed.map((g, k) => {
+    const v = g.via?.[srcId];
+    const f = placed[k - 1];
+    if (!v || !f) return g;
+    const via = { ...g.via };
+    let add = false;
+    for (const id of newIds) {
+      const a = f.pos[srcId], b = g.pos[srcId], ca = f.pos[id], cb = g.pos[id];
+      if (via[id] || !a || !b || !ca || !cb || dist(a, ca) > CLONE_CURVE_M || dist(b, cb) > CLONE_CURVE_M) continue;
+      via[id] = clampToStage([v[0] + (ca[0] - a[0] + cb[0] - b[0]) / 2, v[1] + (ca[1] - a[1] + cb[1] - b[1]) / 2], stage);
+      add = true;
+    }
+    return add ? { ...g, via } : g;
+  });
 }
+
+/** Bản sao đứng cách bản gốc dưới khoảng này ở cả hai đầu thì chép đường cong. */
+const CLONE_CURVE_M = 2;
 
 /**
  * Lệch canon: trong những người đang chọn, chỉ những ai dùng CHUNG video với
@@ -648,13 +831,21 @@ export function addDancerToAll(fs: Formation[], id: string, stage: StageSize): F
 
 export function removeDancerFromAll(fs: Formation[], id: string): Formation[] {
   return fs.map((f) => {
-    if (!(id in f.pos) && !f.notes?.[id]) return f;
+    if (!(id in f.pos) && !f.notes?.[id] && !f.via?.[id]) return f;
     const pos = { ...f.pos };
     delete pos[id];
-    if (!f.notes?.[id]) return { ...f, pos };
-    const notes = { ...f.notes };
-    delete notes[id];
-    return withNotes({ ...f, pos }, notes);
+    let out: Formation = { ...f, pos };
+    if (f.notes?.[id]) {
+      const notes = { ...f.notes };
+      delete notes[id];
+      out = withNotes(out, notes);
+    }
+    if (f.via?.[id]) {
+      const via = { ...f.via };
+      delete via[id];
+      out = withVia(out, via);
+    }
+    return out;
   });
 }
 
@@ -668,6 +859,15 @@ export function checkInvariants(p: Project): string[] {
     for (const id of ids) if (!f.pos[id]) errs.push(`${f.name} thiếu ${id}`);
     for (const [id, v] of Object.entries(f.notes ?? {}))
       if (!ids.includes(id) || typeof v !== "string" || !v) errs.push(`${f.name}: ghi chú riêng hỏng (${id})`);
+    if (f.via && k === 0) errs.push(`${f.name}: đội hình đầu có đường cong`);
+    for (const [id, v] of Object.entries(f.via ?? {})) {
+      if (!ids.includes(id) || !Array.isArray(v) || !Number.isFinite(v[0]) || !Number.isFinite(v[1])) {
+        errs.push(`${f.name}: đường cong hỏng (${id})`);
+        continue;
+      }
+      const c = clampToStage(v, p.stage);
+      if (c[0] !== v[0] || c[1] !== v[1]) errs.push(`${f.name}: đường cong của ${id} ra ngoài sân`);
+    }
     for (const [id, q] of Object.entries(f.pos)) {
       const c = clampToStage(q, p.stage);
       if (c[0] !== q[0] || c[1] !== q[1]) errs.push(`${f.name}: ${id} ngoài sân`);
@@ -1028,8 +1228,8 @@ export function findWarnings(
       const b = g.pos[d.id];
       if (!a || !b) continue;
       const len = dist(a, b);
-      // smoothstep: tốc độ đỉnh = 1.5 lần tốc độ trung bình
-      const peak = dur > 1e-6 ? (1.5 * len) / dur : len > 0.05 ? Infinity : 0;
+      // smoothstep: tốc độ đỉnh = 1.5 lần tốc độ trung bình (đường cong: tính theo đạo hàm)
+      const peak = dur > 1e-6 ? pathPeak(a, b, viaOf(g, d.id)) / dur : len > 0.05 ? Infinity : 0;
       if (peak > FAST_MPS)
         ws.push({
           kind: "fast", formation: g.id, ids: [d.id], t: f.end,
@@ -1045,9 +1245,10 @@ export function findWarnings(
         if (!a0 || !a1 || !b0 || !b1) continue;
         // chỉ báo nếu hai đầu đều không chạm (chạm sẵn đã có cảnh báo overlap)
         if (dist(a0, b0) < NEAR_M || dist(a1, b1) < NEAR_M) continue;
+        const ca = viaOf(g, vis[i].id), cb = viaOf(g, vis[j].id);
         for (let s = 1; s < S; s++) {
           const u = smoothstep(s / S);
-          if (dist(lerp2(a0, a1, u), lerp2(b0, b1, u)) < NEAR_M) {
+          if (dist(pathAt(a0, a1, ca, u), pathAt(b0, b1, cb, u)) < NEAR_M) {
             ws.push({
               kind: "collide", formation: g.id, ids: [vis[i].id, vis[j].id],
               t: f.end + (dur * s) / S,

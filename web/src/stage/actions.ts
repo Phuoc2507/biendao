@@ -8,7 +8,7 @@ import {
   fitFormationsToStage,
   snapPos, emptyProject, renameFormation, setFormationNote, wingSpot, placeClones, canonOffsets as canonPatch, SHAPE_LABEL,
   type CanonOrder, canonRanks, rightSide, type SavedShape, captureShape, fitSavedShape,
-  setPersonNote as putPersonNote, cleanPersonNote, personNote,
+  setPersonNote as putPersonNote, cleanPersonNote, personNote, setVia,
 } from "./model";
 import { defaultLens, snapTime, putCanon, fmtTime, fmtCounts } from "./timing";
 import { st, useStore, batch } from "./store";
@@ -307,10 +307,10 @@ export function currentPoses(): Record<string, Vec2> {
   return posesAt(p.formations, ids(p), clock.now(), p.stage);
 }
 
-export function setPositionsNow(moves: Record<string, Vec2>, live: boolean) {
+export function setPositionsNow(moves: Record<string, Vec2>, live: boolean, mirror = false) {
   const run = () => {
     const fid = ensureHoldNow(live);
-    const fn = (q: Project) => ({ ...q, formations: setPositions(q.formations, fid, moves, q.stage) });
+    const fn = (q: Project) => ({ ...q, formations: setPositions(q.formations, fid, moves, q.stage, { mirror }) });
     if (live) st().live(fn);
     else st().commit(fn);
   };
@@ -318,6 +318,24 @@ export function setPositionsNow(moves: Record<string, Vec2>, live: boolean) {
   // (nút Hoàn tác trên thông báo chỉ lùi một bước, không thì còn sót khối mới tạo)
   if (live) run();
   else batch(run);
+}
+
+/** Uốn đường đi của người id lúc chuyển VÀO đội hình fid (v là điểm điều
+ *  khiển); v = null thì đi thẳng lại. live: đang kéo núm (trong một cử chỉ). */
+export function setViaNow(fid: string, id: string, v: Vec2 | null, live: boolean) {
+  const fn = (q: Project) => ({ ...q, formations: setVia(q.formations, fid, id, v, q.stage) });
+  if (live) st().live(fn);
+  else st().commit(fn);
+}
+
+/** Nhấp đúp núm: bỏ đường cong, đi thẳng lại (có Hoàn tác). */
+export function straightenPath(fid: string, id: string) {
+  const p = proj();
+  const f = p.formations.find((x) => x.id === fid);
+  if (!f?.via?.[id]) return;
+  setViaNow(fid, id, null, false);
+  const name = p.dancers.find((d) => d.id === id)?.name ?? "";
+  st().notify(`${name} đi thẳng lại sang ${f.name}`, { undo: true });
 }
 
 export function nudgeSelected(dx: number, dz: number) {
@@ -369,7 +387,7 @@ export function mirrorSelected() {
   let sel = st().ui.selected.filter((id) => id in cur);
   if (!sel.length) sel = ids(p);
   const w = warnCount(p);
-  setPositionsNow(mirrorPositions(cur, sel), false);
+  setPositionsNow(mirrorPositions(cur, sel), false, true);
   hintWarn(w, "Đã lật trái phải");
 }
 

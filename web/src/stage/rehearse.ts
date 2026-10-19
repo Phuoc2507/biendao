@@ -65,12 +65,13 @@ export function stopLabel(ks: number[]): string {
 }
 
 /** Các chặng đi của một người: từ đội hình k sang k+1 (bỏ chặng đứng yên). */
-export function dancerLegs(fs: Formation[], id: string): { k: number; a: Vec2; b: Vec2 }[] {
-  const out: { k: number; a: Vec2; b: Vec2 }[] = [];
+export function dancerLegs(fs: Formation[], id: string): { k: number; a: Vec2; b: Vec2; c?: Vec2 }[] {
+  const out: { k: number; a: Vec2; b: Vec2; c?: Vec2 }[] = [];
   for (let k = 0; k + 1 < fs.length; k++) {
     const a = fs[k].pos[id];
     const b = fs[k + 1].pos[id];
-    if (a && b && dist(a, b) >= 0.05) out.push({ k, a, b });
+    const c = fs[k + 1].via?.[id]; // điểm điều khiển nếu chặng này đi đường cong
+    if (a && b && dist(a, b) >= 0.05) out.push(c ? { k, a, b, c } : { k, a, b });
   }
   return out;
 }
