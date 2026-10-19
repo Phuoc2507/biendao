@@ -105,12 +105,25 @@ export function nextMarkNumber(props: readonly StageProp[] | undefined): number 
   return n;
 }
 
-/** Đạo cụ mới theo mẫu: đặt ở chỗ trống gần giữa sân (cách tâm các món khác 1 m), mốc sàn đặt tên số. */
+/** Nửa đường chéo: bán kính vòng bao của đạo cụ, đủ để xếp các món không đè nhau. */
+const reach = (o: { kind: PropKind; w: number; d: number }) => (o.kind === "round" ? o.w / 2 : Math.hypot(o.w, o.d) / 2);
+
+/** Đạo cụ mới theo mẫu: đặt ở chỗ trống gần giữa sân (vòng bao không chạm món nào, chừa 0,3 m), mốc sàn đặt tên số. */
 export function propFromPreset(
   props: readonly StageProp[] | undefined, preset: PropPreset, id: string, stage: StageSize, near: Vec2 = [0, 0],
 ): StageProp {
-  const taken = (props ?? []).map((o): Vec2 => [o.x, o.z]);
-  const at = spotNear(near, taken, stage, 1) ?? near;
+  const others = props ?? [];
+  const r = reach(preset);
+  const free = (q: Vec2) => others.every((o) => Math.hypot(q[0] - o.x, q[1] - o.z) >= reach(o) + r + 0.3);
+  let at: Vec2 | null = free(near) ? near : null;
+  // dò từng vòng 0,5 m quanh chỗ muốn đặt, mỗi vòng 16 hướng, chỉ lấy điểm nằm trọn trong sân
+  for (let k = 1; !at && k <= 24; k++) {
+    for (let i = 0; i < 16 && !at; i++) {
+      const a = (i / 16) * 2 * Math.PI, q: Vec2 = [near[0] + 0.5 * k * Math.cos(a), near[1] + 0.5 * k * Math.sin(a)];
+      if (Math.abs(q[0]) + r <= stage.width / 2 && Math.abs(q[1]) + r <= stage.depth / 2 && free(q)) at = q;
+    }
+  }
+  at ??= spotNear(near, others.map((o): Vec2 => [o.x, o.z]), stage, 1) ?? near;
   const name = preset.kind === "mark" ? String(nextMarkNumber(props)) : preset.name;
   return tidy({ id, name, kind: preset.kind, x: at[0], z: at[1], w: preset.w, d: preset.d }, stage);
 }

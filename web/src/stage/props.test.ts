@@ -183,3 +183,13 @@ test("bản vẽ: khung video và bản in có đạo cụ, mốc sàn có số"
   // đạo cụ vẽ trước (dưới) chấm người
   assert.ok(svg.indexOf(">Bục<") < svg.indexOf("Hương") || !svg.includes("Hương"));
 });
+
+test("thêm đạo cụ mới không đè lên bục đã có", () => {
+  const stage = { width: 10, depth: 6 };
+  const box = PROP_PRESETS.find((x) => x.kind === "box")!, mic = PROP_PRESETS.find((x) => x.kind === "round")!;
+  let ps = addProp(undefined, propFromPreset(undefined, box, "b", stage), stage);
+  for (const id of ["m1", "m2", "m3"]) ps = addProp(ps, propFromPreset(ps, mic, id, stage), stage);
+  const b = ps[0];
+  for (const o of ps.slice(1)) assert.ok(propDist(b, [o.x, o.z]) > o.w / 2, `${o.id} đè lên bục`);
+  for (const o of ps) assert.ok(Math.abs(o.x) <= 5 && Math.abs(o.z) <= 3);
+});
