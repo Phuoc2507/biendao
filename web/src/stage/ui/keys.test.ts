@@ -1,6 +1,28 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { type KeyCtx, type KeyIn, modalOpen, nativeKey, popupOpen, resolveShortcut, routeKey, targetKind } from "./keys.ts";
+import { type KeyCtx, type KeyIn, drawerEscCloses, modalOpen, nativeKey, popupOpen, resolveShortcut, routeKey, targetKind } from "./keys.ts";
+
+test("drawerEscCloses: Esc chỉ đóng ngăn kéo khi không có gì mở bên trên", () => {
+  const div = { tagName: "DIV" };
+  const base = { key: "Escape", target: div, popup: false, modal: false };
+  assert.equal(drawerEscCloses(base), true);
+  assert.equal(drawerEscCloses({ ...base, target: { tagName: "BUTTON" } }), true);
+  assert.equal(drawerEscCloses({ ...base, key: "Enter" }), false);
+  // menu bật ra, hộp thoại, Hướng dẫn, Trình chiếu, Học động tác
+  for (const k of ["popup", "modal", "help", "presenting", "learning"] as const)
+    assert.equal(drawerEscCloses({ ...base, [k]: true }), false, k);
+  // Esc huỷ ô gõ chữ, ô chọn, chữ đang gõ dấu, hoặc đã có chỗ khác xử lý
+  assert.equal(drawerEscCloses({ ...base, target: { tagName: "INPUT", type: "text" } }), false);
+  assert.equal(drawerEscCloses({ ...base, target: { tagName: "INPUT", type: "number" } }), false);
+  assert.equal(drawerEscCloses({ ...base, target: { tagName: "TEXTAREA" } }), false);
+  assert.equal(drawerEscCloses({ ...base, target: { tagName: "SELECT" } }), false);
+  assert.equal(drawerEscCloses({ ...base, target: { tagName: "DIV", isContentEditable: true } }), false);
+  assert.equal(drawerEscCloses({ ...base, isComposing: true }), false);
+  assert.equal(drawerEscCloses({ ...base, defaultPrevented: true }), false);
+  // ô đánh dấu, thanh trượt thì Esc vẫn đóng ngăn kéo
+  assert.equal(drawerEscCloses({ ...base, target: { tagName: "INPUT", type: "checkbox" } }), true);
+  assert.equal(drawerEscCloses({ ...base, target: { tagName: "INPUT", type: "range" } }), true);
+});
 
 const ctx = (o: Partial<KeyCtx> = {}): KeyCtx => ({
   presenting: false, help: false, hasSelection: false, hasDancers: true, hasBlock: false, formationFocused: false, ...o,

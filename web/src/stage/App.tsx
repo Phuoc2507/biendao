@@ -16,7 +16,7 @@ import { Present } from "./ui/Present";
 import { Learn } from "./ui/Learn";
 import { Busy, DropZone, Help, ToastView } from "./ui/Overlays";
 import { useShortcuts } from "./ui/shortcuts";
-import { modalOpen, popupOpen } from "./ui/keys";
+import { drawerEscCloses, modalOpen, popupOpen } from "./ui/keys";
 import { closeSide, usePhone, useSplitDir } from "./ui/useLayout";
 import { Icon } from "./ui/icons";
 import { SaveGuard } from "./ui/SaveGuard";
@@ -90,10 +90,15 @@ export function App() {
   // ngăn kéo cột trái trên điện thoại: Esc để đóng (khi có bàn phím)
   useEffect(() => {
     if (!phone || !ui.sideOpen) return;
-    // pha bắt: dò menu bật ra trước khi menu tự đóng, để Esc chỉ đóng menu chứ không đóng luôn ngăn kéo
+    // pha bắt: dò menu bật ra trước khi menu tự đóng, để Esc chỉ đóng menu chứ không đóng luôn ngăn kéo.
+    // Esc trong ô gõ chữ (đổi tên, ô số) hay khi Hướng dẫn, Trình chiếu đang mở cũng không đóng ngăn kéo.
     const down = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || popupOpen(document) || modalOpen(st().ui)) return;
-      closeSide();
+      const u = st().ui;
+      const ok = drawerEscCloses({
+        key: e.key, target: e.target, defaultPrevented: e.defaultPrevented, isComposing: e.isComposing,
+        popup: popupOpen(document), modal: modalOpen(u), help: u.help, presenting: u.presenting, learning: u.learning,
+      });
+      if (ok) closeSide();
     };
     window.addEventListener("keydown", down, true);
     return () => window.removeEventListener("keydown", down, true);

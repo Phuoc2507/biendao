@@ -293,16 +293,27 @@ export interface VariantRepo {
 let seq = 0;
 const newId = () => `v${Date.now().toString(36)}${(seq++).toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
-export function variantRepo(kv: KV): VariantRepo {
-  // mọi lần ghi xếp hàng nối nhau, khỏi hai lần đọc rồi ghi đè lẫn nhau
+/** Khoá loại trừ dùng chung giữa các thẻ trình duyệt (navigator.locks), hoặc giả khi test. */
+export type Lock = <T>(fn: () => Promise<T>) => Promise<T>;
+const noLock: Lock = (fn) => fn();
+
+/**
+ * Mỗi lần ghi: giữ khoá, đọc bản MỚI NHẤT trong kho, sửa đúng phần mình đổi rồi
+ * ghi. Trong một thẻ các lần ghi xếp hàng nối nhau; giữa hai thẻ cùng mở thì
+ * khoá `lock` ngăn thẻ này đọc xong mà chưa ghi thì thẻ kia chen vào, nên
+ * không ai ghi đè danh sách của ai (phương án thẻ kia vừa thêm vẫn còn).
+ */
+export function variantRepo(kv: KV, lock: Lock = noLock): VariantRepo {
   let chain: Promise<unknown> = Promise.resolve();
   const read = async () => parseVariants(await kv.get(VARIANTS_KEY));
   const edit = <T>(fn: (l: Variant[]) => { list: Variant[]; out: T }): Promise<T> => {
-    const job = chain.then(async () => {
-      const r = fn(await read());
-      await kv.set(VARIANTS_KEY, r.list);
-      return r.out;
-    });
+    const job = chain.then(() =>
+      lock(async () => {
+        const r = fn(await read());
+        await kv.set(VARIANTS_KEY, r.list);
+        return r.out;
+      }),
+    );
     chain = job.catch(() => {});
     return job;
   };

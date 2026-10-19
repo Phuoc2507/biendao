@@ -47,6 +47,8 @@ test("clamp cho phép cánh gà, snap bỏ -0", () => {
   assert.deepEqual(clampToStage([100, -100], stage), [5 + WING, -3]);
   assert.deepEqual(snapPos([-0.01, 0.26], 0.25), [0, 0.25]);
   assert.ok(Object.is(snapPos([-0.01, 0], 0.25)[0], 0));
+  // bước 0, âm, NaN, vô cùng: giữ nguyên chỗ, không ra NaN
+  for (const s of [0, -0.25, NaN, Infinity]) assert.deepEqual(snapPos([1.13, -2.2], s), [1.13, -2.2]);
   assert.equal(inWings([5.5, 0], stage), true);
   assert.equal(inWings([4.9, 0], stage), false);
 });

@@ -313,8 +313,10 @@ export function remapVia(v: Vec2, p0: Vec2, q0: Vec2, p1: Vec2, q1: Vec2, mirror
   return [p1[0] + lam * dx1 - mu * dz1, p1[1] + lam * dz1 + mu * dx1];
 }
 
+/** Bám lưới bước `step` (m). Bước 0, âm hoặc không phải số thì giữ nguyên chỗ (khỏi ra NaN). */
 export function snapPos(p: Vec2, step: number): Vec2 {
-  const r = (v: number) => Math.round(v / step) * step + 0; // +0 bỏ -0
+  if (!(step > 0) || !Number.isFinite(step)) return [p[0], p[1]];
+  const r = (v: number) => (Number.isFinite(v) ? Math.round(v / step) * step + 0 : v); // +0 bỏ -0
   return [r(p[0]), r(p[1])];
 }
 

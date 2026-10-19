@@ -27,7 +27,7 @@ cd web && npm install
 ```
 
 * Chạy app: `npm run dev` trong `web/` rồi mở http://localhost:5173/ (cấu hình sẵn ở `.claude/launch.json`, tên `web`). `index.html` vào app sân khấu `src/stage/main.tsx`.
-* Test: `npm test` trong `web/` (node:test, hiện **359 test xanh**).
+* Test: `npm test` trong `web/` (node:test, hiện **383 test xanh**).
 * Kiểm kiểu (máy ít RAM, phải nâng heap): `node --max-old-space-size=2500 node_modules/typescript/bin/tsc -p .` trong `web/`.
 * Tệp được test import trực tiếp phải import có đuôi `.ts` (ví dụ `from "./timing.ts"`), `model.ts` chỉ được `import type` từ `timing.ts`.
 * Trong trình duyệt có tay cầm DEV `window.__stage.st()` để đọc và gọi store (`setUI`, `commit`, `project`…).
@@ -67,11 +67,18 @@ Quy ước sân: khán giả ở phía **+Z**, x dương là bên **phải khán
 
 ## 5. Đã xong gần nhất
 
+Đợt 2026-10-19, lượt năm (agent worktree):
+
+* **Chạy không cần mạng (PWA)**: `public/manifest.webmanifest` (tên tiếng Việt), icon tự vẽ `public/icon.svg` và bản PNG cho iPhone; service worker viết tay `public/sw.js`, luật cất thuần trong `public/sw-policy.js` (test ở `src/stage/pwa.test.ts`). Lúc build, plugin `stage-sw` trong `vite.config.ts` điền mã bản dựng và danh sách cất sẵn vào `dist/sw.js`. Tệp `assets/` cất trước dùng mãi, trang HTML mạng trước rồi mới tới bản cất (chờ 3,5 s), không cất video, nhạc, yêu cầu Range, blob:. Chỉ đăng ký khi `import.meta.env.PROD` (`src/stage/pwa.ts`); bản mới cài xong thì chờ, app báo "Có bản mới" kèm nút Tải lại (tin `SKIP_WAITING`). Hướng dẫn cài lên điện thoại ở mục 3 của hướng dẫn. Lưu ý: service worker cần https hoặc localhost, nên LAN `http://192.168...` phải dùng `adb reverse`, cờ Chrome hoặc https.
+* **Gỡ chỗ nghi lượt bốn:** Mở phương án giữ tệp Ctrl S đang ghi (`applyProject(p, { keepSaveTarget: true })`); hai thẻ cùng mở không ghi đè danh sách phương án (mỗi lần ghi giữ khoá `navigator.locks` "choreo-stage-variants" rồi đọc lại bản mới nhất, BroadcastChannel báo thẻ kia đọc lại); `snapPos` bước 0, âm, NaN giữ nguyên chỗ; Esc ngăn kéo điện thoại không đóng ngăn kéo khi đang có menu, hộp thoại, Hướng dẫn, Trình chiếu, Học động tác, hay khi Esc đang huỷ ô gõ chữ (`drawerEscCloses` trong `ui/keys.ts`).
+
 Đợt 2026-10-19, học từ đối thủ, lượt bốn (merge 8d5199e, 79a1ffd, 88b95fc; 3 agent song song):
 
 * **Phương án song song** (Tệp ▸ Phương án…, `variants.ts`, `variantsDb.ts`, `ui/VariantsDialog.tsx`): lưu bản chụp có tên trong IndexedDB (khoá `variants`), dùng chung video; Mở tự cất bản đang làm thành "Trước khi đổi"; So sánh liệt kê đội hình, người dời, đổi chỗ, đường cong, hướng mặt, ghi chú. Còn nghi: Mở phương án làm Ctrl S hỏi lại chỗ lưu; hai thẻ cùng mở có thể ghi đè danh sách.
 * **Hướng mặt từng người** (`Formation.facing`, `facing.ts`): phím **Q** quay 45 độ (Shift Q ngược; F đã là Trình chiếu), lưới 8 hướng trong khung vũ công, nút Quay mặt trên thanh chọn. Tam giác ở mép chấm trên sơ đồ, ảnh, video sơ đồ, bản in (chữ LƯNG); dòng nhắc Tôi là ai có "quay lưng"... Lật gương đổi dấu, Xoay R cộng 90. Đổi chỗ X và reassignFix (Đổi chỗ cho gần) nay cho hướng mặt đi theo CHỖ ĐỨNG (hướng mặt là một phần của hình), ghi chú riêng vẫn theo người.
 * **Người dự bị, thay vai** (`cast.ts`): VDancer là MỘT VAI; `name`, `color` là người ĐANG ĐÓNG nên mọi chỗ hiện tên tự đúng; `lead` cất người chính để đổi lại, `subs` là người dự bị (tối đa 8). Dự án cũ không có hai trường này: người chính đang đóng. `Project.castNote` false thì bỏ chữ "(thay A)". Nhân bản không chép subs/lead. diffProjects báo thay vai là kind "cast". **Đổi vai cả bài** (Shift X, `swapRolesAll`): đổi pos, via, facing, notes trên mọi đội hình; video, canon, lật, nhóm theo người.
+* **Phương án song song** (Tệp ▸ Phương án…, `variants.ts`, `variantsDb.ts`, `ui/VariantsDialog.tsx`): lưu bản chụp có tên trong IndexedDB (khoá `variants`), dùng chung video; Mở tự cất bản đang làm thành "Trước khi đổi"; So sánh liệt kê đội hình, người dời, đổi chỗ, đường cong, hướng mặt, ghi chú. (Hai chỗ nghi cũ đã gỡ ở lượt năm.)
+* **Hướng mặt từng người** (`Formation.facing`, `facing.ts`): phím **Q** quay 45 độ (Shift Q ngược; F đã là Trình chiếu), lưới 8 hướng trong khung vũ công, nút Quay mặt trên thanh chọn. Tam giác ở mép chấm trên sơ đồ, ảnh, video sơ đồ, bản in (chữ LƯNG); dòng nhắc Tôi là ai có "quay lưng"... Lật gương đổi dấu, Xoay R cộng 90. Đổi chỗ X giữ hướng mặt theo người.
 * **Gỡ chỗ nghi lượt ba:** Ctrl C/V chép cả đường cong; Xoay, Giãn/Thu dời điểm uốn theo nửa phép biến đổi (đầu kia đứng yên nên quay trọn sẽ thắt vòng), Đổi chỗ X bỏ đường cong của hai người; núm uốn đẩy ra khỏi chấm khi đi ngắn; ô số người của Thư viện theo vạch phát; video sơ đồ có mũi tên mờ đường sắp đi.
 
 Đợt 2026-10-19, học từ đối thủ, lượt ba (merge 50e64da, 94e3155, 5072992; 3 agent song song):
@@ -100,7 +107,7 @@ Quy ước sân: khán giả ở phía **+Z**, x dương là bên **phải khán
 * **Phím tắt bị chặn** khi hộp Xuất video hoặc lớp Đang xử lý đang mở (`modalOpen` trong `ui/keys.ts`, cờ `ui.exportOpen` trong store). Thêm hộp thoại mới thì nhớ thêm vào `modalOpen`.
 * **Ảnh vị trí từng người** (menu Tệp, `export/personSheet.ts`): mỗi vũ công một ảnh dọc 1080 rộng, lưới 2 cột các đội hình, người đó tô nổi kèm mũi tên riêng; nhiều đội hình thì chia trang -p1, -p2; gói .zip cả đội.
 * **Rà lỗi đợt hai:** Esc ở popup chỉ đóng popup (`popupOpen` trong `ui/keys.ts`); khối mới không đè khối trước khi khoảng hở nhỏ; Xếp hàng trên sân hẹp không đảo thứ tự; thu nhỏ sân thì kéo người vào (`fitFormationsToStage`); `normalizeProject` làm sạch tệp hỏng (kẹp sân 1 tới 60 m, nhịp 20 tới 400, bỏ id trùng, sắp và đẩy khối chồng); `fuzz.test.ts` 3000 ca ngẫu nhiên.
-* Còn nghi: trên điện thoại Esc của ngăn kéo trong App.tsx có thể đóng ngăn kéo khi đang mở menu; snapPos với bước 0 ra NaN (hiện chỉ gọi với hằng số).
+* Còn nghi: trên điện thoại Esc của ngăn kéo trong App.tsx có thể đóng ngăn kéo khi đang mở menu; snapPos với bước 0 ra NaN (hiện chỉ gọi với hằng số). Cả hai đã gỡ ở lượt năm.
 
 Đợt 2026-10-19, phần cuối (commit 7e04370, ef44de4; làm bằng 2 agent song song trong worktree):
 

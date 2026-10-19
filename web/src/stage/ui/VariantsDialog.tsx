@@ -78,7 +78,8 @@ export function VariantsDialog({ onClose }: { onClose: () => void }) {
       const cur = st().project;
       const bk = backupBeforeSwitch(cur, await variants.list());
       if (bk) await variants.add(bk, cur);
-      const missing = await applyProject(next);
+      // cùng một bài: Ctrl S vẫn ghi vào tệp đang lưu
+      const missing = await applyProject(next, { keepSaveTarget: true });
       const tail = bk ? ` Bản đang làm đã cất thành phương án "${bk}".` : "";
       st().notify(
         missing.length

@@ -230,8 +230,12 @@ export async function openBundleFile(f: File): Promise<boolean> {
   }
 }
 
-/** Thay dự án đang mở (một commit). Trả id media không có trong máy (đã bỏ liên kết). */
-export async function applyProject(p: Project): Promise<string[]> {
+/**
+ * Thay dự án đang mở (một commit). Trả id media không có trong máy (đã bỏ liên kết).
+ * keepSaveTarget: vẫn là bài đó (mở một phương án) nên Ctrl S ghi tiếp vào tệp
+ * đang lưu, không hỏi lại chỗ lưu.
+ */
+export async function applyProject(p: Project, o: { keepSaveTarget?: boolean } = {}): Promise<string[]> {
   watchMusic();
   clock.pause();
   const full: Project = { ...p };
@@ -243,7 +247,7 @@ export async function applyProject(p: Project): Promise<string[]> {
   if (!full.musicId && music.id) await setMusic(null);
   st().commit(() => full);
   st().setUI({ selected: [], selectedBlock: null });
-  forgetSaveTarget();
+  if (!o.keepSaveTarget) forgetSaveTarget();
   clock.seek(0);
   return missing;
 }
