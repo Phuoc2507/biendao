@@ -188,7 +188,7 @@ Bấm **Học động tác** (thanh trên, hoặc ở màn hình trống), mở 
 
 ### Xem và tập trên sơ đồ
 
-Góc trên phải sơ đồ có ba nút:
+Góc trên phải sơ đồ có ba nút xem và tập (thêm nút **Đạo cụ**, xem mục Đạo cụ và mốc sàn):
 
 * **Tôi là ai…:** làm nổi một người, vẽ cả đường đi qua bài, mỗi chỗ đứng ghi số đội hình.
 * **Bóng đội hình kế:** hiện mờ chỗ đứng ở đội hình sau, có mũi tên.
@@ -204,7 +204,7 @@ Góc trên phải sơ đồ có ba nút:
 
 ### Đạo cụ và mốc sàn
 
-Nút **Đạo cụ** ở góc trên phải sơ đồ (trên điện thoại chỉ còn biểu tượng khối) thêm nhanh một món vào chỗ trống gần giữa sân: **Micro đứng** (tròn 0,4 m), **Bục** (2 × 1 m), **Ghế** (0,5 × 0,5 m) hay **Mốc sàn** (dấu cộng vàng, tự đánh số 1, 2, 3... như dấu băng dính trên sàn tập). Bản này đạo cụ đứng yên suốt bài, không đi theo đội hình.
+Nút **Đạo cụ** ở góc trên phải sơ đồ (trên điện thoại chỉ còn biểu tượng khối) thêm nhanh một món vào chỗ trống gần giữa sân (tính theo kích thước, không đè lên món đã đặt): **Micro đứng** (tròn 0,4 m), **Bục** (2 × 1 m), **Ghế** (0,5 × 0,5 m) hay **Mốc sàn** (dấu cộng vàng, tự đánh số 1, 2, 3... như dấu băng dính trên sàn tập). Bản này đạo cụ đứng yên suốt bài, không đi theo đội hình.
 
 * Kéo món đó trên sơ đồ để đặt chỗ (bám lưới 25 cm như người, giữ **Alt** để đặt tự do). Bấm vào món đó thì hiện thanh nhỏ phía dưới: đổi tên, đổi kích thước (mét), xoay 90°, **Xoá** (hoặc phím Delete), Esc để bỏ chọn. Mọi thao tác đều Ctrl Z được.
 * Đạo cụ nằm dưới chấm người trên sơ đồ, có trong khung 3D (khối xám tối, mốc sàn phẳng trên sàn), ảnh đội hình, video sơ đồ và bản in. Thu nhỏ sân thì đạo cụ ngoài sân được kéo vào trong.

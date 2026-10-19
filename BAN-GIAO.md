@@ -27,7 +27,7 @@ cd web && npm install
 ```
 
 * Chạy app: `npm run dev` trong `web/` rồi mở http://localhost:5173/ (cấu hình sẵn ở `.claude/launch.json`, tên `web`). `index.html` vào app sân khấu `src/stage/main.tsx`.
-* Test: `npm test` trong `web/` (node:test, hiện **288 test xanh**).
+* Test: `npm test` trong `web/` (node:test, hiện **306 test xanh**).
 * Kiểm kiểu (máy ít RAM, phải nâng heap): `node --max-old-space-size=2500 node_modules/typescript/bin/tsc -p .` trong `web/`.
 * Tệp được test import trực tiếp phải import có đuôi `.ts` (ví dụ `from "./timing.ts"`), `model.ts` chỉ được `import type` từ `timing.ts`.
 * Trong trình duyệt có tay cầm DEV `window.__stage.st()` để đọc và gọi store (`setUI`, `commit`, `project`…).
@@ -66,6 +66,12 @@ Video mẫu thật: `D:\bien\IMG_5116.mov` (iPhone, HEVC 1920x1080, 41,9 s, khô
 Quy ước sân: khán giả ở phía **+Z**, x dương là bên **phải khán giả**.
 
 ## 5. Đã xong gần nhất
+
+Đợt 2026-10-19, học từ đối thủ, lượt hai (commit d120ee8 tới 5a1959d; 2 agent song song):
+
+* **Nhóm lưu sẵn** (`Project.groups`, `groups.ts`): chip nhóm trong cột trái, bấm chip chọn cả nhóm, Alt 1 tới 9 chọn nhanh; viền màu theo nhóm trên sơ đồ, ảnh và bản in (`Project.groupRings`, tắt được, nằm trong hoàn tác).
+* **Đạo cụ và mốc sàn đứng yên** (`Project.props`, `props.ts`, `ui/PropTools.tsx`): Micro, Bục, Ghế, Mốc sàn đánh số; vẽ trên sơ đồ, 3D, ảnh, bản in; cảnh báo nhẹ đứng trong hoặc đi xuyên đạo cụ (`checks.ts`). Món mới đặt theo kích thước, không đè món cũ.
+* Còn nghi: nhãn đạo cụ sát nhau có thể chồng chữ; đạo cụ chưa đi theo đội hình (chưa có đạo cụ di chuyển).
 
 Đợt 2026-10-19, học từ đối thủ (khảo sát `docs/doi-thu-va-khoang-trong.md`, 14 app; 2 agent song song):
 
