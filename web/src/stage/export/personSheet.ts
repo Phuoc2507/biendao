@@ -8,6 +8,7 @@
 import { type Project, WING, dist, personNote } from "../model.ts";
 import { type Ctx2D, type FrameTrail, type PlanFrame, type PlanGeom, drawPlanFrame, planFrame, toPx } from "./planRender.ts";
 import { countAt, fmtTime } from "../timing.ts";
+import { markAt } from "../marks.ts";
 import { holdPoses, safeColor, MOVE_MIN } from "./printSheet.ts";
 import { wrapText, lineChars, type TextLine } from "./imageSheet.ts";
 import { slugTitle, safeName } from "./bundle.ts";
@@ -32,6 +33,7 @@ const NOTE_LINES = 2;
 const NOTE_H = Math.round(NOTE_LINES * NOTE * 1.25 + 4);
 const R_ME = 0.42; // bán kính chấm người đó (mét), người khác 0.3
 const R_OTHER = 0.3;
+const SEC_MAX = 14; // số ký tự tối đa của tên đoạn nhạc trong dòng giờ của ô
 
 /** Có ai (không ẩn) có ghi chú riêng ở đội hình nào không: có thì mọi ô chừa chỗ cho 2 dòng ghi chú,
  *  để ảnh của mọi người cùng bố cục và cùng cách chia trang. */
@@ -75,7 +77,10 @@ const headBottom = (lines: TextLine[]) => {
 export function cellLines(p: Project, k: number, cw: number, top = 0, id?: string): TextLine[] {
   const f = p.formations[k];
   const chars = (size: number) => Math.max(8, Math.floor((cw - 2 * CPAD) / (size * CW)));
-  let when = `bắt đầu ${fmtTime(f.start)}`;
+  // có mốc đoạn nhạc thì tên đoạn đứng đầu dòng giờ (thay chữ "bắt đầu"), nhãn dài cắt bớt để còn chỗ cho số đếm
+  const sec = markAt(p.marks, f.start + 1e-3);
+  const secLabel = sec ? (sec.label.length > SEC_MAX ? `${sec.label.slice(0, SEC_MAX - 1).trim()}…` : sec.label) : "";
+  let when = sec ? `${secLabel} · ${fmtTime(f.start)}` : `bắt đầu ${fmtTime(f.start)}`;
   if (p.bpm) {
     const c = countAt(f.start + 1e-3, p.bpm, p.downbeat);
     when += ` · 8 thứ ${c.eight}, phách ${c.beat}`;

@@ -24,7 +24,8 @@ import {
   type OffsetHow, type ImportReport,
 } from "./intake";
 import { claimTab, canAutosave, setBootProblem, otherTabsOpen, onTakeOver, subscribeGuard } from "./guard";
-import { planDance, energyChangeScore } from "./autoplan";
+import { planDance, energyChangeScore, suggestMarkTimes } from "./autoplan";
+import { addMark, markJump, markNear, mergeSuggested, moveMark, nextMarkLabel, removeMark, renameMark, withMarks } from "./marks";
 import { findIssues, isSoft } from "./checks";
 import { fixAll, reassignFix, staggerFix, widenFix } from "./fixes";
 import { errText } from "./storage";
@@ -612,6 +613,72 @@ export function jumpFormation(dir: -1 | 1) {
   if (!target) return;
   clock.seek(target.start + 0.001);
   st().setUI({ selectedBlock: target.id });
+}
+
+// ---------- mốc đoạn nhạc ----------
+
+/** Thêm mốc ở vạch phát (bám phách khi đang bật bám lưới). Trả id, đã có mốc ở đó thì null. */
+export function addMarkNow(label?: string): string | null {
+  const p = proj();
+  let t = clock.now();
+  if (st().ui.snap) t = snapTime(t, p.bpm, p.downbeat);
+  if (markNear(p.marks, t)) {
+    st().notify(`Đã có mốc ở ${fmtTime(t)}`);
+    return null;
+  }
+  const id = uid("m");
+  const name = label ?? nextMarkLabel(p.marks);
+  st().commit((q) => withMarks(q, addMark(q.marks, { id, t, label: name }, q.musicDuration)));
+  st().notify(`Đã thêm mốc "${name}" ở ${fmtTime(t)}: bấm đúp vào nhãn để đổi tên`, { undo: true });
+  return id;
+}
+
+export function renameMarkTo(id: string, label: string) {
+  const m = proj().marks?.find((x) => x.id === id);
+  if (!m || m.label === label.trim()) return;
+  st().commit((q) => withMarks(q, renameMark(q.marks, id, label)));
+}
+
+/** Dời mốc (kéo trên dòng thời gian dùng st().live trong một cử chỉ). */
+export function moveMarkTo(id: string, t: number, live = false) {
+  const f = (q: Project) => withMarks(q, moveMark(q.marks, id, t, q.musicDuration));
+  if (live) st().live(f);
+  else st().commit(f);
+}
+
+export function removeMarkById(id: string) {
+  const m = proj().marks?.find((x) => x.id === id);
+  if (!m) return;
+  st().commit((q) => withMarks(q, removeMark(q.marks, id)));
+  st().notify(`Đã xoá mốc "${m.label}"`, { undo: true });
+}
+
+/** Nhảy vạch phát tới mốc đoạn kế tiếp / trước đó. */
+export function jumpMark(dir: -1 | 1) {
+  const p = proj();
+  if (!p.marks?.length) return st().notify("Chưa có mốc đoạn nhạc nào: bấm B để thêm mốc ở vạch phát");
+  const t = markJump(p.marks, clock.now(), dir);
+  if (t === null) return;
+  clock.seek(t + 0.001);
+}
+
+/** Gợi ý mốc ở chỗ nhạc đổi mạnh (bám vạch lượt 8 nếu có nhịp), không đè mốc đã có gần đó. */
+export function suggestMarks() {
+  const p = proj();
+  const buf = music.buffer;
+  if (!buf) return st().notify("Nạp nhạc trước rồi mới gợi ý mốc được");
+  const duration = Number.isFinite(p.musicDuration) && p.musicDuration > 0 ? p.musicDuration : buf.duration;
+  const times = suggestMarkTimes({
+    duration, bpm: p.bpm, downbeat: p.downbeat, score: energyChangeScore(monoOf(buf), buf.sampleRate),
+  });
+  const near = p.bpm ? (60 / p.bpm) * 8 : 4;
+  const r = mergeSuggested(p.marks, times, () => uid("m"), near, p.musicDuration);
+  if (!r.added) {
+    st().notify(times.length ? "Các chỗ nhạc đổi đều đã có mốc" : "Không thấy chỗ nhạc đổi rõ: hãy đặt mốc tay bằng phím B");
+    return;
+  }
+  st().commit((q) => withMarks(q, r.marks));
+  st().notify(`Đã thêm ${r.added} mốc ở chỗ nhạc đổi: bấm đúp vào nhãn để đặt tên (Điệp khúc, Rap...)`, { undo: true });
 }
 
 export function selectBlockAt(t: number) {

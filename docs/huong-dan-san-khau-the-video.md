@@ -116,6 +116,10 @@ Kéo thả **cả thư mục `the/` và tệp nhạc** vào cửa sổ app (th�
 
 Từ đó thanh trên đếm 1 tới 8, dòng thời gian có vạch phách, và mọi thao tác kéo thả bám theo phách khi bật bám lưới (N).
 
+### Mốc đoạn nhạc
+
+Dải **Mốc** nằm ngay dưới thước giờ của dòng thời gian, dùng để đặt tên các đoạn của bài ("Nhạc dạo", "Điệp khúc", "Đoạn rap"). Bấm **B** hoặc nút **+** để thêm mốc ở vạch phát; bấm đúp chỗ trống trên dải cũng được. Bấm vào nhãn để tua tới đó, bấm đúp để đổi tên, kéo để dời (bám phách khi bật bám lưới), bấm chuột phải hoặc nút × để xoá. **Shift [** và **Shift ]** nhảy tới mốc trước, sau, kể cả khi trình chiếu. Nút **Gợi ý mốc từ nhạc** (biểu tượng cạnh nút +) tìm chỗ nhạc đổi mạnh, có BPM thì đặt đúng vạch lượt 8, rồi thêm các mốc "Đoạn 1", "Đoạn 2"... ở chỗ chưa có mốc gần đó; mốc bạn đã đặt không bị ghi đè. Tên đoạn đang phát hiện ở đầu màn trình chiếu và trong dòng giờ của ảnh vị trí từng người.
+
 ### Khớp video với nhạc
 
 Chọn một vũ công trong danh sách:
@@ -224,6 +228,8 @@ Khung 3D có các góc **Khán giả**, **Chéo**, **Trên cao** và **Sau lưng
 | Enter hoặc + | Thêm đội hình sau vạch phát |
 | Delete | Xoá đội hình vừa bấm chọn (khối trên dòng thời gian hoặc dòng trong thẻ Đội hình). Đang chọn người thì Delete không xoá gì, chỉ nhắc: xoá người bằng nút thùng rác ở danh sách Vũ công |
 | [ ] | Nhảy tới đội hình trước, sau |
+| Shift [ / Shift ] | Nhảy tới mốc đoạn nhạc trước, sau |
+| B | Thêm mốc đoạn nhạc ở vạch phát |
 | Esc | Bỏ chọn |
 | Ctrl A | Chọn tất cả |
 | Ctrl C / Ctrl V | Chép chỗ đứng lúc này của người đang chọn (không chọn ai thì cả đội), tua tới đội hình khác rồi dán vào; không có đội hình ở đó thì app tạo mới |
@@ -250,6 +256,7 @@ Khi đang gõ trong ô chữ hay ô số, phím tắt tạm nghỉ (trừ Ctrl S
 | Space | Phát / dừng |
 | ← → hoặc PageUp, PageDown | Đội hình trước, sau |
 | Home, End | Về đầu, về cuối bài |
+| Shift [ / Shift ] | Mốc đoạn nhạc trước, sau |
 | Esc hoặc F | Thoát trình chiếu |
 
 ## 6. Gỡ rối

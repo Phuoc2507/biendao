@@ -5,6 +5,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { type Vec2, nextFormation, segmentAt } from "../model";
 import { countAt } from "../timing";
+import { markAt } from "../marks";
 import { type UI, st, useProject, useUI } from "../store";
 import * as clock from "../clock";
 import { usePlaying, useSpeed, useTime } from "../clock";
@@ -49,6 +50,7 @@ function Overlay() {
   // chuyển đội hình: báo trước ghi chú của đội hình sắp tới
   const noteF = s.kind === "hold" || s.kind === "after" ? p.formations[s.k] : s.kind === "gap" ? p.formations[s.k + 1] : null;
   const note = noteF?.note;
+  const sec = markAt(p.marks, t);
   const until = nxt ? nxt.start - t : 0;
   const end = projectEnd(p);
   const { width: W, depth: D } = p.stage;
@@ -63,6 +65,7 @@ function Overlay() {
     <>
       {/* một cột: dài ngắn thế nào các dòng cũng tự xếp dưới nhau */}
       <div className="ov rh-head">
+        {sec && <div className="fsec">{sec.label}</div>}
         <div className="fname">{cur}</div>
         {nxt && s.kind !== "gap" && until < 30 && (
           <div className="fnext">Tiếp: {nxt.name} · {untilText(Math.max(0, until), p.bpm)}</div>

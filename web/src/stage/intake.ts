@@ -5,6 +5,7 @@ import {
   type Project, type VDancer, type SavedShape, type Vec2, type Formation, type StageSize,
   clampToStage, emptyProject, newDancer, wingSpot, withNotes, cleanPersonNote,
 } from "./model.ts";
+import { cleanMarks } from "./marks.ts";
 
 export const stripName = (name: string): string =>
   name.replace(/\.[^.]+$/, "").replace(/\.card$/i, "");
@@ -112,6 +113,9 @@ export function normalizeProject(raw: unknown): Project | null {
   const shapes = normalizeShapes(j.myShapes);
   if (shapes.length) out.myShapes = shapes;
   else delete out.myShapes;
+  const marks = cleanMarks(j.marks, out.musicDuration);
+  if (marks.length) out.marks = marks;
+  else delete out.marks;
   return out;
 }
 

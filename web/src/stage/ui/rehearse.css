@@ -80,6 +80,9 @@ select.btn.rh-me.on { border-color: #fff; color: #fff; }
   .present .rh-head { left: 16px; right: 16px; top: 14px; max-width: none; gap: 4px; align-items: stretch; }
   /* tên chừa chỗ cho số đếm to bên phải; dòng sau bắt đầu dưới số đếm */
   .present .fname { font-size: 24px; max-width: calc(100% - 134px); min-height: 56px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .present .fsec { font-size: 13px; max-width: calc(100% - 134px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* có dòng đoạn nhạc ở trên thì tên đội hình bớt cao, hai dòng vẫn ngang số đếm */
+  .present .fsec + .fname { min-height: 36px; }
   .present .bigcount { right: 16px; top: 12px; font-size: 56px; }
   .present .bigcount span { font-size: 20px; margin-left: 4px; }
   .present .fnext { font-size: 15px; }
@@ -95,6 +98,7 @@ select.btn.rh-me.on { border-color: #fff; color: #fff; }
   .present .rh-head { left: 16px; top: 10px; gap: 3px; }
   .present:has(.rh-mini) .rh-head { max-width: calc(100% - 290px); }
   .present .fname { font-size: 22px; }
+  .present .fsec { font-size: 12px; }
   .present .fnext { font-size: 14px; }
   .present .fnote { font-size: 13px; padding: 2px 8px; -webkit-line-clamp: 2; }
   .present .bigcount { right: 16px; top: 8px; font-size: 52px; }

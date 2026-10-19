@@ -434,3 +434,50 @@ export function energyChangeScore(x: Float32Array, sr: number, win = 2): (t: num
     return step + 0.5 * Math.min(3, jump);
   };
 }
+
+// ---------- gợi ý mốc đoạn nhạc ----------
+
+export interface MarkSuggestOpts {
+  duration: number;
+  bpm?: number | null;
+  downbeat?: number;
+  score: (t: number) => number; // điểm "nhạc đổi mạnh", ví dụ energyChangeScore
+  minGap?: number; // hai mốc gợi ý cách nhau ít nhất (s); mặc định 2 lượt 8 hoặc 8 s
+  max?: number; // tối đa bao nhiêu mốc; mặc định khoảng một mốc mỗi 20 s
+}
+
+/**
+ * Các thời điểm nhạc đổi mạnh để gợi ý mốc đoạn ("vào điệp khúc", "đoạn rap").
+ * Có BPM thì chỉ xét vạch lượt 8 (mốc rơi đúng phách 1), không thì xét mỗi 0,5 s.
+ * Bỏ lượt 8 đầu bài và nửa lượt cuối bài (không nhịp: 2 s đầu và cuối). Lấy dần chỗ điểm cao nhất, chỉ nhận chỗ
+ * nổi hẳn lên (trên trung bình 0,75 độ lệch chuẩn) và cách các mốc đã lấy ít nhất
+ * minGap. Nhạc đều đều (điểm gần như phẳng) thì không gợi ý gì. Trả giờ tăng dần.
+ */
+export function suggestMarkTimes(o: MarkSuggestOpts): number[] {
+  const duration = Number.isFinite(o.duration) ? Math.max(0, o.duration) : 0;
+  const g = timeGrid(duration, o.bpm, o.downbeat ?? 0);
+  const cand: number[] = [];
+  if (g.onBeat) {
+    for (const t of g.lines) if (t >= g.unit - 1e-6 && t <= duration - g.unit / 2) cand.push(t);
+  } else {
+    for (let j = 4; j * 0.5 <= duration - 2 + 1e-9; j++) cand.push(j * 0.5);
+  }
+  if (!cand.length) return [];
+  const sc = cand.map((t) => {
+    const v = o.score(t);
+    return Number.isFinite(v) ? v : 0;
+  });
+  const mean = sc.reduce((a, b) => a + b, 0) / sc.length;
+  const sd = Math.sqrt(sc.reduce((a, b) => a + (b - mean) ** 2, 0) / sc.length);
+  if (!(sd > 1e-6)) return [];
+  const thr = mean + 0.75 * sd;
+  const minGap = o.minGap ?? (g.onBeat ? 2 * g.unit : 8);
+  const max = Math.max(1, Math.round(o.max ?? Math.min(12, Math.round(duration / 20))));
+  const order = cand.map((_, i) => i).sort((a, b) => sc[b] - sc[a] || cand[a] - cand[b]);
+  const out: number[] = [];
+  for (const i of order) {
+    if (out.length >= max || sc[i] < thr) break;
+    if (out.every((t) => Math.abs(t - cand[i]) >= minGap - 1e-6)) out.push(cand[i]);
+  }
+  return out.sort((a, b) => a - b);
+}

@@ -61,6 +61,15 @@ export interface Project {
   formations: Formation[];
   /** "Hình của tôi": các hình tự lưu, đi theo tệp dự án. Không có thì coi như rỗng. */
   myShapes?: SavedShape[];
+  /** Mốc đoạn nhạc có tên ("Nhạc dạo", "Điệp khúc"...), xếp theo giờ. Không có thì coi như rỗng. */
+  marks?: SongMark[];
+}
+
+/** Một mốc đoạn nhạc: từ giây t trở đi là đoạn `label` cho tới mốc sau. */
+export interface SongMark {
+  id: string;
+  t: number;
+  label: string;
 }
 
 /** Một hình tự lưu: các điểm đã trừ tâm nhóm, không gắn với người nào. */
