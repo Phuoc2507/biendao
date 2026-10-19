@@ -26,6 +26,9 @@ import {
 import { claimTab, canAutosave, setBootProblem, otherTabsOpen, onTakeOver, subscribeGuard } from "./guard";
 import { planDance, energyChangeScore, suggestMarkTimes } from "./autoplan";
 import { addMark, markJump, markNear, mergeSuggested, moveMark, nextMarkLabel, removeMark, renameMark, withMarks } from "./marks";
+import {
+  PROP_PRESETS, addProp, fitPropsToStage, moveProp, propFromPreset, removeProp, renameProp, resizeProp, withProps,
+} from "./props";
 import { findIssues, isSoft } from "./checks";
 import { fixAll, reassignFix, staggerFix, widenFix } from "./fixes";
 import { errText } from "./storage";
@@ -681,6 +684,48 @@ export function suggestMarks() {
   st().notify(`Đã thêm ${r.added} mốc ở chỗ nhạc đổi: bấm đúp vào nhãn để đặt tên (Điệp khúc, Rap...)`, { undo: true });
 }
 
+// ---------- đạo cụ và mốc sàn ----------
+
+/** Thêm đạo cụ theo mẫu nhanh ở chỗ trống gần giữa sân. Trả id. */
+export function addPropPreset(key: string): string | null {
+  const pr = PROP_PRESETS.find((x) => x.key === key);
+  if (!pr) return null;
+  const id = uid("pr");
+  let name = "";
+  st().commit((q) => {
+    const o = propFromPreset(q.props, pr, id, q.stage);
+    name = pr.kind === "mark" ? `mốc sàn ${o.name}` : `"${o.name}"`;
+    return withProps(q, addProp(q.props, o, q.stage));
+  });
+  st().notify(`Đã thêm ${name}: kéo trên sơ đồ để đặt chỗ`, { undo: true });
+  return id;
+}
+
+/** Dời đạo cụ (kéo trên sơ đồ dùng st().live trong một cử chỉ). */
+export function movePropTo(id: string, x: number, z: number, live = false) {
+  const f = (q: Project) => withProps(q, moveProp(q.props, id, x, z, q.stage));
+  if (live) st().live(f);
+  else st().commit(f);
+}
+
+export function renamePropTo(id: string, name: string) {
+  const o = proj().props?.find((x) => x.id === id);
+  if (!o || o.name === name.trim() || !name.trim()) return;
+  st().commit((q) => withProps(q, renameProp(q.props, id, name)));
+}
+
+export function resizePropTo(id: string, ch: { w?: number; d?: number; rot?: number }) {
+  if (!proj().props?.some((x) => x.id === id)) return;
+  st().commit((q) => withProps(q, resizeProp(q.props, id, ch, q.stage)));
+}
+
+export function removePropById(id: string) {
+  const o = proj().props?.find((x) => x.id === id);
+  if (!o) return;
+  st().commit((q) => withProps(q, removeProp(q.props, id)));
+  st().notify(`Đã xoá ${o.kind === "mark" ? `mốc sàn ${o.name}` : `"${o.name}"`}`, { undo: true });
+}
+
 export function selectBlockAt(t: number) {
   const fs = proj().formations;
   const k = holdIndexAt(fs, t);
@@ -1210,7 +1255,8 @@ export function setStage(width: number, depth: number) {
   // thu nhỏ sân: kéo người đứng ngoài sân và cánh gà mới vào trong, khỏi mất khỏi sơ đồ
   st().commit((q) => {
     const stage = { width, depth };
-    return { ...q, stage, formations: fitFormationsToStage(q.formations, stage) };
+    const out = { ...q, stage, formations: fitFormationsToStage(q.formations, stage) };
+    return q.props ? { ...out, props: fitPropsToStage(q.props, stage) ?? q.props } : out;
   });
 }
 

@@ -8,6 +8,7 @@ import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { type VDancer, type Vec2, WING, poseAt, lineup, snapPos, clampToStage } from "../model";
 import { canonTime } from "../timing";
+import { propHeight } from "../props";
 import { st, useProject, useUI } from "../store";
 import * as clock from "../clock";
 import { getVideo, getDancerVideo, holdVideos } from "../media";
@@ -364,6 +365,52 @@ function StageSet({ bright = false }: { bright?: boolean }) {
   );
 }
 
+/** Đạo cụ đứng yên: hộp, trụ xám tối; mốc sàn là dấu cộng phẳng trên sàn. Không bắt sự kiện nên không chặn bấm thẻ. */
+function PropsSet({ bright = false }: { bright?: boolean }) {
+  const p = useProject();
+  const color = bright ? "#5a606b" : "#2a2e36";
+  return (
+    <group>
+      {(p.props ?? []).map((o) => {
+        if (o.kind === "mark")
+          return (
+            <group key={o.id} position={[o.x, 0.007, o.z]} rotation-x={-Math.PI / 2}>
+              <mesh>
+                <planeGeometry args={[0.32, 0.05]} />
+                <meshBasicMaterial color="#e8d27a" />
+              </mesh>
+              <mesh>
+                <planeGeometry args={[0.05, 0.32]} />
+                <meshBasicMaterial color="#e8d27a" />
+              </mesh>
+            </group>
+          );
+        const h = propHeight(o);
+        // micro đứng: thân mảnh trên đế tròn; món tròn lớn (cột) thì là trụ đặc
+        if (o.kind === "round" && o.w <= 0.6)
+          return (
+            <group key={o.id} position={[o.x, 0, o.z]}>
+              <mesh position={[0, 0.015, 0]} castShadow>
+                <cylinderGeometry args={[o.w / 2, o.w / 2, 0.03, 24]} />
+                <meshStandardMaterial color={color} roughness={0.6} />
+              </mesh>
+              <mesh position={[0, h / 2, 0]} castShadow>
+                <cylinderGeometry args={[0.015, 0.015, h, 8]} />
+                <meshStandardMaterial color={color} roughness={0.4} metalness={0.5} />
+              </mesh>
+            </group>
+          );
+        return (
+          <mesh key={o.id} position={[o.x, h / 2, o.z]} rotation-y={(-(o.rot ?? 0) * Math.PI) / 180} castShadow receiveShadow>
+            {o.kind === "round" ? <cylinderGeometry args={[o.w / 2, o.w / 2, h, 32]} /> : <boxGeometry args={[o.w, h, o.d]} />}
+            <meshStandardMaterial color={color} roughness={0.8} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
 export type Preset = "front" | "top" | "side" | "back";
 /** Lề an toàn (px) cho chữ và nút phủ lên khung. */
 export interface SafePx { top: number; bottom: number; side: number }
@@ -468,6 +515,7 @@ export function AudienceView({
         <spotLight position={[0, 8, D / 2 + 4]} angle={0.6} penumbra={0.6} intensity={bright ? 120 : 60} decay={1.6} color="#ffe2c4" />
         <spotLight position={[-W / 2, 6, D / 2]} angle={0.5} penumbra={0.8} intensity={bright ? 45 : 25} decay={1.6} color="#ffb0c0" />
         <StageSet bright={bright} />
+        <PropsSet bright={bright} />
         {p.dancers.filter((d) => !d.hidden).map((d) => (
           <Card key={d.id} d={d} interactive={interactive} />
         ))}

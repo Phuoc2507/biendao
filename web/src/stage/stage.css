@@ -286,6 +286,8 @@ kbd {
 .warn-item .ic.fast { background: rgba(255,204,77,.15); color: var(--yellow); }
 /* bị che: cảnh báo nhẹ, màu dịu hơn va chạm */
 .warn-item .ic.blocked { background: var(--panel2); color: var(--muted); }
+/* đi xuyên đạo cụ: cũng nhẹ, màu cam đất */
+.warn-item .ic.prop { background: rgba(232,163,58,.15); color: #e8a33a; }
 .ok-box { margin: 16px 12px; padding: 14px; border-radius: var(--radius); background: rgba(58,208,122,.08); color: var(--green); text-align: center; font-size: 12px; }
 
 /* ---------- vùng chính ---------- */
@@ -309,8 +311,8 @@ kbd {
 }
 .pane-tools { position: absolute; top: 6px; right: 8px; z-index: 3; display: flex; gap: 4px; }
 .plan-svg { width: 100%; height: 100%; display: block; touch-action: none; }
-.plan-svg .dancer { cursor: grab; }
-.plan-svg.dragging, .plan-svg.dragging .dancer { cursor: grabbing; }
+.plan-svg .dancer, .plan-svg .prop { cursor: grab; }
+.plan-svg.dragging, .plan-svg.dragging .dancer, .plan-svg.dragging .prop { cursor: grabbing; }
 .hud {
   position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 4;
   display: flex; align-items: center; gap: 6px; padding: 5px; border-radius: 10px;
@@ -319,6 +321,13 @@ kbd {
 }
 .hud .lbl { color: var(--muted); font-size: 12px; padding: 0 6px; }
 .hud .sep { width: 1px; height: 20px; background: var(--line2); }
+/* thanh đạo cụ đang chọn: ô tên, ô số kích thước */
+.prop-hud input[type="text"] {
+  height: 28px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line2); background: var(--panel2); color: inherit; font: inherit; font-size: 13px;
+}
+.prop-hud .prop-name { width: 120px; }
+.prop-hud .lbl { display: inline-flex; align-items: center; gap: 4px; }
+.prop-hud input[type="text"]:focus { outline: none; border-color: var(--accent); }
 .state-chip {
   position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 3;
   padding: 4px 12px; border-radius: 14px; font-size: 12px; background: rgba(22,26,33,.9); border: 1px solid var(--line2);

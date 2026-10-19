@@ -6,6 +6,7 @@ import {
   clampToStage, emptyProject, newDancer, wingSpot, withNotes, cleanPersonNote,
 } from "./model.ts";
 import { cleanMarks } from "./marks.ts";
+import { cleanProps } from "./props.ts";
 
 export const stripName = (name: string): string =>
   name.replace(/\.[^.]+$/, "").replace(/\.card$/i, "");
@@ -116,6 +117,9 @@ export function normalizeProject(raw: unknown): Project | null {
   const marks = cleanMarks(j.marks, out.musicDuration);
   if (marks.length) out.marks = marks;
   else delete out.marks;
+  const props = cleanProps(j.props, stage);
+  if (props.length) out.props = props;
+  else delete out.props;
   return out;
 }
 

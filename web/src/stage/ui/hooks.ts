@@ -10,7 +10,7 @@ import { targetKind } from "./keys";
 
 export function useWarnings() {
   const p = useProject();
-  return useMemo(() => findIssues(p.formations, p.dancers, p.stage, p.bpm), [p.formations, p.dancers, p.stage, p.bpm]);
+  return useMemo(() => findIssues(p.formations, p.dancers, p.stage, p.bpm, p.props), [p.formations, p.dancers, p.stage, p.bpm, p.props]);
 }
 
 export const useMediaVersion = () => useSyncExternalStore(subscribeMedia, mediaVersion);
