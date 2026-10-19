@@ -125,8 +125,8 @@ export function popupOpen(root: { querySelector(s: string): unknown } | null | u
 }
 
 /** Có hộp thoại che bài đang mở không. Hướng dẫn và Học động tác có xử lý phím riêng nên không tính ở đây. */
-export function modalOpen(ui: { exportOpen: boolean; busy: unknown }): boolean {
-  return ui.exportOpen || !!ui.busy;
+export function modalOpen(ui: { exportOpen: boolean; variantsOpen?: boolean; busy: unknown }): boolean {
+  return ui.exportOpen || !!ui.variantsOpen || !!ui.busy;
 }
 
 // giữ phím thì chỉ lặp các phím di chuyển; còn lại một lần bấm một lần chạy

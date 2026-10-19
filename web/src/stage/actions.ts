@@ -38,6 +38,7 @@ import { fixAll, reassignFix, staggerFix, widenFix } from "./fixes";
 import { errText } from "./storage";
 import { quickSave, openProjectJson, openBundleFile } from "./export/save";
 import type { LibShape } from "./library";
+import { variants } from "./variantsDb";
 
 export const proj = () => st().project;
 const ids = (p: Project = proj()) => p.dancers.map((d) => d.id);
@@ -1374,6 +1375,8 @@ export async function boot() {
     try {
       const backup = await loadKey("current-backup").catch(() => null);
       const used = new Set<string | null>([...mediaIdsOf(proj()), ...mediaIdsOf(normalizeProject(backup))]);
+      // phương án song song dùng chung media: video chỉ còn trong phương án cũng giữ
+      for (const id of await variants.mediaIds()) used.add(id);
       for (const k of await allMediaIds()) if (!used.has(String(k))) deleteMedia(String(k)).catch(() => {});
     } catch { /* bỏ qua, lần sau dọn */ }
   }

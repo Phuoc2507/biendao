@@ -32,6 +32,7 @@ export interface UI {
   saveError: string | null; // lời báo khi không lưu được
   help: boolean;
   exportOpen: boolean; // hộp Xuất video đang mở
+  variantsOpen: boolean; // hộp Phương án đang mở
   busy: { msg: string; progress: number; cancel?: boolean } | null; // cancel: hiện nút Dừng
   camReset: number; // tăng để đưa camera khán giả về chỗ cũ
   loaded: boolean;
@@ -88,6 +89,7 @@ export const useStore = create<State>((set, get) => ({
     saveError: null,
     help: false,
     exportOpen: false,
+    variantsOpen: false,
     busy: null,
     camReset: 0,
     loaded: false,

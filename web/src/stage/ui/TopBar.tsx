@@ -13,6 +13,7 @@ import {
   exportPersonImages, exportPersonImage, selectedPerson,
 } from "../export/image";
 import { ExportDialog } from "./ExportDialog";
+import { VariantsDialog } from "./VariantsDialog";
 import { exportProject, newProject, openProjectFile, setTitle, stepBeat, projectEnd } from "../actions";
 import { saveProject } from "../db";
 import { errText, storageInfo } from "../storage";
@@ -52,6 +53,8 @@ function FileMenu() {
   // trong store để phím tắt chung biết đang có hộp thoại (keys.ts modalOpen)
   const exporting = useStore((s) => s.ui.exportOpen);
   const setExporting = (on: boolean) => st().setUI({ exportOpen: on });
+  const variantsOpen = useStore((s) => s.ui.variantsOpen);
+  const setVariants = (on: boolean) => st().setUI({ variantsOpen: on });
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -115,6 +118,9 @@ function FileMenu() {
           <button onClick={run(saveBundle)} title="Một tệp có dự án, nhạc và mọi video, để chép sang máy khác">
             <Icon name="folder" size={16} /> Đóng gói cả video (.zip)…
           </button>
+          <button onClick={run(() => setVariants(true))} title="Lưu nhiều phương án có tên của bài, mở qua lại và so sánh">
+            <Icon name="bookmark" size={16} /> Phương án…
+          </button>
           <hr />
           <button onClick={run(printFormations)}><Icon name="print" size={16} /> In tờ đội hình…</button>
           <button onClick={run(exportCurrentImage)} title="Ảnh PNG dọc của đội hình tại vạch phát, để gửi Zalo, Messenger">
@@ -162,6 +168,7 @@ function FileMenu() {
         </div>
       )}
       {exporting && createPortal(<ExportDialog onClose={() => setExporting(false)} />, document.body)}
+      {variantsOpen && createPortal(<VariantsDialog onClose={() => setVariants(false)} />, document.body)}
     </div>
   );
 }
