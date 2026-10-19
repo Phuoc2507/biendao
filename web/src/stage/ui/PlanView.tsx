@@ -7,6 +7,7 @@ import {
   type Vec2, type Formation, WING, initials, posesAt, prevFormation, nextFormation, segmentAt, snapPos,
   clampToStage, NEAR_M, dist, lerp2, pathLength, pathMid, smoothstep, subPath, viaOf, viaThrough,
 } from "../model";
+import { faceTri, facingAt } from "../facing";
 import { st, useProject, useUI } from "../store";
 import { groupRingColors } from "../groups";
 import { useTime } from "../clock";
@@ -561,6 +562,17 @@ export function PlanView({
               {rings[d.id] && <circle r={R + 0.03} fill="none" stroke={rings[d.id]} strokeWidth={3} vectorEffect="non-scaling-stroke" />}
               {s && <circle r={R + 0.08} fill="none" stroke="#fff" strokeWidth={2} vectorEffect="non-scaling-stroke" />}
               <circle r={R} fill={d.color} stroke="#0008" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+              {(() => {
+                // hướng mặt: tam giác ở mép chấm (nhìn khán giả thì chỉ hiện mờ cho người đang chọn)
+                const a = facingAt(p.formations, d.id, t);
+                if (Math.abs(a) < 0.5 && !s) return null;
+                const pts = faceTri(a, R).map(([x, z]) => `${X(x)},${Z(z)}`).join(" ");
+                return (
+                  <polygon points={pts} fill="#fff" stroke="#0b0d10" strokeWidth={1} vectorEffect="non-scaling-stroke"
+                    opacity={Math.abs(a) < 0.5 ? 0.45 : 1} pointerEvents="none" />
+                );
+              })()}
+
               {!d.mediaId && <circle r={R - 0.07} fill="none" stroke="#0006" strokeWidth={1} vectorEffect="non-scaling-stroke" strokeDasharray="2 2" />}
               <text y={0.09} fontSize={0.24} textAnchor="middle" fill="#111" fontWeight={800} pointerEvents="none">
                 {initials(d.name)}

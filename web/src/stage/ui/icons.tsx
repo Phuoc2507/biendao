@@ -28,6 +28,8 @@ const P: Record<string, string> = {
   wingL: "M3 4h5v16H3zM20 12h-9M14 8l-4 4 4 4",
   swap: "M4 8h14M14 4l4 4-4 4M20 16H6M10 12l-4 4 4 4",
   rotate: "M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5",
+  face: "M12 21a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM8.5 6.5L12 2l3.5 4.5z",
+
   grow: "M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5",
   shrink: "M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5",
   wingR: "M16 4h5v16h-5zM4 12h9M10 8l4 4-4 4",

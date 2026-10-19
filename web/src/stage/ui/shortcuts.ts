@@ -5,8 +5,8 @@ import { st, type View } from "../store";
 import * as clock from "../clock";
 import {
   addFormation, removeFormation, jumpFormation, mirrorSelected, nudgeSelected,
-  stepBeat, exportProject, projectEnd, copyPositions, pastePositions, swapSelected, rotateSelected,
-  addMarkNow, jumpMark, selectGroupAt,
+  stepBeat, exportProject, projectEnd, swapSelected, rotateSelected,
+  addMarkNow, jumpMark, selectGroupAt, turnSelected, copyWithFacing, pasteWithFacing,
 } from "../actions";
 import { focusByPointer } from "./hooks";
 import { type Action, modalOpen, popupOpen, resolveShortcut, routeKey, targetKind } from "./keys";
@@ -25,8 +25,8 @@ function run(a: Action, focusedFormation: string | null) {
     case "undo": s.undo(); break;
     case "redo": s.redo(); break;
     case "selectAll": s.setUI({ selected: s.project.dancers.map((d) => d.id) }); break;
-    case "copy": copyPositions(); break;
-    case "paste": pastePositions(); break;
+    case "copy": copyWithFacing(); break;
+    case "paste": pasteWithFacing(); break;
     case "toggle": clock.toggle(); break;
     case "seek": clock.seek(a.to === "start" ? 0 : projectEnd()); break;
     case "jump": jumpFormation(a.dir); break;
@@ -54,6 +54,8 @@ function run(a: Action, focusedFormation: string | null) {
     case "mirror": mirrorSelected(); break;
     case "swap": swapSelected(); break;
     case "rotate": rotateSelected(a.dir); break;
+    case "turn": turnSelected(a.dir); break;
+
     case "loop": toggleLoop(); break;
     case "fit": window.dispatchEvent(new CustomEvent("stage:fit")); break;
     case "group": selectGroupAt(a.n - 1); break;

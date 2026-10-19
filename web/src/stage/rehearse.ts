@@ -3,6 +3,7 @@
 
 import { type Formation, type Vec2, clipChars, dist, personNote, segmentAt } from "./model.ts";
 import { beatLen, fmtCounts } from "./timing.ts";
+import { facingLabel, facingOf } from "./facing.ts";
 
 export const COUNT_IN = ["5", "6", "7", "8"];
 
@@ -79,11 +80,13 @@ export function dancerLegs(fs: Formation[], id: string): { k: number; a: Vec2; b
 /** Dòng nhắc trình chiếu dài vừa phải: ghi chú riêng dài hơn thì cắt (theo ký tự thật). */
 export const CUE_NOTE_MAX = 80;
 
-/** " · ✎ cầm quạt đỏ" nếu người id có ghi chú riêng ở đội hình f, không thì "". */
+/** " · quay lưng · ✎ cầm quạt đỏ": hướng mặt (khác nhìn khán giả) rồi ghi chú riêng của người id ở đội hình f. */
 const noteTail = (f: Formation, id: string) => {
+  const face = facingLabel(facingOf(f, id));
   const n = personNote(f, id);
-  return n ? ` · ✎ ${clipChars(n, CUE_NOTE_MAX)}` : "";
+  return (face ? ` · ${face}` : "") + (n ? ` · ✎ ${clipChars(n, CUE_NOTE_MAX)}` : "");
 };
+
 
 /** Dòng nhắc riêng cho một người tại t, ví dụ
  *  "Đội hình 3 · bạn đứng: phải 1,5 m · cách mép 2 m · còn 1×8 thì đi tới …".

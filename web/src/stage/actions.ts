@@ -38,6 +38,8 @@ import { fixAll, reassignFix, staggerFix, widenFix } from "./fixes";
 import { errText } from "./storage";
 import { quickSave, openProjectJson, openBundleFile } from "./export/save";
 import type { LibShape } from "./library";
+import { type Formation, noteIndexAt } from "./model";
+import { facingAt, facingName, mirrorFacing, normFacing, setFacing, turnFacing } from "./facing";
 
 export const proj = () => st().project;
 const ids = (p: Project = proj()) => p.dancers.map((d) => d.id);
@@ -388,7 +390,11 @@ export function mirrorSelected() {
   let sel = st().ui.selected.filter((id) => id in cur);
   if (!sel.length) sel = ids(p);
   const w = warnCount(p);
-  setPositionsNow(mirrorPositions(cur, sel), false, true);
+  // lật gương: hướng mặt cũng đổi trái phải; chỗ đứng và hướng mặt là một bước hoàn tác
+  batch(() => {
+    setPositionsNow(mirrorPositions(cur, sel), false, true);
+    faceIn(st().ui.selectedBlock, (fs, fid) => mirrorFacing(fs, fid, sel));
+  });
   hintWarn(w, "Đã lật trái phải");
 }
 
@@ -438,8 +444,55 @@ export function rotateSelected(dir: 1 | -1) {
     return;
   }
   const w = warnCount(p);
-  setPositionsNow(rotateGroup(cur, g, dir, p.stage), false);
+  // cả nhóm xoay một phần tư vòng thì ai cũng quay mặt theo 90 độ
+  batch(() => {
+    setPositionsNow(rotateGroup(cur, g, dir, p.stage), false);
+    faceIn(st().ui.selectedBlock, (fs, fid) => turnFacing(fs, fid, g, 90 * dir));
+  });
   hintWarn(w, `Đã xoay ${dir === 1 ? "theo" : "ngược"} chiều kim đồng hồ`);
+}
+
+// ---------- hướng mặt ----------
+
+/** Đổi hướng mặt ở đội hình fid; không đổi gì thì không ghi bước hoàn tác. Trả có đổi không. */
+function faceIn(fid: string | null | undefined, fn: (fs: Formation[], fid: string) => Formation[]): boolean {
+  if (!fid) return false;
+  const fs = proj().formations;
+  if (fn(fs, fid) === fs) return false;
+  st().commit((q) => ({ ...q, formations: fn(q.formations, fid) }));
+  return true;
+}
+
+/** Đội hình nhận hướng mặt lúc này: đang chuyển thì đội hình sắp tới (như ghi chú riêng), chưa có thì tạo. */
+function faceTarget(): string {
+  const fs = proj().formations;
+  const k = noteIndexAt(fs, clock.now());
+  return k < 0 ? ensureHoldNow() : fs[k].id;
+}
+
+/** Phím Q: người đang chọn quay mặt 45 độ sang phải của họ (dir = −1: sang trái). */
+export function turnSelected(dir: 1 | -1) {
+  const p = proj();
+  const sel = st().ui.selected.filter((id) => p.dancers.some((d) => d.id === id));
+  if (!sel.length) {
+    st().notify("Bấm chọn người trên sơ đồ trước rồi mới quay mặt (Q, ngược lại Shift Q)");
+    return;
+  }
+  let fid = "";
+  batch(() => {
+    fid = faceTarget();
+    faceIn(fid, (fs, id) => turnFacing(fs, id, sel, 45 * dir));
+  });
+  const f = proj().formations.find((x) => x.id === fid);
+  if (!f) return;
+  const nm = (id: string) => p.dancers.find((d) => d.id === id)!.name;
+  const a = normFacing(f.facing?.[sel[0]] ?? 0);
+  st().notify(sel.length === 1 ? `${nm(sel[0])}: ${facingName(a)} (${f.name})` : `Đã quay mặt ${sel.length} người (${f.name})`, { undo: true });
+}
+
+/** Đặt hẳn hướng mặt deg cho người id ở đội hình fid (khung chi tiết vũ công). */
+export function setFacingNow(fid: string, id: string, deg: number) {
+  faceIn(fid, (fs, f) => setFacing(fs, f, [id], deg));
 }
 
 /** Giãn (grow) hay thu nhóm quanh tâm nhóm, mỗi lần 15%. */
@@ -479,6 +532,32 @@ export function sendToWings(side: -1 | 1) {
 }
 
 // ---------- chép / dán chỗ đứng ----------
+
+// Hướng mặt đi kèm bản chép (giữ riêng, không đụng thân chép dán bên dưới).
+let copiedFacing: { ref: unknown; facing: Record<string, number> } | null = null;
+
+/** Ctrl C kèm hướng mặt lúc này của những người được chép. */
+export function copyWithFacing() {
+  copyPositions();
+  if (!copied) return;
+  const fs = proj().formations, t = clock.now();
+  const facing: Record<string, number> = {};
+  for (const id of Object.keys(copied.poses)) facing[id] = normFacing(facingAt(fs, id, t));
+  copiedFacing = { ref: copied, facing };
+}
+
+/** Ctrl V kèm hướng mặt: dán được chỗ đứng thì đặt luôn hướng mặt, chung một bước hoàn tác. */
+export function pasteWithFacing() {
+  const before = proj();
+  batch(() => {
+    pastePositions();
+    if (proj() === before || !copiedFacing || copiedFacing.ref !== copied) return;
+    const face = copiedFacing.facing;
+    const who = st().ui.selected.filter((id) => id in face);
+    faceIn(st().ui.selectedBlock, (fs, fid) => who.reduce((acc, id) => setFacing(acc, fid, [id], face[id]), fs));
+  });
+}
+
 
 let copied: { poses: Record<string, Vec2>; notes: Record<string, string>; from: string } | null = null;
 

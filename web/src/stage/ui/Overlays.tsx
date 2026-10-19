@@ -160,6 +160,8 @@ const KEYS: [string, [string, string][]][] = [
     ["Lật trái phải", "M"],
     ["Hai người đang chọn đổi chỗ", "X"],
     ["Xoay nhóm một phần tư vòng (ngược chiều: Shift R)", "R"],
+    ["Quay mặt người đang chọn 45 độ sang phải của họ (sang trái: Shift Q)", "Q"],
+
     ["Kéo không bám lưới", "giữ Alt"],
   ]],
   ["Đội hình", [

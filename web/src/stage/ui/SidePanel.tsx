@@ -24,6 +24,8 @@ import { LibrarySection } from "./LibrarySection";
 import { NumField } from "./NumField";
 import { commaDec, fmtNum, fmtSigned } from "./num";
 import { Icon } from "./icons";
+import { FACINGS, faceVec, facingName, facingOf } from "../facing";
+import { setFacingNow } from "../actions";
 
 const patchDancer = (id: string, patch: Partial<VDancer>) => (q: Project): Project => ({
   ...q,
@@ -237,6 +239,46 @@ function PersonNoteField({ d }: { d: VDancer }) {
   );
 }
 
+// mũi tên theo hướng trên màn hình (cột, hàng lệch khỏi ô giữa)
+const FACE_ARROW: Record<string, string> = {
+  "-1,-1": "↖", "0,-1": "↑", "1,-1": "↗", "-1,0": "←", "1,0": "→", "-1,1": "↙", "0,1": "↓", "1,1": "↘",
+};
+
+/** Tám nút hướng mặt của một người ở đội hình tại vạch phát (đang chuyển: đội hình sắp tới). */
+function FacingPicker({ d }: { d: VDancer }) {
+  const p = useProject();
+  const ui = useUI();
+  const k = useNoteIndex(p.formations);
+  const f = k >= 0 ? p.formations[k] : null;
+  if (!f || !(d.id in f.pos)) return null;
+  const cur = facingOf(f, d.id);
+  // mũi tên chỉ đúng chiều như trên sơ đồ: xem từ sân khấu thì lật cả hai trục
+  const s = ui.planFromStage ? -1 : 1;
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div className="dim">Hướng mặt ở {f.name}: {facingName(cur)} (Q quay 45 độ)</div>
+      <div role="radiogroup" aria-label={`Hướng mặt của ${d.name} ở ${f.name}`}
+        style={{ display: "grid", gridTemplateColumns: "repeat(3, 30px)", gridTemplateRows: "repeat(3, 30px)", gap: 2, marginTop: 2 }}>
+        {FACINGS.map((a) => {
+          const [vx, vz] = faceVec(a);
+          const dc = Math.round(vx) * s + 0, dr = Math.round(vz) * s + 0;
+          const on = a === cur;
+          return (
+            <button key={a} type="button" role="radio" aria-checked={on} className={`btn sm${on ? " on" : ""}`}
+              style={{ gridColumn: dc + 2, gridRow: dr + 2, padding: 0, width: 30, height: 30, justifyContent: "center" }}
+              title={facingName(a)} aria-label={facingName(a)} onClick={() => setFacingNow(f.id, d.id, a)}>
+              {FACE_ARROW[`${dc},${dr}`]}
+            </button>
+          );
+        })}
+        <span className="dim" aria-hidden="true" style={{ gridColumn: 2, gridRow: 2, textAlign: "center", lineHeight: "30px", fontSize: 11 }}>
+          {d.name.slice(0, 3)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function DancerInspector({ d }: { d: VDancer }) {
   const [copies, setCopies] = useState(2);
   const drag = useRef(false);
@@ -346,8 +388,10 @@ function DancerInspector({ d }: { d: VDancer }) {
           />
         ))}
       </div>
+      <FacingPicker d={d} />
       <PersonNoteField d={d} />
     </div>
+
   );
 }
 

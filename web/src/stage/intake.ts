@@ -5,6 +5,7 @@ import {
   type Project, type VDancer, type SavedShape, type Vec2, type Formation, type StageSize,
   clampToStage, emptyProject, newDancer, wingSpot, withNotes, withVia, cleanPersonNote,
 } from "./model.ts";
+import { cleanFacing, withFacing } from "./facing.ts";
 import { cleanMarks } from "./marks.ts";
 import { cleanGroups } from "./groups.ts";
 import { cleanProps } from "./props.ts";
@@ -146,6 +147,8 @@ function cleanStage(raw: unknown, def: StageSize): StageSize {
  */
 function cleanFormations(raw: unknown, ids: string[], stage: StageSize): Formation[] {
   if (!Array.isArray(raw)) return [];
+  const idSet = new Set(ids);
+
   const seen = new Set<string>();
   const out: Formation[] = [];
   raw.forEach((r0, k) => {
@@ -169,7 +172,8 @@ function cleanFormations(raw: unknown, ids: string[], stage: StageSize): Formati
     }
     for (const id of ids) if (!pos[id]) pos[id] = wingSpot(Object.values(pos), stage);
     const f = cleanNote({ ...r, id: r.id, name: typeof r.name === "string" ? r.name : `Đội hình ${k + 1}`, start: s, end: e, pos } as Formation);
-    out.push(withVia(withNotes(f, cleanNotes(r.notes, ids)), cleanVia(r.via, ids, stage)));
+    // hướng mặt: bỏ id lạ, NaN, chữ; làm tròn về bội 45, bỏ người nhìn khán giả
+    out.push(withFacing(withVia(withNotes(f, cleanNotes(r.notes, ids)), cleanVia(r.via, ids, stage)), cleanFacing(r.facing, idSet)));
   });
   out.sort((a, b) => a.start - b.start);
   // đội hình đầu không có khoảng chuyển vào nên không có đường cong

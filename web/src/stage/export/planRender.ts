@@ -5,6 +5,7 @@ import { type Project, type StageSize, WING, posesAt, segmentAt, initials } from
 import { countAt, fmtTime } from "../timing.ts";
 import { groupRingColors } from "../groups.ts";
 import { propCorners } from "../props.ts";
+import { faceTri, facingAt } from "../facing.ts";
 
 export interface PlanGeom {
   w: number;
@@ -43,6 +44,8 @@ export interface FrameDot {
   highlight: boolean;
   /** Màu viền theo nhóm (bật Viền theo nhóm và người này có nhóm). */
   ring?: string;
+  /** Hướng mặt (độ, 0 nhìn khán giả); chỉ có khi khác 0. */
+  face?: number;
 }
 
 export interface PlanFrame {
@@ -142,9 +145,11 @@ export function planFrame(p: Project, t: number, g: PlanGeom, o: { highlightId?:
   const dots = ds.map((d) => {
     const [x, y] = toPx(g, poses[d.id][0], poses[d.id][1]);
     const me = !!hi && d.id === hi.id;
+    const face = facingAt(fs, d.id, t);
     return {
       id: d.id, x, y, r: 0.3 * g.s * (me ? 1.25 : 1), color: d.color, label: initials(d.name), name: d.name,
       alpha: hi && !me ? 0.35 : 1, highlight: me, ...(d.id in rings ? { ring: rings[d.id] } : {}),
+      ...(Math.abs(face) > 0.5 ? { face } : {}),
     };
   });
   // người được tô vẽ sau cùng để nằm trên
@@ -187,7 +192,30 @@ export interface Ctx2D {
 
 const FONT = '"Segoe UI", system-ui, Arial, sans-serif';
 
+/** Tam giác hướng mặt ở mép chấm; quay lưng hẳn thì thêm chữ "lưng" cạnh chấm cho dễ đọc khi in. */
+function drawFace(ctx: Ctx2D, d: FrameDot, u: number) {
+  const a = d.face ?? 0;
+  const [tip, l, r] = faceTri(a, d.r);
+  ctx.fillStyle = "#ffffff";
+  ctx.strokeStyle = "#0f1115";
+  ctx.lineWidth = 1.5 * u;
+  ctx.beginPath();
+  ctx.moveTo(d.x + tip[0], d.y + tip[1]);
+  ctx.lineTo(d.x + l[0], d.y + l[1]);
+  ctx.lineTo(d.x + r[0], d.y + r[1]);
+  ctx.lineTo(d.x + tip[0], d.y + tip[1]);
+  ctx.fill();
+  ctx.stroke();
+  if (Math.abs(Math.abs(a) - 180) < 23) {
+    ctx.fillStyle = "#ffb86b";
+    ctx.font = `700 ${Math.round(Math.max(9, 10 * u))}px ${FONT}`;
+    ctx.textAlign = "left";
+    ctx.fillText("lưng", d.x + d.r + 3 * u, d.y);
+  }
+}
+
 /** Mũi tên theo đường cong: rút hai đầu khỏi chấm, đầu mũi tên theo hướng tiếp tuyến cuối. */
+
 function drawCurvedArrow(ctx: Ctx2D, t: FrameTrail, u: number) {
   const all = trailPoints(t);
   const L = polyLen(all);
@@ -396,6 +424,7 @@ export function drawPlanFrame(ctx: Ctx2D, g: PlanGeom, f: PlanFrame) {
     ctx.strokeStyle = "#0f1115";
     ctx.lineWidth = 2 * u;
     ctx.stroke();
+    if (d.face !== undefined) drawFace(ctx, d, u);
     ctx.fillStyle = "#ffffff";
     ctx.font = `700 ${Math.round(Math.max(9, d.r * 0.75))}px ${FONT}`;
     ctx.textAlign = "center";
