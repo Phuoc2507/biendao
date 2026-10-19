@@ -11,6 +11,7 @@ import * as clock from "../clock";
 import { usePlaying, useSpeed, useTime } from "../clock";
 import { jumpFormation, projectEnd } from "../actions";
 import { meCue, untilText } from "../rehearse";
+import { showCastNote, standInText } from "../cast";
 import { cancelCountIn, isCounting, playWithCountIn, useCountIn, useCounting } from "../countin";
 import { AudienceView } from "./AudienceView";
 import { PlanView } from "./PlanView";
@@ -60,6 +61,8 @@ function Overlay() {
   const cue = me
     ? meCue(p.formations, me, t, p.bpm, (q: Vec2) => describePos(flipX ? -q[0] : q[0], q[1], W, D))
     : null;
+  const meD = me ? p.dancers.find((d) => d.id === me) : undefined;
+  const meWho = meD && showCastNote(p) ? standInText(meD) : null;
   const label = useCountIn();
   return (
     <>
@@ -73,6 +76,7 @@ function Overlay() {
         {note && <div className="fnote">{note}</div>}
         {cue && (
           <div className="rh-cue">
+            {meWho && <small className="rh-cast">{meWho}</small>}
             {cue}
             <small>trái phải {flipX ? "theo hướng người múa" : "theo hướng khán giả nhìn"}</small>
           </div>

@@ -14,7 +14,9 @@ import {
   addFormation, removeFormation, renameBlock, setNote, setPersonNote, setStage, setBpm, saveMyShape, applyMyShape, removeMyShape,
   canonSection, clearCanonSection, mirrorGroup, setFlip, fixReassign, fixWiden, fixStagger, fixAllWarnings,
   saveGroup, selectGroup, renameGroupTo, recolorGroupTo, updateGroupFromSelection, addSelectedToGroup, removeGroup, setGroupRings,
+  swapRolesSelected, addUnderstudy, removeUnderstudy, recolorUnderstudy, castRole, castBackAll, setCastNote, renameDancer,
 } from "../actions";
+import { activeSub, mainName, SUB_MAX, SUB_NAME_MAX } from "../cast";
 import { groupPick, isGroupPicked } from "../groups";
 import { rowKeys, useHoldIndex, useNoteIndex, useWarnings } from "./hooks";
 import { reassignFix, staggerFix, widenFix } from "../fixes";
@@ -164,7 +166,7 @@ function DancerRow({ d, sel }: { d: VDancer; sel: boolean }) {
             onClick={(e) => e.stopPropagation()}
             onBlur={(e) => {
               const v = e.currentTarget.value.trim();
-              if (v && v !== d.name) updateDancer(d.id, { name: v });
+              if (v && v !== d.name) renameDancer(d.id, v);
               setEditing(false);
             }}
             onKeyDown={(e) => {
@@ -175,6 +177,7 @@ function DancerRow({ d, sel }: { d: VDancer; sel: boolean }) {
         ) : (
           <div>{d.name}</div>
         )}
+        {d.lead && <small className="cast-on" title={`${d.name} đang đóng thay ${d.lead.name}`}>thay {d.lead.name}</small>}
         <small className={status.cls}>{status.txt}</small>
       </div>
       <div className="acts" onClick={(e) => e.stopPropagation()}>
@@ -236,6 +239,85 @@ function PersonNoteField({ d }: { d: VDancer }) {
         />
       </label>
     </div>
+  );
+}
+
+/**
+ * Người dự bị của vai d và nút Thay vai: bấm tên ai thì người đó đóng vai này
+ * cả bài (chỗ đứng, đường cong, hướng mặt, ghi chú giữ nguyên vì gắn với vai).
+ */
+function CastSection({ d }: { d: VDancer }) {
+  const p = useProject();
+  const [draft, setDraft] = useState("");
+  const subs = d.subs ?? [];
+  const on = activeSub(d);
+  const lead = mainName(d);
+  const nOn = p.dancers.filter((x) => x.lead).length;
+  const add = () => {
+    if (addUnderstudy(d.id, draft)) setDraft("");
+  };
+  return (
+    <details className="cast" style={{ marginTop: 8 }} open={subs.length > 0 || undefined}>
+      <summary className="dim">
+        Người dự bị, thay vai{subs.length ? ` (${subs.length})` : ""}
+        {d.lead && <b className="cast-on"> · {d.name} đang thay {d.lead.name}</b>}
+      </summary>
+      <div className="row" role="radiogroup" aria-label={`Ai đóng vai của ${lead}`} style={{ flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+        <button type="button" role="radio" aria-checked={!d.lead} className={`btn sm${!d.lead ? " on" : ""}`}
+          title={`${lead} (người chính) đóng vai này`} onClick={() => castRole(d.id, -1)}>
+          {lead} <small className="dim">chính</small>
+        </button>
+        {subs.map((s, i) => (
+          <span key={s.name} className="cast-sub">
+            <button type="button" role="radio" aria-checked={on === i} className={`btn sm${on === i ? " on" : ""}`}
+              title={`${s.name} đóng thay ${lead} cả bài (giữ nguyên chỗ đứng, đường đi, hướng mặt, ghi chú)`}
+              onClick={() => castRole(d.id, i)}>
+              <span className="dot" aria-hidden="true"
+                style={{ width: 8, height: 8, borderRadius: 4, display: "inline-block", background: s.color ?? d.lead?.color ?? d.color }} />
+              {s.name}
+            </button>
+            <select
+              className="cast-color" value={s.color ?? ""} aria-label={`Màu khi ${s.name} đóng`}
+              title="Màu chấm khi người này đóng (mặc định giữ màu của vai)"
+              onChange={(e) => recolorUnderstudy(d.id, i, e.target.value || undefined)}
+            >
+              <option value="">màu vai</option>
+              {PALETTE.map((c) => <option key={c} value={c}>{COLOR_NAME[c] ?? c}</option>)}
+            </select>
+            <button type="button" className="btn sm icon ghost danger" title={`Bỏ người dự bị ${s.name}`}
+              aria-label={`Bỏ người dự bị ${s.name}`} onClick={() => removeUnderstudy(d.id, i)}>
+              <Icon name="close" />
+            </button>
+          </span>
+        ))}
+      </div>
+      {subs.length < SUB_MAX && (
+        <div className="row" style={{ marginTop: 6 }}>
+          <input
+            className="rename" style={{ flex: 1, minWidth: 0 }} value={draft} maxLength={SUB_NAME_MAX}
+            placeholder={`Tên người dự bị cho ${lead}`} aria-label={`Tên người dự bị cho ${lead}`}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") add();
+              if (e.key === "Escape") e.currentTarget.blur();
+            }}
+          />
+          <button className="btn sm" onClick={add} disabled={!draft.trim()}><Icon name="userPlus" /> Thêm dự bị</button>
+        </div>
+      )}
+      {(subs.length > 0 || nOn > 0) && (
+        <label className="field" style={{ marginTop: 6 }} title="Cạnh tên người đang thay ghi thêm tên người chính, ví dụ Mai (thay Lan)">
+          <input type="checkbox" checked={p.castNote !== false} onChange={(e) => setCastNote(e.target.checked)} />
+          Ghi "(thay {lead})" ở bản in, ảnh, Tôi là ai
+        </label>
+      )}
+      {nOn > 1 && (
+        <button className="btn sm" style={{ marginTop: 6 }} onClick={castBackAll}
+          title="Mọi vai đang có người thay trả lại cho người chính">
+          Đổi lại người chính cả đội ({nOn} vai)
+        </button>
+      )}
+    </details>
   );
 }
 
@@ -388,6 +470,7 @@ function DancerInspector({ d }: { d: VDancer }) {
           />
         ))}
       </div>
+      <CastSection d={d} />
       <FacingPicker d={d} />
       <PersonNoteField d={d} />
     </div>
@@ -486,6 +569,12 @@ function CanonSection({ sel }: { sel: string[] }) {
         {anyFlip && (
           <button className="btn sm" onClick={() => setFlip(sel, false)} title="Thôi lật gương những người đang chọn">
             Bỏ lật gương
+          </button>
+        )}
+        {order.length === 2 && (
+          <button className="btn sm" onClick={swapRolesSelected}
+            title={`${order[0].name} và ${order[1].name} đổi trọn đường đi cho nhau trên mọi đội hình (chỗ đứng, đường cong, hướng mặt, ghi chú riêng). Shift X`}>
+            <Icon name="swap" /> Đổi vai cả bài
           </button>
         )}
       </div>
@@ -781,7 +870,11 @@ function FormationsTab() {
         <div className="row" style={{ marginTop: 8, flexWrap: "wrap" }}>
           <button className="btn sm" onClick={mirrorSelected} title="Lật trái phải (M)"><Icon name="mirror" /> Lật</button>
           <button className="btn sm" onClick={distributeSelected} disabled={nSel < 3} title="Dàn đều theo chiều ngang"><Icon name="distribute" /> Dàn đều</button>
-          <button className="btn sm" onClick={swapSelected} disabled={nSel !== 2} title="Hai người đang chọn đổi chỗ cho nhau (X)"><Icon name="swap" /> Đổi chỗ</button>
+          <button className="btn sm" onClick={swapSelected} disabled={nSel !== 2} title="Hai người đang chọn đổi chỗ cho nhau ở đội hình này (X)"><Icon name="swap" /> Đổi chỗ</button>
+          <button className="btn sm" onClick={swapRolesSelected} disabled={nSel !== 2}
+            title="Hai người đang chọn đổi vai cả bài: đổi trọn chỗ đứng, đường cong, hướng mặt, ghi chú riêng trên mọi đội hình (Shift X)">
+            <Icon name="swap" /> Đổi vai cả bài
+          </button>
           <button className="btn sm" onClick={() => rotateSelected(1)} title="Xoay một phần tư vòng quanh tâm nhóm, theo chiều kim đồng hồ (R, Shift R để xoay ngược). Chưa chọn ai thì xoay cả đội trên sân"><Icon name="rotate" /> Xoay</button>
           <button className="btn sm" onClick={() => scaleSelected(true)} title="Giãn nhóm ra quanh tâm, mỗi lần 15%, dừng ở mép sân. Chưa chọn ai thì cả đội trên sân"><Icon name="grow" /> Giãn</button>
           <button className="btn sm" onClick={() => scaleSelected(false)} title="Thu nhóm lại quanh tâm, mỗi lần 15%, không để ai sát nhau dưới nửa mét"><Icon name="shrink" /> Thu</button>

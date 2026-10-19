@@ -9,6 +9,7 @@ import { cleanFacing, withFacing } from "./facing.ts";
 import { cleanMarks } from "./marks.ts";
 import { cleanGroups } from "./groups.ts";
 import { cleanProps } from "./props.ts";
+import { cleanCast } from "./cast.ts";
 
 export const stripName = (name: string): string =>
   name.replace(/\.[^.]+$/, "").replace(/\.card$/i, "");
@@ -96,6 +97,7 @@ export function normalizeProject(raw: unknown): Project | null {
       : [];
     if (segs.length) x.canon = segs;
     else delete x.canon;
+    cleanCast(x, d);
     dancers.push(x);
   }
   const stage = cleanStage(j.stage, base.stage);
@@ -123,6 +125,7 @@ export function normalizeProject(raw: unknown): Project | null {
   if (groups.length) out.groups = groups;
   else delete out.groups;
   if (out.groupRings !== false) delete out.groupRings;
+  if (out.castNote !== false) delete out.castNote;
   const props = cleanProps(j.props, stage);
   if (props.length) out.props = props;
   else delete out.props;

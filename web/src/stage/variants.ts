@@ -7,6 +7,7 @@
 import type { Project, Formation, Vec2 } from "./model.ts";
 import { fmtTime } from "./timing.ts";
 import { facingName, normFacing } from "./facing.ts";
+import { mainName } from "./cast.ts";
 
 export interface Variant {
   id: string;
@@ -95,6 +96,7 @@ export type Change =
   | { kind: "dancerAdded"; dancer: string }
   | { kind: "dancerRemoved"; dancer: string }
   | { kind: "dancerRenamed"; from: string; to: string }
+  | { kind: "cast"; role: string; from: string; to: string }
   | { kind: "formAdded"; formation: string; start: number; end: number }
   | { kind: "formRemoved"; formation: string; start: number; end: number }
   | { kind: "formRenamed"; from: string; to: string }
@@ -129,10 +131,19 @@ export function diffProjects(a: Project, b: Project): Change[] {
   const nameA = new Map(a.dancers.map((d) => [d.id, d.name]));
   const nameB = new Map(b.dancers.map((d) => [d.id, d.name]));
   const who = (id: string) => nameB.get(id) ?? nameA.get(id) ?? "?";
+  const byIdA = new Map(a.dancers.map((d) => [d.id, d]));
+  // vai đổi người đóng (cùng người chính, khác người đang đóng): một dòng "thay vai", không phải đổi tên
+  const recast = new Set<string>();
   for (const d of b.dancers) {
     const old = nameA.get(d.id);
     if (old === undefined) out.push({ kind: "dancerAdded", dancer: d.name });
-    else if (old !== d.name) out.push({ kind: "dancerRenamed", from: old, to: d.name });
+    else if (old !== d.name) {
+      const o = byIdA.get(d.id)!;
+      if ((o.lead || d.lead) && mainName(o) === mainName(d)) {
+        recast.add(d.id);
+        out.push({ kind: "cast", role: mainName(d), from: old, to: d.name });
+      } else out.push({ kind: "dancerRenamed", from: old, to: d.name });
+    }
   }
   for (const d of a.dancers) if (!nameB.has(d.id)) out.push({ kind: "dancerRemoved", dancer: d.name });
 
@@ -158,12 +169,17 @@ export function diffProjects(a: Project, b: Project): Change[] {
     ["nhóm", a.groups ?? [], b.groups ?? []],
     ["đạo cụ", a.props ?? [], b.props ?? []],
     ["Hình của tôi", a.myShapes ?? [], b.myShapes ?? []],
+    ["cách ghi \"(thay ...)\"", a.castNote !== false, b.castNote !== false],
   ];
   for (const [what, x, y] of extra) if (stableJson(x) !== stableJson(y)) out.push({ kind: "other", what });
   // phần còn lại của vũ công (video, lệch, canon, lật gương...) gộp một dòng
+  // (người dự bị, người thay và màu người thay đã có dòng riêng ở trên)
+  const both = (p: Project) => p.dancers.filter((d) => nameA.has(d.id) && nameB.has(d.id));
   const dancerRest = (p: Project) =>
-    stableJson(p.dancers.filter((d) => nameA.has(d.id) && nameB.has(d.id)).map((d) => ({ ...d, name: "" })));
+    stableJson(both(p).map(({ subs: _s, lead: _l, ...d }) => ({ ...d, name: "", color: recast.has(d.id) ? "" : d.color })));
   if (dancerRest(a) !== dancerRest(b)) out.push({ kind: "other", what: "video, khớp nhạc hoặc canon của vũ công" });
+  const subsOf = (p: Project) => stableJson(both(p).map((d) => d.subs ?? []));
+  if (subsOf(a) !== subsOf(b)) out.push({ kind: "other", what: "người dự bị" });
   return out;
 }
 
@@ -224,6 +240,7 @@ export function changeText(c: Change): string {
     case "dancerAdded": return `Thêm vũ công ${c.dancer}`;
     case "dancerRemoved": return `Bớt vũ công ${c.dancer}`;
     case "dancerRenamed": return `Đổi tên vũ công ${c.from} thành ${c.to}`;
+    case "cast": return c.to === c.role ? `${c.role} đóng lại vai của mình (thôi ${c.from} thay)` : `Vai của ${c.role}: ${c.to} đóng (trước là ${c.from})`;
     case "formAdded": return `Thêm đội hình ${c.formation} (${fmtTime(c.start)} tới ${fmtTime(c.end)})`;
     case "formRemoved": return `Bớt đội hình ${c.formation} (${fmtTime(c.start)} tới ${fmtTime(c.end)})`;
     case "formRenamed": return `Đổi tên đội hình ${c.from} thành ${c.to}`;

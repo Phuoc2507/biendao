@@ -20,6 +20,7 @@ import { type Formation, type StageSize, type Vec2, assignNearest, findWarnings,
 import { VMAX } from "./autoplan.ts";
 import { BLOCK_X_M, type Issue, blockedIssues, transitionIssues } from "./checks.ts";
 import { beatLen } from "./timing.ts";
+import { withFacing } from "./facing.ts";
 
 type Who = { id: string; name: string; hidden?: boolean };
 
@@ -36,6 +37,24 @@ export interface Fix {
   after: number;
   /** đã đổi vai cho cả các đội hình sau */
   carry?: boolean;
+}
+
+/**
+ * Hướng mặt đi theo CHỖ ĐỨNG: ids[i] nhận chỗ của ids[asg[i]] thì nhận luôn
+ * hướng mặt của chỗ đó. Hướng mặt là một phần của hình (vòng tròn nhìn vào
+ * tâm, nửa trái quay phải...), đổi ai đứng chỗ nào không được làm hỏng hình.
+ * Ghi chú riêng thì vẫn theo người (cầm quạt, quỳ nhịp 7 là việc của người đó).
+ */
+function remapFacing(x: Formation, ids: string[], asg: number[]): Formation {
+  if (!x.facing) return x;
+  const src = x.facing;
+  const next: Record<string, number> = { ...src };
+  ids.forEach((id, i) => {
+    const v = src[ids[asg[i]]];
+    if (v) next[id] = v;
+    else delete next[id];
+  });
+  return withFacing(x, next);
 }
 
 /** Đổi ai đứng chỗ nào trong đội hình k cho gần đội hình trước. null nếu không đỡ hơn. */
@@ -63,7 +82,7 @@ export function reassignFix(
     for (const id of swapped) delete via[id];
     return withVia(x, via);
   };
-  const out = fs.map((x, j) => (j === k ? dropVia({ ...x, pos }) : j === k + 1 ? dropVia(x) : x));
+  const out = fs.map((x, j) => (j === k ? dropVia(remapFacing({ ...x, pos }, ids, asg)) : j === k + 1 ? dropVia(x) : x));
   const before = around(fs, k, dancers, stage, bpm), after = around(out, k, dancers, stage, bpm);
   if (after < before) return { fs: out, before, after };
   // đổi vai từ k về sau: ids[i] nhận chỗ của ids[asg[i]] ở mọi đội hình j >= k
@@ -77,14 +96,14 @@ export function reassignFix(
       if (src) q[id] = [src[0], src[1]];
       else delete q[id];
     });
-    if (!x.via) return { ...x, pos: q };
+    if (!x.via) return remapFacing({ ...x, pos: q }, ids, asg);
     const via = { ...x.via };
     ids.forEach((id, i) => {
       const src = j === k ? (asg[i] === i ? x.via![id] : undefined) : x.via![ids[asg[i]]];
       if (src) via[id] = [src[0], src[1]];
       else delete via[id];
     });
-    return withVia({ ...x, pos: q }, via);
+    return remapFacing(withVia({ ...x, pos: q }, via), ids, asg);
   });
   const b2 = transitionIssues(fs, dancers, stage, bpm).length;
   const a2 = transitionIssues(carried, dancers, stage, bpm).length;

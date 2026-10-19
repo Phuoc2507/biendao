@@ -271,7 +271,15 @@ kbd {
 .app.phone .gchip button { min-height: 40px; }
 .app.phone .gchip .gmore { padding: 0 12px 0 6px; }
 .app.phone .side .gmenu .pop .gcolors button { width: 36px; height: 36px; }
-.ditem input.rename { width: 100%; height: 22px; padding: 0 4px; background: var(--bg); border: 1px solid var(--accent); border-radius: 4px; }
+/* người dự bị, thay vai (cast.ts) */
+.ditem .nm small.cast-on, .cast .cast-on { color: var(--accent2); }
+.cast summary { cursor: pointer; }
+.cast-sub { display: inline-flex; align-items: center; gap: 2px; }
+.cast-sub .btn { gap: 4px; }
+.cast-color { height: 26px; max-width: 74px; font-size: 11px; background: var(--bg); color: var(--muted); border: 1px solid var(--line); border-radius: 5px; }
+.cast input.rename { height: 26px; padding: 0 6px; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; color: var(--text); }
+.cast input.rename:focus { outline: none; border-color: var(--accent); }
+.ditem input.rename {width: 100%; height: 22px; padding: 0 4px; background: var(--bg); border: 1px solid var(--accent); border-radius: 4px; }
 .drop-hint {
   margin: 8px 12px; padding: 12px; border: 1px dashed var(--line2); border-radius: var(--radius);
   color: var(--muted); font-size: 12px; text-align: center; cursor: pointer;

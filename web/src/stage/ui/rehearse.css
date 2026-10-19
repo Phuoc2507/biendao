@@ -76,6 +76,7 @@ select.btn.rh-me.on { border-color: #fff; color: #fff; }
   .rh-plan-tools { top: 40px; }
 }
 .present .rh-cue small { display: block; margin-top: 4px; font-size: 12px; opacity: 0.6; }
+.present .rh-cue small.rh-cast { margin: 0 0 2px; opacity: 0.85; color: #ffb86b; }
 
 /* trình chiếu trên điện thoại dựng đứng: chữ nhỏ lại, sơ đồ nhỏ nằm trên thanh điều khiển */
 @media (max-width: 599.98px) {
