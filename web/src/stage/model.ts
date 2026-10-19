@@ -448,10 +448,16 @@ export function ensureFormationAt(
 
 /** Dời chỗ đứng ở đội hình fid. Đường cong vào và ra khỏi đội hình đó giữ
  *  dáng theo hai đầu mới (remapVia); mirror: các chỗ mới là ảnh gương, lật luôn
- *  phía cong. */
+ *  phía cong.
+ *  groupMap: phép biến đổi cả nhóm vừa làm (xoay, giãn quanh tâm nhóm). Khi
+ *  có, điểm uốn đi theo nửa phép đó, V' = (V + T(V)) / 2: một đầu đường đứng
+ *  yên, một đầu đi theo T, điểm điều khiển chịu ảnh hưởng đều của hai đầu (với
+ *  phép dời thì trùng cách dời theo dây cung). Quay trọn V theo T thì đầu đứng
+ *  yên bị vặn thành vòng thắt.
+ *  dropVia: bỏ điểm uốn của người được dời (Đổi chỗ: đường cũ hết nghĩa). */
 export function setPositions(
   fs: Formation[], fid: string, moves: Record<string, Vec2>, stage: StageSize,
-  o: { mirror?: boolean } = {},
+  o: { mirror?: boolean; groupMap?: (v: Vec2) => Vec2; dropVia?: boolean } = {},
 ): Formation[] {
   const i = fs.findIndex((f) => f.id === fid);
   if (i < 0) return fs;
@@ -465,8 +471,11 @@ export function setPositions(
       if (!(id in moves)) continue;
       const e = ends(id);
       via ??= { ...g.via };
-      if (!e) delete via[id];
-      else via[id] = clampToStage(remapVia(v, e[0], e[1], e[2], e[3], o.mirror), stage);
+      if (!e || o.dropVia) delete via[id];
+      else if (o.groupMap) {
+        const t = o.groupMap(v);
+        via[id] = clampToStage([(v[0] + t[0]) / 2, (v[1] + t[1]) / 2], stage);
+      } else via[id] = clampToStage(remapVia(v, e[0], e[1], e[2], e[3], o.mirror), stage);
     }
     return via ? withVia(g, via) : g;
   };
@@ -487,6 +496,66 @@ export function setVia(fs: Formation[], fid: string, id: string, v: Vec2 | null,
   if (v) via[id] = clampToStage(v, stage);
   else delete via[id];
   return fs.map((x, j) => (j === i ? withVia(x, via) : x));
+}
+
+/** Một đường cong đã chép: điểm điều khiển v cùng hai đầu a (chỗ trước), b (chỗ đến) lúc chép. */
+export interface CopiedPath { v: Vec2; a: Vec2; b: Vec2 }
+
+/** Đường cong vào đội hình fid của những người ids (để Ctrl C mang theo). */
+export function pathsInto(fs: Formation[], fid: string, ids: string[]): Record<string, CopiedPath> {
+  const i = fs.findIndex((f) => f.id === fid);
+  const out: Record<string, CopiedPath> = {};
+  if (i < 1) return out;
+  const f = fs[i], prev = fs[i - 1];
+  for (const id of ids) {
+    const v = f.via?.[id], a = prev.pos[id], b = f.pos[id];
+    if (v && a && b) out[id] = { v: [v[0], v[1]], a: [a[0], a[1]], b: [b[0], b[1]] };
+  }
+  return out;
+}
+
+/** Dưới khoảng này (m) người coi như đứng yên: không dán đường cong, không hiện núm uốn. */
+export const BEND_MIN_M = 0.3;
+
+/** Ctrl V: đặt đường cong đã chép vào đội hình fid, dời theo hai đầu mới
+ *  (remapVia: chỗ trước ở đội hình đích có thể khác chỗ trước lúc chép). Đội
+ *  hình đầu không có đường vào; người gần như đứng yên ở đích thì bỏ qua. */
+export function pasteVia(fs: Formation[], fid: string, paths: Record<string, CopiedPath>, stage: StageSize): Formation[] {
+  const i = fs.findIndex((f) => f.id === fid);
+  if (i < 1) return fs;
+  const f = fs[i], prev = fs[i - 1];
+  let via: Record<string, Vec2> | null = null;
+  for (const [id, c] of Object.entries(paths)) {
+    const a = prev.pos[id], b = f.pos[id];
+    if (!a || !b || dist(a, b) < BEND_MIN_M) continue;
+    via ??= { ...f.via };
+    via[id] = clampToStage(remapVia(c.v, c.a, c.b, a, b), stage);
+  }
+  return via ? fs.map((x, j) => (j === i ? withVia(x, via!) : x)) : fs;
+}
+
+/** Chỗ đặt núm uốn đường a→b (c: điểm điều khiển) trên sơ đồ. Thường là giữa
+ *  đường; giữa đường cách chấm người (ở a) dưới gap thì đẩy ra vuông góc với
+ *  dây cung (về phía đang cong) cho khỏi đè chấm. Đi dưới BEND_MIN_M mà chưa
+ *  cong thì null (ẩn núm). Kéo núm thì giữ khoảng lệch lúc bấm so với giữa
+ *  đường thật (pathMid), nên đường không giật. */
+export function bendHandleAt(a: Vec2, b: Vec2, c: Vec2 | null | undefined, gap = 0.6): Vec2 | null {
+  if (!c && dist(a, b) < BEND_MIN_M) return null;
+  const m = pathMid(a, b, c);
+  const wx = m[0] - a[0], wz = m[1] - a[1];
+  if (Math.hypot(wx, wz) >= gap) return m;
+  const L = dist(a, b);
+  // pháp tuyến đơn vị của dây cung; dây quá ngắn thì theo hướng a→m, không có nữa thì lên trên
+  let n: Vec2 = L > 1e-6 ? [-(b[1] - a[1]) / L, (b[0] - a[0]) / L] : [0, -1];
+  if (L <= 1e-6 && Math.hypot(wx, wz) > 1e-6) n = [wx / Math.hypot(wx, wz), wz / Math.hypot(wx, wz)];
+  else {
+    const cm: Vec2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    if ((m[0] - cm[0]) * n[0] + (m[1] - cm[1]) * n[1] < 0) n = [-n[0], -n[1]];
+  }
+  // tìm t > 0 nhỏ nhất để |m + t n - a| = gap
+  const wn = wx * n[0] + wz * n[1];
+  const t = -wn + Math.sqrt(Math.max(0, wn * wn - (wx * wx + wz * wz) + gap * gap));
+  return [m[0] + t * n[0], m[1] + t * n[1]];
 }
 
 /**
@@ -1054,6 +1123,19 @@ function centroid(current: Record<string, Vec2>, ids: string[]): Vec2 {
 export function fitGroup(pts: Record<string, Vec2>, stage: StageSize, pad = 0.3): Record<string, Vec2> {
   const ids = Object.keys(pts);
   if (!ids.length) return pts;
+  const m = fitMap(pts, stage, pad);
+  const out: Record<string, Vec2> = {};
+  for (const id of ids) {
+    const q = m(pts[id]);
+    out[id] = [r3(q[0]), r3(q[1])];
+  }
+  return out;
+}
+
+/** Phép thu và dời của fitGroup, dùng được cho điểm khác (điểm uốn đường cong). */
+function fitMap(pts: Record<string, Vec2>, stage: StageSize, pad = 0.3): (q: Vec2) => Vec2 {
+  const ids = Object.keys(pts);
+  if (!ids.length) return (q) => q;
   const hx = Math.max(0, stage.width / 2 - pad), hz = Math.max(0, stage.depth / 2 - pad);
   const xs = ids.map((id) => pts[id][0]), zs = ids.map((id) => pts[id][1]);
   let [x0, x1, z0, z1] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
@@ -1062,21 +1144,28 @@ export function fitGroup(pts: Record<string, Vec2>, stage: StageSize, pad = 0.3)
   [x0, x1, z0, z1] = [cx + (x0 - cx) * k, cx + (x1 - cx) * k, cz + (z0 - cz) * k, cz + (z1 - cz) * k];
   const dx = x0 < -hx ? -hx - x0 : x1 > hx ? hx - x1 : 0;
   const dz = z0 < -hz ? -hz - z0 : z1 > hz ? hz - z1 : 0;
-  const out: Record<string, Vec2> = {};
-  for (const id of ids) out[id] = [r3(cx + (pts[id][0] - cx) * k + dx), r3(cz + (pts[id][1] - cz) * k + dz)];
-  return out;
+  return (q) => [cx + (q[0] - cx) * k + dx, cz + (q[1] - cz) * k + dz];
 }
 
 /** Xoay nhóm một phần tư vòng quanh tâm nhóm, chiều kim đồng hồ khi nhìn sơ đồ (dir = 1). */
 export function rotateGroup(current: Record<string, Vec2>, ids: string[], dir: 1 | -1, stage: StageSize): Record<string, Vec2> {
-  if (!ids.length) return {};
+  return rotateGroupMap(current, ids, dir, stage).moves;
+}
+
+/** Như rotateGroup, kèm phép biến đổi đã dùng (xoay rồi thu, dời cho vừa sân) để dời điểm uốn. */
+export function rotateGroupMap(
+  current: Record<string, Vec2>, ids: string[], dir: 1 | -1, stage: StageSize,
+): { moves: Record<string, Vec2>; map: (v: Vec2) => Vec2 } {
+  if (!ids.length) return { moves: {}, map: (v) => v };
   const [cx, cz] = centroid(current, ids);
+  const rot = (q: Vec2): Vec2 => {
+    const [dx, dz] = [q[0] - cx, q[1] - cz];
+    return dir === 1 ? [cx - dz, cz + dx] : [cx + dz, cz - dx];
+  };
   const out: Record<string, Vec2> = {};
-  for (const id of ids) {
-    const [dx, dz] = [current[id][0] - cx, current[id][1] - cz];
-    out[id] = dir === 1 ? [cx - dz, cz + dx] : [cx + dz, cz - dx];
-  }
-  return fitGroup(out, stage);
+  for (const id of ids) out[id] = rot(current[id]);
+  const fm = fitMap(out, stage);
+  return { moves: fitGroup(out, stage), map: (v) => fm(rot(v)) };
 }
 
 /**
@@ -1086,6 +1175,13 @@ export function rotateGroup(current: Record<string, Vec2>, ids: string[], dir: 1
 export function scaleGroup(
   current: Record<string, Vec2>, ids: string[], k: number, stage: StageSize, minGap = 0.5, pad = 0.3,
 ): Record<string, Vec2> | null {
+  return scaleGroupMap(current, ids, k, stage, minGap, pad)?.moves ?? null;
+}
+
+/** Như scaleGroup, kèm phép co giãn đã dùng (quanh tâm nhóm) để dời điểm uốn. */
+export function scaleGroupMap(
+  current: Record<string, Vec2>, ids: string[], k: number, stage: StageSize, minGap = 0.5, pad = 0.3,
+): { moves: Record<string, Vec2>; map: (v: Vec2) => Vec2 } | null {
   if (ids.length < 2) return null;
   const [cx, cz] = centroid(current, ids);
   const hx = stage.width / 2 - pad, hz = stage.depth / 2 - pad;
@@ -1106,7 +1202,7 @@ export function scaleGroup(
   if (Math.abs(kk - 1) < 1e-3) return null;
   const out: Record<string, Vec2> = {};
   for (const id of ids) out[id] = [r3(cx + (current[id][0] - cx) * kk), r3(cz + (current[id][1] - cz) * kk)];
-  return out;
+  return { moves: out, map: (v) => [cx + (v[0] - cx) * kk, cz + (v[1] - cz) * kk] };
 }
 
 /** Dàn đều theo trục x giữa người trái nhất và phải nhất (giữ z). */

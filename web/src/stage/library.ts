@@ -375,6 +375,9 @@ export function libraryFor(n: number, stage: StageSize = DEFAULT_STAGE): LibShap
 
 const libCache = new Map<string, LibShape[]>();
 
+/** Đã tính thư viện cho n người trên sân này chưa (chưa thì libraryFor tốn tới vài trăm ms). */
+export const libraryReady = (n: number, stage: StageSize = DEFAULT_STAGE) => libCache.has(`${n}@${stage.width}x${stage.depth}`);
+
 function buildLibrary(n: number, stage: StageSize): LibShape[] {
   const out: LibShape[] = [];
   for (const { kind, gen } of GENS) {
