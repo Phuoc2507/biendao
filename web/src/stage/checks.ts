@@ -1,10 +1,11 @@
 // Soát từng khoảng chuyển: ai đi sát nhau (dưới CLEAR_M) và ai phải chạy quá
-// nhanh (tốc độ đỉnh trên VMAX). Tính đúng dạng đóng (không lấy mẫu), kèm chỗ và
+// nhanh (tốc độ đỉnh trên VMAX). Đường thẳng tính đúng dạng đóng (không lấy
+// mẫu); cặp có người đi đường cong thì lấy mẫu dày mỗi 1/30 s. Kèm chỗ và
 // lúc xảy ra để vẽ lên sơ đồ và tua tới. THUẦN, chỉ import model/autoplan/timing/props.
 
 import {
   type Formation, type StageProp, type StageSize, type Vec2, type Warning,
-  NEAR_M, dist, findWarnings, inWings, lerp2,
+  NEAR_M, dist, findWarnings, inWings, lerp2, pathAt, pathLength, pathPeak, smoothstep, viaOf,
 } from "./model.ts";
 import { PROP_PAD, isSolid, propDist } from "./props.ts";
 import { CLEAR_M, VMAX, pairClearance } from "./autoplan.ts";
@@ -14,6 +15,8 @@ export interface Issue extends Warning {
   from: string | null; // khối đi (null với overlap)
   at: Vec2; // chỗ đánh dấu trên sơ đồ
   paths: [Vec2, Vec2][]; // đường đi liên quan, tô đỏ
+  /** điểm điều khiển đường cong ứng với từng đường trong paths (null: đi thẳng); không có trường thì mọi đường thẳng */
+  ctrl?: (Vec2 | null)[];
   value: number; // m/s với fast, khoảng cách (m) với collide / overlap, độ lệch ngang (m) với blocked
 }
 
@@ -30,6 +33,38 @@ export function closestU(a0: Vec2, a1: Vec2, b0: Vec2, b1: Vec2): number {
   const bx = a1[0] - b1[0] - ax, bz = a1[1] - b1[1] - az;
   const bb = bx * bx + bz * bz;
   return bb > 1e-12 ? -(ax * bx + az * bz) / bb : NaN;
+}
+
+/** Mỗi giây lấy bấy nhiêu mẫu khi một trong hai người đi đường cong (không có dạng đóng). */
+const CURVE_HZ = 30;
+
+/** Lúc hai người (ít nhất một đi đường cong) gần nhau nhất trong khoảng chuyển
+ *  dài dur giây: lấy mẫu dày theo thời gian (mỗi 1/30 s, ít nhất 48 mẫu) rồi
+ *  tinh quanh mẫu nhỏ nhất. u là phần thời gian, s = smoothstep(u) là tham số
+ *  đường, d là khoảng cách. null nếu gần nhất ở hai đầu (chuyện đứng chồng). */
+export function curvedClosest(
+  a0: Vec2, a1: Vec2, ca: Vec2 | null, b0: Vec2, b1: Vec2, cb: Vec2 | null, dur: number,
+): { u: number; s: number; d: number } | null {
+  const N = Math.min(4000, Math.max(48, Math.ceil(dur * CURVE_HZ)));
+  const at = (u: number) => {
+    const s = smoothstep(u);
+    return dist(pathAt(a0, a1, ca, s), pathAt(b0, b1, cb, s));
+  };
+  let bi = 0, bd = Infinity;
+  for (let i = 0; i <= N; i++) {
+    const d = at(i / N);
+    if (d < bd - 1e-12) { bd = d; bi = i; }
+  }
+  if (bi === 0 || bi === N) return null;
+  // tinh bằng chia ba quanh mẫu nhỏ nhất
+  let lo = (bi - 1) / N, hi = (bi + 1) / N;
+  for (let it = 0; it < 40; it++) {
+    const m1 = lo + (hi - lo) / 3, m2 = hi - (hi - lo) / 3;
+    if (at(m1) < at(m2)) hi = m2;
+    else lo = m1;
+  }
+  const u = (lo + hi) / 2;
+  return { u, s: smoothstep(u), d: Math.min(bd, at(u)) };
 }
 
 const n1 = (v: number) => v.toFixed(1).replace(".", ",");
@@ -53,15 +88,18 @@ export function transitionIssues(
     for (const d of vis) {
       const a = f.pos[d.id], b = g.pos[d.id];
       if (!a || !b) continue;
-      const len = dist(a, b);
+      const c = viaOf(g, d.id);
+      const len = pathLength(a, b, c);
       if (len < 0.05) continue;
       // đi lại trong cùng một bên cánh gà: khán giả không thấy
-      if (inWings(a, stage) && inWings(b, stage) && a[0] * b[0] > 0) continue;
-      const peak = dur > 1e-6 ? (1.5 * len) / dur : Infinity; // smoothstep: đỉnh = 1,5 lần trung bình
+      if (inWings(a, stage) && inWings(b, stage) && a[0] * b[0] > 0 && !c) continue;
+      // smoothstep: đỉnh = 1,5 lần trung bình (đường cong: theo đạo hàm, xem pathPeak)
+      const peak = dur > 1e-6 ? pathPeak(a, b, c) / dur : Infinity;
       if (peak <= vmax + 1e-6) continue; // tự chia giãn vừa khít VMAX: không báo oan
       out.push({
         kind: "fast", formation: g.id, from: f.id, ids: [d.id],
-        t: f.end + Math.max(0, dur) / 2, at: lerp2(a, b, 0.5), paths: [[a, b]], value: peak,
+        t: f.end + Math.max(0, dur) / 2, at: pathAt(a, b, c, 0.5), paths: [[a, b]], value: peak,
+        ...(c && { ctrl: [c] }),
         msg: dur > 1e-6
           ? `${d.name} phải đi ${n1(len)} m trong ${span(dur, bpm)} sang ${g.name} (tới ${n1(peak)} m/s)`
           : `${d.name} phải đổi chỗ ${n1(len)} m sang ${g.name} mà không có lúc chuyển`,
@@ -73,6 +111,19 @@ export function transitionIssues(
         const a0 = f.pos[vis[i].id], a1 = g.pos[vis[i].id];
         const b0 = f.pos[vis[j].id], b1 = g.pos[vis[j].id];
         if (!a0 || !a1 || !b0 || !b1) continue;
+        const ca = viaOf(g, vis[i].id), cb = viaOf(g, vis[j].id);
+        if (ca || cb) {
+          const hit = curvedClosest(a0, a1, ca, b0, b1, cb, dur);
+          if (!hit || hit.d >= near - 1e-6) continue;
+          const pa = pathAt(a0, a1, ca, hit.s), pb = pathAt(b0, b1, cb, hit.s);
+          if (inWings(pa, stage) && inWings(pb, stage)) continue;
+          out.push({
+            kind: "collide", formation: g.id, from: f.id, ids: [vis[i].id, vis[j].id],
+            t: f.end + dur * hit.u, at: lerp2(pa, pb, 0.5), paths: [[a0, a1], [b0, b1]], ctrl: [ca, cb], value: hit.d,
+            msg: `${vis[i].name} và ${vis[j].name} ${hit.d < NEAR_M ? "va nhau" : "đi sát nhau"} khi sang ${g.name} (cách ${Math.round(hit.d * 100)} cm)`,
+          });
+          continue;
+        }
         // gần nhất ở hai đầu là chuyện đứng chồng (đã có cảnh báo overlap)
         const u = closestU(a0, a1, b0, b1);
         if (!(u > 1e-6 && u < 1 - 1e-6)) continue;
@@ -176,16 +227,18 @@ export function propIssues(
     for (const d of vis) {
       const a = f.pos[d.id], b = g.pos[d.id];
       if (!a || !b) continue;
-      const n = Math.ceil(dist(a, b) / PROP_STEP);
+      const c = viaOf(g, d.id);
+      // đường cong: bước theo s không đều, lấy dày gấp đôi cho chắc mỗi bước dưới 5 cm
+      const n = Math.ceil((pathLength(a, b, c) * (c ? 2 : 1)) / PROP_STEP);
       if (n < 1) continue;
       for (const o of solid) {
         if (inside(o, a) || inside(o, b)) continue;
         for (let i = 1; i < n; i++) {
-          const u = i / n, q = lerp2(a, b, u);
+          const u = i / n, q = pathAt(a, b, c, u);
           if (!inside(o, q)) continue;
           out.push({
             kind: "prop", formation: g.id, from: f.id, ids: [d.id], t: f.end + dur * invSmoothstep(u), at: q,
-            paths: [[a, b]], value: propDist(o, q),
+            paths: [[a, b]], ...(c && { ctrl: [c] }), value: propDist(o, q),
             msg: `${d.name} đi xuyên ${o.name} khi sang ${g.name}`,
           });
           break;

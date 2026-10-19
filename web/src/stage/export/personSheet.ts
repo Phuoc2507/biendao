@@ -5,7 +5,7 @@
 // Quá nhiều đội hình thì chia nhiều ảnh (-p1, -p2). Vẽ bằng drawPlanFrame nên kiểm thử
 // được bằng Ctx2D giả; phần canvas và tải xuống nằm ở image.ts.
 
-import { type Project, WING, dist, personNote } from "../model.ts";
+import { type Project, WING, dist, personNote, viaOf } from "../model.ts";
 import { type Ctx2D, type FrameTrail, type PlanFrame, type PlanGeom, drawPlanFrame, planFrame, toPx } from "./planRender.ts";
 import { countAt, fmtTime } from "../timing.ts";
 import { markAt } from "../marks.ts";
@@ -184,10 +184,12 @@ export function personFrame(p: Project, k: number, id: string, g: PlanGeom): Pla
   const me = p.dancers.find((d) => d.id === id);
   if (me && !me.hidden && k > 0) {
     const a = holdPoses(p, k - 1)[id], b = holdPoses(p, k)[id];
-    if (a && b && dist(a, b) > MOVE_MIN) {
+    const v = viaOf(f, id);
+    if (a && b && (dist(a, b) > MOVE_MIN || v)) {
       const [x0, y0] = toPx(g, a[0], a[1]);
       const [x1, y1] = toPx(g, b[0], b[1]);
-      trails.push({ x0, y0, x1, y1, r: meR(g), color: safeColor(me.color) });
+      const c = v ? toPx(g, v[0], v[1]) : null;
+      trails.push({ x0, y0, x1, y1, r: meR(g), color: safeColor(me.color), ...(c && { cx: c[0], cy: c[1] }) });
     }
   }
   return { ...fr, dots, title: "", sub: "", time: "", count: "", trails };

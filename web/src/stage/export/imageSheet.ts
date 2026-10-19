@@ -2,7 +2,7 @@
 // bố cục khung dọc, chữ đầu ảnh, tên tệp. Vẽ bằng drawPlanFrame của planRender.ts
 // nên kiểm thử được bằng Ctx2D giả; phần canvas và tải xuống nằm ở image.ts.
 
-import { type Project, type StageSize, WING, segmentAt, dist } from "../model.ts";
+import { type Project, type StageSize, WING, segmentAt, dist, viaOf } from "../model.ts";
 import { type Ctx2D, type FrameTrail, type PlanFrame, type PlanGeom, drawPlanFrame, planFrame, toPx } from "./planRender.ts";
 import { holdPoses, timeLabel, safeColor, MOVE_MIN } from "./printSheet.ts";
 import { slugTitle, safeName } from "./bundle.ts";
@@ -137,10 +137,12 @@ export function imageFrame(p: Project, k: number, g: PlanGeom): PlanFrame {
   if (prev) {
     for (const d of p.dancers) {
       const a = prev[d.id], b = now[d.id];
-      if (d.hidden || !a || !b || dist(a, b) <= MOVE_MIN) continue;
+      const v = viaOf(f, d.id);
+      if (d.hidden || !a || !b || (dist(a, b) <= MOVE_MIN && !v)) continue;
       const [x0, y0] = toPx(g, a[0], a[1]);
       const [x1, y1] = toPx(g, b[0], b[1]);
-      trails.push({ x0, y0, x1, y1, r: 0.36 * g.s, color: safeColor(d.color) });
+      const c = v ? toPx(g, v[0], v[1]) : null;
+      trails.push({ x0, y0, x1, y1, r: 0.36 * g.s, color: safeColor(d.color), ...(c && { cx: c[0], cy: c[1] }) });
     }
   }
   // chữ đầu ảnh do drawImage vẽ, để trống dải chữ của video

@@ -204,13 +204,24 @@ Góc trên phải sơ đồ có ba nút xem và tập (thêm nút **Đạo cụ*
   * **Sửa tất cả** (đầu danh sách, và đầu ô Cảnh báo trên sơ đồ): làm các việc trên cho mọi khoảng chuyển một lượt.
   * Sau khi **Xếp nhanh**, xếp theo **Hình của tôi** hay **Thư viện**, **Lật trái phải**, **Dàn đều**, **Xoay**, **Giãn**, **Thu**, **Cánh gà** hay **Nhân bản**, nếu sinh thêm cảnh báo (không tính chỗ bị che) thì thông báo hiện số cảnh báo mới kèm nút **Sửa tất cả**. Đổi chỗ và Dán chỗ đứng (Ctrl V) chỉ báo số cảnh báo, không kèm nút, vì đổi chỗ cho gần sẽ xếp lại đúng những người bạn vừa cố ý đặt.
 
+### Đường đi cong
+
+Mặc định mỗi người đi thẳng từ chỗ đứng này sang chỗ đứng sau. Muốn đi vòng (lượn qua sau lưng bạn, vòng tránh bục, đi hình vòng cung):
+
+* Đặt vạch phát vào lúc đang giữ một đội hình, chọn một người. Giữa mũi tên tới đội hình sau hiện một **núm tròn** nhỏ. Kéo núm đi: đường đi uốn cong qua đúng chỗ bạn kéo. Núm tô màu người đó là đường đang cong, núm rỗng là đường thẳng.
+* **Nhấp đúp** vào núm để cho người đó đi thẳng lại. Mọi thao tác đều Ctrl Z được.
+* Đường cong chỉ một chỗ uốn (như cung tròn hay chữ C, không lượn chữ S). Cần lượn nhiều hơn thì thêm một đội hình trung gian: tạo đội hình ngay giữa đường cong thì đường được chẻ đôi, người vẫn đi đúng dáng cũ.
+* Cảnh báo tính theo đường cong: va nhau, chạy quá nhanh (đường cong dài hơn nên phải chạy nhanh hơn), đi xuyên đạo cụ. Uốn đường quá sát người khác sẽ bị báo va dù đi thẳng thì không.
+* Dời chỗ đứng hai đầu thì đường cong giữ dáng theo hai đầu mới. **Lật trái phải** lật luôn đường cong. **Đổi chỗ cho gần** bỏ đường cong của những người bị đổi chỗ (dáng cũ vẽ cho chỗ cũ). Xoá đội hình ở giữa thì đường cong của đội hình sau nối từ đội hình trước đó.
+* Khung 3D, sơ đồ lúc phát (kể cả **Tôi là ai…**) và video sơ đồ cho người đi đúng theo đường cong; ảnh đội hình, ảnh vị trí từng người và bản in vẽ mũi tên cong.
+
 ### Đạo cụ và mốc sàn
 
 Nút **Đạo cụ** ở góc trên phải sơ đồ (trên điện thoại chỉ còn biểu tượng khối) thêm nhanh một món vào chỗ trống gần giữa sân (tính theo kích thước, không đè lên món đã đặt): **Micro đứng** (tròn 0,4 m), **Bục** (2 × 1 m), **Ghế** (0,5 × 0,5 m) hay **Mốc sàn** (dấu cộng vàng, tự đánh số 1, 2, 3... như dấu băng dính trên sàn tập). Bản này đạo cụ đứng yên suốt bài, không đi theo đội hình.
 
 * Kéo món đó trên sơ đồ để đặt chỗ (bám lưới 25 cm như người, giữ **Alt** để đặt tự do). Bấm vào món đó thì hiện thanh nhỏ phía dưới: đổi tên, đổi kích thước (mét), xoay 90°, **Xoá** (hoặc phím Delete), Esc để bỏ chọn. Mọi thao tác đều Ctrl Z được.
 * Đạo cụ nằm dưới chấm người trên sơ đồ, có trong khung 3D (khối xám tối, mốc sàn phẳng trên sàn), ảnh đội hình, video sơ đồ và bản in. Thu nhỏ sân thì đạo cụ ngoài sân được kéo vào trong.
-* Cảnh báo nhẹ **đi xuyên đạo cụ** (dấu □ cam): ai đứng trong bục, ghế, micro lúc giữ một đội hình, hoặc đường đi thẳng lúc chuyển cắt qua nó. Mốc sàn không bị báo. Loại này không thuộc **Sửa tất cả** (có khi bạn cố ý cho người bước lên bục): tự kéo người đi vòng hoặc thêm một đội hình trung gian.
+* Cảnh báo nhẹ **đi xuyên đạo cụ** (dấu □ cam): ai đứng trong bục, ghế, micro lúc giữ một đội hình, hoặc đường đi (thẳng hay cong) lúc chuyển cắt qua nó. Mốc sàn không bị báo. Loại này không thuộc **Sửa tất cả** (có khi bạn cố ý cho người bước lên bục): uốn đường đi vòng (xem mục Đường đi cong) hoặc thêm một đội hình trung gian.
 
 Khung 3D có các góc **Khán giả**, **Chéo**, **Trên cao** và **Sau lưng** (đứng sau đội nhìn ra khán giả, hình lật như soi gương để trái phải giống người múa, dễ tập theo). Nút **Đặt lại** đưa góc nhìn về vừa khít sân; kéo thẻ giữ **Alt** để đặt tự do không bám lưới.
 

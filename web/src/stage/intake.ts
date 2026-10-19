@@ -3,7 +3,7 @@
 
 import {
   type Project, type VDancer, type SavedShape, type Vec2, type Formation, type StageSize,
-  clampToStage, emptyProject, newDancer, wingSpot, withNotes, cleanPersonNote,
+  clampToStage, emptyProject, newDancer, wingSpot, withNotes, withVia, cleanPersonNote,
 } from "./model.ts";
 import { cleanMarks } from "./marks.ts";
 import { cleanGroups } from "./groups.ts";
@@ -169,15 +169,29 @@ function cleanFormations(raw: unknown, ids: string[], stage: StageSize): Formati
     }
     for (const id of ids) if (!pos[id]) pos[id] = wingSpot(Object.values(pos), stage);
     const f = cleanNote({ ...r, id: r.id, name: typeof r.name === "string" ? r.name : `Đội hình ${k + 1}`, start: s, end: e, pos } as Formation);
-    out.push(withNotes(f, cleanNotes(r.notes, ids)));
+    out.push(withVia(withNotes(f, cleanNotes(r.notes, ids)), cleanVia(r.via, ids, stage)));
   });
   out.sort((a, b) => a.start - b.start);
+  // đội hình đầu không có khoảng chuyển vào nên không có đường cong
+  if (out[0]?.via) out[0] = withVia(out[0], {});
   for (let k = 1; k < out.length; k++) {
     const prev = out[k - 1], f = out[k];
     if (f.start < prev.end) {
       const start = prev.end;
       out[k] = { ...f, start, end: Math.max(f.end, start) };
     }
+  }
+  return out;
+}
+
+/** Điểm uốn đường cong đọc từ tệp: chỉ giữ người có thật, hai số hữu hạn, kéo vào sân. */
+function cleanVia(raw: unknown, ids: string[], stage: StageSize): Record<string, Vec2> {
+  const out: Record<string, Vec2> = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  const src = raw as Record<string, unknown>;
+  for (const id of ids) {
+    const q = Object.prototype.hasOwnProperty.call(src, id) ? src[id] : undefined;
+    if (Array.isArray(q) && q.length === 2 && fin(q[0]) && fin(q[1])) out[id] = clampToStage([q[0], q[1]], stage);
   }
   return out;
 }

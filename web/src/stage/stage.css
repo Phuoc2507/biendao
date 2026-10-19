@@ -360,8 +360,8 @@ kbd {
 }
 .pane-tools { position: absolute; top: 6px; right: 8px; z-index: 3; display: flex; gap: 4px; }
 .plan-svg { width: 100%; height: 100%; display: block; touch-action: none; }
-.plan-svg .dancer, .plan-svg .prop { cursor: grab; }
-.plan-svg.dragging, .plan-svg.dragging .dancer, .plan-svg.dragging .prop { cursor: grabbing; }
+.plan-svg .dancer, .plan-svg .prop, .plan-svg .bend-handle { cursor: grab; }
+.plan-svg.dragging, .plan-svg.dragging .dancer, .plan-svg.dragging .prop, .plan-svg.dragging .bend-handle { cursor: grabbing; }
 .hud {
   position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 4;
   display: flex; align-items: center; gap: 6px; padding: 5px; border-radius: 10px;
