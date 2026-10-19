@@ -7,6 +7,16 @@ const ctx = (o: Partial<KeyCtx> = {}): KeyCtx => ({
 });
 const key = (k: string, o: Partial<KeyIn> = {}): KeyIn => ({ key: k, ctrl: false, shift: false, alt: false, ...o });
 
+test("resolveShortcut: mốc đoạn nhạc (B thêm, Shift [ ] nhảy, cả khi trình chiếu)", () => {
+  assert.deepEqual(resolveShortcut(key("b"), ctx()), { type: "mark" });
+  assert.equal(resolveShortcut(key("B", { shift: true }), ctx()), null);
+  assert.deepEqual(resolveShortcut(key("{", { shift: true }), ctx()), { type: "markJump", dir: -1 });
+  assert.deepEqual(resolveShortcut(key("}", { shift: true }), ctx()), { type: "markJump", dir: 1 });
+  assert.deepEqual(resolveShortcut(key("[", { shift: true }), ctx()), { type: "markJump", dir: -1 });
+  assert.deepEqual(resolveShortcut(key("]", { shift: true }), ctx({ presenting: true })), { type: "markJump", dir: 1 });
+  assert.deepEqual(resolveShortcut(key("{", { shift: true }), ctx({ presenting: true })), { type: "markJump", dir: -1 });
+});
+
 test("targetKind: chỉ ô gõ chữ mới là text", () => {
   assert.equal(targetKind({ tagName: "INPUT", type: "text" }), "text");
   assert.equal(targetKind({ tagName: "INPUT", type: "number" }), "text");

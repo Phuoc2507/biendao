@@ -144,6 +144,8 @@ const KEYS: [string, [string, string][]][] = [
     ["Lùi / tới một phách", "← →"],
     ["Lùi / tới một lượt 8", "Shift ← →"],
     ["Đội hình trước / sau", "[  ]"],
+    ["Mốc đoạn nhạc trước / sau", "Shift [  ]"],
+    ["Thêm mốc đoạn ở vạch phát", "B"],
     ["Lặp đoạn chuyển vào đội hình chọn", "L"],
   ]],
   ["Xếp người", [
@@ -178,6 +180,7 @@ const KEYS: [string, [string, string][]][] = [
   ["Khi trình chiếu", [
     ["Phát / dừng", "Space"],
     ["Đội hình trước / sau", "← →  hoặc  PageUp PageDown"],
+    ["Mốc đoạn nhạc trước / sau", "Shift [  ]"],
     ["Về đầu / về cuối", "Home / End"],
     ["Góc sau lưng người múa", "B"],
     ["Đặt lại góc nhìn", "C"],

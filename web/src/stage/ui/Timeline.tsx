@@ -3,19 +3,23 @@
 // video (kéo ngang để căn nhạc bằng tay), vạch phát.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { type Formation, moveBlock, setBlockTimes } from "../model";
+import { type Formation, type SongMark, moveBlock, setBlockTimes } from "../model";
 import { fmtCounts, fmtTime, snapTime } from "../timing";
 import { st, useProject, useUI } from "../store";
 import * as clock from "../clock";
 import { useLoop, usePlaying, useSpeed, useTime } from "../clock";
 import { music, PEAK_RATE } from "../media";
-import { addFormation, liveDancer, projectEnd, renameBlock } from "../actions";
+import {
+  addFormation, liveDancer, projectEnd, renameBlock, addMarkNow, moveMarkTo, removeMarkById, renameMarkTo, suggestMarks,
+} from "../actions";
+import { markAt } from "../marks";
 import { rowKeys, useHoldIndex, useMediaVersion, useWarnings } from "./hooks";
 import { commaDec, fmtSigned } from "./num";
 import { Icon } from "./icons";
 import { tlHeight } from "../layout";
 
 const RULER = 26;
+const MARKS = 24;
 const WAVE = 40;
 const FORMS = 40;
 const VID = 22;
@@ -50,7 +54,7 @@ export function Timeline() {
   const scroll = useRef<HTMLDivElement>(null);
   const names = useRef<HTMLDivElement>(null);
   const [follow, setFollow] = useState(true);
-  const auto = 34 + RULER + WAVE + FORMS + p.dancers.length * VID + 14;
+  const auto = 34 + RULER + MARKS + WAVE + FORMS + p.dancers.length * VID + 14;
   const [hUser, setHUser] = useState(loadHeight);
   const winH = useWinH();
   const height = tlHeight(auto, hUser, winH);
@@ -176,6 +180,18 @@ export function Timeline() {
       <div className="tl-body">
         <div className="tl-names" ref={names}>
           <div style={{ height: RULER, borderBottom: "1px solid var(--line)" }} />
+          <div className="nm mk-row" style={{ height: MARKS }}>
+            <span className="mk-title">Mốc</span>
+            <button className="mk-btn" onClick={() => addMarkNow()} title="Thêm mốc đoạn nhạc ở vạch phát (B)" aria-label="Thêm mốc ở vạch phát">
+              <Icon name="plus" size={13} />
+            </button>
+            <button
+              className="mk-btn" onClick={suggestMarks} disabled={!p.musicId}
+              title="Gợi ý mốc từ nhạc: đặt mốc Đoạn 1, Đoạn 2... ở chỗ nhạc đổi mạnh (không đè mốc đã có)" aria-label="Gợi ý mốc từ nhạc"
+            >
+              <Icon name="sync" size={13} />
+            </button>
+          </div>
           <div className="nm big" style={{ height: WAVE }}><Icon name="music" size={14} /> {p.musicName ? "Nhạc" : "Chưa có nhạc"}</div>
           <div className="nm big" style={{ height: FORMS }}>Đội hình</div>
           {p.dancers.map((d) => (
@@ -189,11 +205,13 @@ export function Timeline() {
         <div className="tl-scroll" ref={scroll} onScroll={onScroll}>
           <div className="tl-inner" style={{ width: innerW }}>
             <Ruler end={end} pps={pps} bpm={p.bpm} downbeat={p.downbeat} onScrub={onScrub} />
+            <MarkLane marks={p.marks ?? []} pps={pps} snapT={snapT} xToT={xToT} />
             <Wave pps={pps} width={innerW} onScrub={onScrub} />
             <FormLane fs={p.formations} pps={pps} snapT={snapT} xToT={xToT} warnTimes={warnings} bpm={p.bpm} />
             {p.dancers.map((d) => (
               <VidLane key={d.id} d={d} pps={pps} xToT={xToT} />
             ))}
+            <MarkLines marks={p.marks ?? []} pps={pps} />
             <Playhead pps={pps} scroll={scroll} follow={follow} />
           </div>
         </div>
@@ -285,6 +303,168 @@ function Ruler({ end, pps, bpm, downbeat, onScrub }: { end: number; pps: number;
       {ticks}
       {loop && <div className="loopband" style={{ left: loop.a * pps, width: (loop.b - loop.a) * pps }} />}
     </div>
+  );
+}
+
+/** Mốc của đoạn đang phát; chỉ vẽ lại khi sang đoạn khác chứ không mỗi khung hình. */
+function useMarkAt(marks: SongMark[]): string | null {
+  const [id, setId] = useState(() => markAt(marks, clock.now())?.id ?? null);
+  useEffect(() => {
+    const f = () => setId(markAt(marks, clock.now())?.id ?? null);
+    f();
+    return clock.subscribeClock(f);
+  }, [marks]);
+  return id;
+}
+
+/**
+ * Dải mốc đoạn nhạc dưới thước: mỗi mốc một vạch và nhãn. Bấm nhãn để nhảy tới,
+ * kéo để dời (bám phách như khối đội hình, Alt để bỏ bám), bấm đúp để đổi tên,
+ * chuột phải hoặc Delete để xoá; bấm đúp vào chỗ trống để thêm mốc ở đó.
+ */
+function MarkLane(props: {
+  marks: SongMark[]; pps: number;
+  snapT: (t: number, alt: boolean) => number;
+  xToT: (x: number) => number;
+}) {
+  const { marks, pps, snapT, xToT } = props;
+  const cur = useMarkAt(marks);
+  const [sel, setSel] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
+
+  const startDrag = (e: React.PointerEvent, m: SongMark) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    setSel(m.id);
+    (e.currentTarget as HTMLElement).focus({ preventScroll: true });
+    const t0 = xToT(e.clientX);
+    let moved = false;
+    const move = (ev: PointerEvent) => {
+      const dt = xToT(ev.clientX) - t0;
+      if (!moved && Math.abs(dt * pps) < 3) return;
+      if (!moved) {
+        moved = true;
+        st().beginGesture();
+      }
+      moveMarkTo(m.id, snapT(m.t + dt, ev.altKey), true);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      if (moved) st().endGesture();
+      else clock.seek(m.t + 0.001);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+  };
+
+  return (
+    <div
+      className="lane marks"
+      onPointerDown={(e) => {
+        if (e.button !== 0) return;
+        clock.seek(snapT(xToT(e.clientX), e.altKey));
+        setSel(null);
+      }}
+      onDoubleClick={(e) => {
+        clock.seek(snapT(xToT(e.clientX), e.altKey));
+        const id = addMarkNow();
+        if (id) setRenaming(id);
+      }}
+      title="Mốc đoạn nhạc · bấm đúp để thêm mốc (hoặc phím B ở vạch phát)"
+    >
+      {marks.map((m, k) => {
+        const next = marks[k + 1];
+        // nhãn không lấn sang mốc sau
+        const room = next ? Math.max(14, (next.t - m.t) * pps - 4) : 220;
+        const on = sel === m.id;
+        return (
+          <div
+            key={m.id}
+            className={`mk${on ? " sel" : ""}${cur === m.id ? " cur" : ""}`}
+            style={{ left: m.t * pps, maxWidth: renaming === m.id ? undefined : room }}
+            role="button"
+            tabIndex={0}
+            aria-label={`Mốc ${m.label} ở ${fmtTime(m.t)}`}
+            title={`${m.label} · ${fmtTime(m.t)}\nBấm để nhảy tới · kéo để dời · bấm đúp để đổi tên · chuột phải để xoá`}
+            onMouseDown={(e) => {
+              if (!(e.target instanceof HTMLInputElement)) e.preventDefault();
+            }}
+            onPointerDown={(e) => startDrag(e, m)}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setRenaming(m.id);
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              removeMarkById(m.id);
+            }}
+            onKeyDown={(e) => {
+              if (e.target !== e.currentTarget) return;
+              if (e.key === "Delete" || e.key === "Backspace") {
+                e.preventDefault();
+                removeMarkById(m.id);
+              } else if (e.key === "Enter" || e.key === "F2") {
+                e.preventDefault();
+                setRenaming(m.id);
+              }
+            }}
+          >
+            {renaming === m.id ? (
+              <input
+                autoFocus
+                defaultValue={m.label}
+                className="title-input"
+                maxLength={40}
+                aria-label="Tên mốc"
+                onPointerDown={(e) => e.stopPropagation()}
+                onFocus={(e) => e.currentTarget.select()}
+                onBlur={(e) => {
+                  renameMarkTo(m.id, e.currentTarget.value);
+                  setRenaming(null);
+                }}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") e.currentTarget.blur();
+                  if (e.key === "Escape") {
+                    e.currentTarget.value = m.label;
+                    e.currentTarget.blur();
+                  }
+                }}
+              />
+            ) : (
+              <span className="mk-label">{m.label}</span>
+            )}
+            {on && renaming !== m.id && (
+              <button
+                className="mk-x" aria-label={`Xoá mốc ${m.label}`} title="Xoá mốc"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSel(null);
+                  removeMarkById(m.id);
+                }}
+              >
+                ×
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Vạch mốc mờ kéo dọc qua sóng nhạc, dải đội hình và các dải video. */
+function MarkLines({ marks, pps }: { marks: SongMark[]; pps: number }) {
+  return (
+    <>
+      {marks.map((m) => (
+        <div key={m.id} className="mkline" style={{ left: m.t * pps, top: RULER }} aria-hidden="true" />
+      ))}
+    </>
   );
 }
 

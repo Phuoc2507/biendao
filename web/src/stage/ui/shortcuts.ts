@@ -6,6 +6,7 @@ import * as clock from "../clock";
 import {
   addFormation, removeFormation, jumpFormation, mirrorSelected, nudgeSelected,
   stepBeat, exportProject, projectEnd, copyPositions, pastePositions, swapSelected, rotateSelected,
+  addMarkNow, jumpMark,
 } from "../actions";
 import { focusByPointer } from "./hooks";
 import { type Action, modalOpen, popupOpen, resolveShortcut, routeKey, targetKind } from "./keys";
@@ -29,6 +30,8 @@ function run(a: Action, focusedFormation: string | null) {
     case "toggle": clock.toggle(); break;
     case "seek": clock.seek(a.to === "start" ? 0 : projectEnd()); break;
     case "jump": jumpFormation(a.dir); break;
+    case "markJump": jumpMark(a.dir); break;
+    case "mark": addMarkNow(); break;
     case "step": stepBeat(a.beats); break;
     case "nudge": nudgeSelected(a.dx, a.dz); break;
     case "clear": s.setUI({ selected: [], selectedBlock: null }); break;

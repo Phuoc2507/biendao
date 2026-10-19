@@ -352,6 +352,31 @@ kbd {
 .lane.wave { height: 40px; cursor: text; }
 .lane.forms { height: 40px; background: #12151b; cursor: text; }
 .lane.vid { height: 22px; }
+/* mốc đoạn nhạc: dải mỏng dưới thước, nhãn kéo được; vạch mờ kéo dọc xuống các dải */
+.lane.marks { height: 24px; cursor: text; }
+.mk {
+  position: absolute; top: 2px; height: 20px; display: flex; align-items: center; gap: 2px;
+  padding: 0 4px 0 6px; border-left: 2px solid var(--accent2); border-radius: 0 5px 5px 0;
+  background: #2a2318; color: #ffd9ae; font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden;
+  cursor: grab; min-width: 14px; z-index: 1;
+}
+.mk:hover { background: #3a2e1d; }
+.mk.cur { background: #4a3520; color: #fff; }
+.mk.sel { outline: 1px solid var(--accent); outline-offset: -1px; }
+.mk:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.mk-label { overflow: hidden; text-overflow: ellipsis; }
+.mk .title-input { width: 120px; height: 18px; font-size: 11px; padding: 0 4px; }
+.mk-x { flex: none; width: 16px; height: 16px; border: 0; border-radius: 3px; background: transparent; color: inherit; font-size: 13px; line-height: 1; padding: 0; cursor: pointer; }
+.mk-x:hover { background: #ffffff22; }
+.mkline { position: absolute; bottom: 0; width: 0; border-left: 1px dashed rgba(255,184,107,.28); pointer-events: none; z-index: 1; }
+.tl-names .nm.mk-row { gap: 2px; padding: 0 4px 0 8px; border-bottom: 1px solid #20262f; }
+.tl-names .mk-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.mk-btn {
+  flex: none; width: 22px; height: 20px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: 4px; background: transparent; color: var(--muted); padding: 0; cursor: pointer;
+}
+.mk-btn:hover:not(:disabled) { color: var(--text); border-color: var(--accent); }
+.mk-btn:disabled { opacity: .35; cursor: default; }
 .block {
   position: absolute; top: 5px; bottom: 5px; border-radius: 6px; background: #2c3442; border: 1px solid #3c4658;
   display: flex; align-items: center; padding: 0 8px; overflow: hidden; cursor: grab; font-size: 12px;
@@ -482,6 +507,8 @@ kbd {
 .present .bigcount span { font-size: 40px; color: var(--accent2); margin-left: 8px; }
 .present .rh-head { left: 32px; top: 28px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; max-width: min(62vw, 900px); }
 .present .fname { font-size: 34px; font-weight: 700; }
+/* đoạn nhạc đang ở (mốc trên dòng thời gian), nằm trên tên đội hình */
+.present .fsec { font-size: 16px; font-weight: 700; color: var(--accent2); letter-spacing: .02em; }
 .present .fnext { font-size: 20px; color: #cfd6e2; }
 .present .fnote {
   font-size: 18px; line-height: 1.35; color: #ffe9a8; background: rgba(0,0,0,.45); padding: 4px 12px; border-radius: 8px;

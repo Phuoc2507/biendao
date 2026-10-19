@@ -69,6 +69,8 @@ export type Action =
   | { type: "toggle" }
   | { type: "seek"; to: "start" | "end" }
   | { type: "jump"; dir: -1 | 1 }
+  | { type: "markJump"; dir: -1 | 1 }
+  | { type: "mark" }
   | { type: "step"; beats: number }
   | { type: "nudge"; dx: number; dz: number }
   | { type: "clear" }
@@ -127,7 +129,7 @@ export function modalOpen(ui: { exportOpen: boolean; busy: unknown }): boolean {
 // giữ phím thì chỉ lặp các phím di chuyển; còn lại một lần bấm một lần chạy
 const ONCE = new Set<Action["type"]>([
   "save", "selectAll", "copy", "paste", "toggle", "clear", "add", "delete", "deleteHint", "help",
-  "snap", "view", "present", "exit", "mirror", "swap", "rotate", "loop", "fit", "planFrom",
+  "snap", "view", "present", "exit", "mirror", "swap", "rotate", "loop", "fit", "planFrom", "mark",
 ]);
 
 export function resolveShortcut(k: KeyIn, c: KeyCtx): Action | null {
@@ -159,6 +161,9 @@ function resolve(k: KeyIn, c: KeyCtx): Action | null {
     return null;
   }
   if (k.alt) return null;
+  // Shift [ / Shift ]: nhảy theo mốc đoạn nhạc; bàn phím Mỹ ra "{" "}", vài bàn phím vẫn ra "[" "]" kèm Shift
+  if (key === "{" || (k.shift && key === "[")) return { type: "markJump", dir: -1 };
+  if (key === "}" || (k.shift && key === "]")) return { type: "markJump", dir: 1 };
   if (c.presenting) {
     switch (key) {
       case " ": return { type: "toggle" };
@@ -205,6 +210,7 @@ function resolve(k: KeyIn, c: KeyCtx): Action | null {
     case "l": return { type: "loop" };
     case "o": return { type: "planFrom" };
     case "z": return k.shift ? { type: "fit" } : null;
+    case "b": return k.shift ? null : { type: "mark" };
   }
   return null;
 }
