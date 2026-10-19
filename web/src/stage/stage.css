@@ -248,6 +248,29 @@ kbd {
 .ditem .nm small.warn { color: var(--yellow); }
 .ditem .acts { display: none; gap: 2px; }
 .ditem:hover .acts, .ditem.sel .acts, .ditem:focus-within .acts { display: flex; }
+/* nhóm lưu sẵn: chip xuống dòng, menu nằm ngay dưới (không bật nổi để cột cuộn khỏi cắt) */
+.gmenu { padding: 0 8px 4px; }
+.gchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.gchip { display: inline-flex; align-items: stretch; max-width: 100%; border: 1px solid var(--line2); border-radius: 999px; background: var(--panel2); overflow: hidden; }
+.gchip.on { background: var(--accentBg); }
+.gchip button { background: none; border: 0; color: inherit; cursor: pointer; min-height: 30px; }
+.gchip button:hover { background: #2a3140; }
+.gchip .gpick { display: inline-flex; align-items: center; gap: 6px; min-width: 0; padding: 0 4px 0 10px; }
+.gchip .gdot { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+.gchip .gname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gchip .gnum { color: var(--dim); font-size: 11px; }
+.gchip .gmore { padding: 0 8px 0 4px; color: var(--dim); }
+.gchip .gmore.on { color: var(--text); }
+.gchips .gsave { border-radius: 999px; }
+.side .gmenu .pop.gpop { position: static; margin-top: 6px; min-width: 0; width: auto; max-height: none; box-shadow: none; }
+.side .gmenu .pop .gcolors { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 10px 6px; }
+.side .gmenu .pop .gcolors button { width: 26px; height: 26px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid transparent; }
+.side .gmenu .pop .gcolors button.on { border-color: #fff; }
+.side .gmenu .pop button.danger { color: var(--red); }
+.side .gmenu .pop button:disabled { opacity: .4; cursor: default; background: none; }
+.app.phone .gchip button { min-height: 40px; }
+.app.phone .gchip .gmore { padding: 0 12px 0 6px; }
+.app.phone .side .gmenu .pop .gcolors button { width: 36px; height: 36px; }
 .ditem input.rename { width: 100%; height: 22px; padding: 0 4px; background: var(--bg); border: 1px solid var(--accent); border-radius: 4px; }
 .drop-hint {
   margin: 8px 12px; padding: 12px; border: 1px dashed var(--line2); border-radius: var(--radius);

@@ -6,6 +6,7 @@ import {
   clampToStage, emptyProject, newDancer, wingSpot, withNotes, cleanPersonNote,
 } from "./model.ts";
 import { cleanMarks } from "./marks.ts";
+import { cleanGroups } from "./groups.ts";
 
 export const stripName = (name: string): string =>
   name.replace(/\.[^.]+$/, "").replace(/\.card$/i, "");
@@ -116,6 +117,10 @@ export function normalizeProject(raw: unknown): Project | null {
   const marks = cleanMarks(j.marks, out.musicDuration);
   if (marks.length) out.marks = marks;
   else delete out.marks;
+  const groups = cleanGroups(j.groups, dancers.map((d) => d.id));
+  if (groups.length) out.groups = groups;
+  else delete out.groups;
+  if (out.groupRings !== false) delete out.groupRings;
   return out;
 }
 

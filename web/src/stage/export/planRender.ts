@@ -3,6 +3,7 @@
 
 import { type Project, type StageSize, WING, posesAt, segmentAt, initials } from "../model.ts";
 import { countAt, fmtTime } from "../timing.ts";
+import { groupRingColors } from "../groups.ts";
 
 export interface PlanGeom {
   w: number;
@@ -39,6 +40,8 @@ export interface FrameDot {
   name: string;
   alpha: number;
   highlight: boolean;
+  /** Màu viền theo nhóm (bật Viền theo nhóm và người này có nhóm). */
+  ring?: string;
 }
 
 export interface PlanFrame {
@@ -79,12 +82,13 @@ export function planFrame(p: Project, t: number, g: PlanGeom, o: { highlightId?:
   if (note.length) sub += ` · ${note.length > 60 ? `${note.slice(0, 59).join("")}…` : note.join("")}`;
   const hi = o.highlightId ? ds.find((d) => d.id === o.highlightId) : undefined;
   const c = p.bpm ? countAt(t, p.bpm, p.downbeat) : null;
+  const rings = groupRingColors(p);
   const dots = ds.map((d) => {
     const [x, y] = toPx(g, poses[d.id][0], poses[d.id][1]);
     const me = !!hi && d.id === hi.id;
     return {
       id: d.id, x, y, r: 0.3 * g.s * (me ? 1.25 : 1), color: d.color, label: initials(d.name), name: d.name,
-      alpha: hi && !me ? 0.35 : 1, highlight: me,
+      alpha: hi && !me ? 0.35 : 1, highlight: me, ...(d.id in rings ? { ring: rings[d.id] } : {}),
     };
   });
   // người được tô vẽ sau cùng để nằm trên
@@ -246,6 +250,13 @@ export function drawPlanFrame(ctx: Ctx2D, g: PlanGeom, f: PlanFrame) {
       ctx.beginPath();
       ctx.arc(d.x, d.y, d.r + 4 * u, 0, Math.PI * 2);
       ctx.fill();
+    }
+    if (d.ring) {
+      ctx.strokeStyle = d.ring;
+      ctx.lineWidth = 3 * u;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r + 2.5 * u, 0, Math.PI * 2);
+      ctx.stroke();
     }
     ctx.fillStyle = d.color;
     ctx.beginPath();

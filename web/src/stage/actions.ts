@@ -26,6 +26,10 @@ import {
 import { claimTab, canAutosave, setBootProblem, otherTabsOpen, onTakeOver, subscribeGuard } from "./guard";
 import { planDance, energyChangeScore, suggestMarkTimes } from "./autoplan";
 import { addMark, markJump, markNear, mergeSuggested, moveMark, nextMarkLabel, removeMark, renameMark, withMarks } from "./marks";
+import {
+  addGroup, addToGroup, cloneIntoGroups, deleteGroup, dropFromGroups, groupPick, nextGroupColor, nextGroupName,
+  recolorGroup, removeFromGroup, renameGroup, setGroupMembers, toggleGroupPick, withGroups,
+} from "./groups";
 import { findIssues, isSoft } from "./checks";
 import { fixAll, reassignFix, staggerFix, widenFix } from "./fixes";
 import { errText } from "./storage";
@@ -65,7 +69,8 @@ function nextDefaultName(p: Project): string {
 export function startWith(n: number) {
   const p0 = proj();
   const dancers: VDancer[] = [];
-  let p: Project = { ...p0, dancers: [] };
+  // người cũ bị thay hết nên nhóm cũ cũng bỏ
+  let p: Project = withGroups({ ...p0, dancers: [] }, []);
   for (let i = 0; i < n; i++) {
     const d = newDancer(uid("d"), `D${i + 1}`, PALETTE[i % PALETTE.length]);
     dancers.push(d);
@@ -119,7 +124,10 @@ export function duplicateDancer(id: string, n = 1): string | null {
     let k = q.dancers.findIndex((x) => x.id === id);
     q.dancers.forEach((x, i) => { if (src.mediaId && x.mediaId === src.mediaId) k = Math.max(k, i); });
     const dancers = [...q.dancers.slice(0, k + 1), ...clones, ...q.dancers.slice(k + 1)];
-    return { ...q, dancers, formations: placeClones(q.formations, id, clones.map((d) => d.id), q.stage) };
+    // bản sao vào cùng nhóm với bản gốc (nhóm nữ nhân bản thêm người vẫn là nhóm nữ)
+    const cids = clones.map((d) => d.id);
+    const groups = q.groups ? cloneIntoGroups(q.groups, id, cids, dancers.map((d) => d.id)) : undefined;
+    return { ...q, ...(groups && { groups }), dancers, formations: placeClones(q.formations, id, cids, q.stage) };
   });
   clock.resync();
   hintWarn(warnBefore, n > 1 ? `Đã nhân bản ${src.name} thành ${n} người` : `Đã nhân bản ${src.name}`, n > 1);
@@ -253,6 +261,7 @@ export function removeDancer(id: string) {
   if (!d) return;
   st().commit((q) => ({
     ...q,
+    ...withGroups(q, dropFromGroups(q.groups, id)),
     dancers: q.dancers.filter((x) => x.id !== id),
     formations: removeDancerFromAll(q.formations, id),
   }));
@@ -556,6 +565,98 @@ export function removeMyShape(id: string) {
     return rest.length ? { ...base, myShapes: rest } : base;
   });
   st().notify(`Đã xoá hình "${s.name}"`, { undo: true });
+}
+
+// ---------- nhóm lưu sẵn ----------
+
+const findGroup = (id: string) => proj().groups?.find((g) => g.id === id);
+/** Người đang chọn còn trong bài, theo thứ tự danh sách. */
+const pickedNow = (p: Project = proj()) => groupPick({ id: "", name: "", color: "", members: st().ui.selected }, ids(p));
+
+/** Lưu người đang chọn (từ 2 người) thành nhóm, hỏi tên bằng hộp nhập. Trả id nhóm. */
+export function saveGroup(): string | null {
+  const p = proj();
+  const sel = pickedNow(p);
+  if (sel.length < 2) {
+    st().notify("Chọn ít nhất 2 người rồi bấm Lưu nhóm");
+    return null;
+  }
+  const def = nextGroupName(p.groups);
+  const asked = window.prompt(`Tên nhóm (${sel.length} người), vd "Nam", "Nhóm hát", "Cánh A"`, def);
+  if (asked === null) return null;
+  const id = uid("g");
+  const g = { id, name: asked.trim() || def, color: nextGroupColor(p.groups), members: sel };
+  st().commit((q) => withGroups(q, addGroup(q.groups, g, ids(q))));
+  st().notify(`Đã lưu nhóm "${findGroup(id)?.name ?? g.name}" (${sel.length} người): chạm chip để chọn cả nhóm`, { undo: true });
+  return id;
+}
+
+export function renameGroupTo(id: string, name: string) {
+  const g = findGroup(id);
+  if (!g || !name.trim() || g.name === name.trim()) return;
+  st().commit((q) => withGroups(q, renameGroup(q.groups, id, name)));
+}
+
+export function recolorGroupTo(id: string, color: string) {
+  const g = findGroup(id);
+  if (!g || g.color === color) return;
+  st().commit((q) => withGroups(q, recolorGroup(q.groups, id, color)));
+}
+
+/** Nhóm chỉ còn đúng những người đang chọn. */
+export function updateGroupFromSelection(id: string) {
+  const g = findGroup(id);
+  if (!g) return;
+  const sel = pickedNow();
+  if (!sel.length) return st().notify("Chưa chọn ai: chọn người trước rồi bấm cập nhật");
+  st().commit((q) => withGroups(q, setGroupMembers(q.groups, id, sel, ids(q))));
+  st().notify(`Nhóm "${g.name}" giờ có ${sel.length} người đang chọn`, { undo: true });
+}
+
+/** Thêm (add) hoặc bớt người đang chọn khỏi nhóm. Bớt hết người thì nhóm bị xoá. */
+export function addSelectedToGroup(id: string, add: boolean) {
+  const g = findGroup(id);
+  if (!g) return;
+  const sel = pickedNow();
+  if (!sel.length) return st().notify(`Chưa chọn ai để ${add ? "thêm vào" : "bớt khỏi"} nhóm "${g.name}"`);
+  const hit = sel.filter((x) => g.members.includes(x) !== add).length;
+  if (!hit) return st().notify(add ? `Mọi người đang chọn đã ở nhóm "${g.name}"` : `Không ai đang chọn thuộc nhóm "${g.name}"`);
+  st().commit((q) => withGroups(q, add ? addToGroup(q.groups, id, sel, ids(q)) : removeFromGroup(q.groups, id, sel)));
+  const gone = !findGroup(id);
+  st().notify(
+    gone ? `Nhóm "${g.name}" hết người nên đã xoá` : `${add ? "Thêm" : "Bớt"} ${hit} người ${add ? "vào" : "khỏi"} nhóm "${g.name}"`,
+    { undo: true },
+  );
+}
+
+export function removeGroup(id: string) {
+  const g = findGroup(id);
+  if (!g) return;
+  st().commit((q) => withGroups(q, deleteGroup(q.groups, id)));
+  st().notify(`Đã xoá nhóm "${g.name}" (người trong nhóm vẫn giữ nguyên)`, { undo: true });
+}
+
+/** Chọn cả nhóm (bỏ id chết); đang chọn đúng nhóm đó thì bỏ chọn. */
+export function selectGroup(id: string) {
+  const g = findGroup(id);
+  if (!g) return;
+  st().setUI({ selected: toggleGroupPick(g, st().ui.selected, ids()) });
+}
+
+/** Phím Alt 1..9: nhóm thứ k (đếm từ 0). */
+export function selectGroupAt(k: number) {
+  const g = proj().groups?.[k];
+  if (!g) return st().notify(proj().groups?.length ? `Chỉ có ${proj().groups!.length} nhóm` : "Chưa có nhóm nào: chọn từ 2 người rồi bấm Lưu nhóm ở thẻ Vũ công");
+  selectGroup(g.id);
+}
+
+/** Bật tắt viền màu nhóm (lưu theo dự án để ảnh, bản in, video cũng theo). */
+export function setGroupRings(on: boolean) {
+  st().commit((q) => {
+    if (on === (q.groupRings !== false)) return q;
+    const { groupRings: _r, ...rest } = q;
+    return on ? rest : { ...rest, groupRings: false };
+  });
 }
 
 // ---------- đội hình ----------

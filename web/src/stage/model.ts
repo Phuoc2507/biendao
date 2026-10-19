@@ -63,6 +63,18 @@ export interface Project {
   myShapes?: SavedShape[];
   /** Mốc đoạn nhạc có tên ("Nhạc dạo", "Điệp khúc"...), xếp theo giờ. Không có thì coi như rỗng. */
   marks?: SongMark[];
+  /** Nhóm lưu sẵn (nam nữ, nhóm hát, cánh A B...) để chọn cả nhóm một chạm. Không có thì coi như rỗng. */
+  groups?: DancerGroup[];
+  /** false: tắt viền màu nhóm quanh chấm (sơ đồ, ảnh, bản in, video). Không có là bật. */
+  groupRings?: boolean;
+}
+
+/** Một nhóm lưu sẵn: members là id vũ công theo thứ tự danh sách; một người có thể ở nhiều nhóm. */
+export interface DancerGroup {
+  id: string;
+  name: string;
+  color: string;
+  members: string[];
 }
 
 /** Một mốc đoạn nhạc: từ giây t trở đi là đoạn `label` cho tới mốc sau. */

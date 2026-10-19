@@ -87,7 +87,8 @@ export type Action =
   | { type: "rotate"; dir: 1 | -1 }
   | { type: "loop" }
   | { type: "fit" }
-  | { type: "planFrom" };
+  | { type: "planFrom" }
+  | { type: "group"; n: number };
 
 export interface KeyIn {
   key: string;
@@ -95,6 +96,8 @@ export interface KeyIn {
   shift: boolean;
   alt: boolean;
   repeat?: boolean;
+  /** KeyboardEvent.code ("Digit1"): Option 1 trên máy Mac ra chữ khác nên Alt 1..9 xét theo phím vật lý. */
+  code?: string;
 }
 
 export interface KeyCtx {
@@ -129,13 +132,19 @@ export function modalOpen(ui: { exportOpen: boolean; busy: unknown }): boolean {
 // giữ phím thì chỉ lặp các phím di chuyển; còn lại một lần bấm một lần chạy
 const ONCE = new Set<Action["type"]>([
   "save", "selectAll", "copy", "paste", "toggle", "clear", "add", "delete", "deleteHint", "help",
-  "snap", "view", "present", "exit", "mirror", "swap", "rotate", "loop", "fit", "planFrom", "mark",
+  "snap", "view", "present", "exit", "mirror", "swap", "rotate", "loop", "fit", "planFrom", "mark", "group",
 ]);
 
 export function resolveShortcut(k: KeyIn, c: KeyCtx): Action | null {
   const a = resolve(k, c);
   if (a && k.repeat && ONCE.has(a.type)) return null;
   return a;
+}
+
+/** Số 1..9 của phím (hàng số hoặc bàn phím số), không phải số thì 0. */
+function groupDigit(k: KeyIn): number {
+  const m = /^(?:Digit|Numpad)([1-9])$/.exec(k.code ?? "") ?? /^([1-9])$/.exec(k.key);
+  return m ? Number(m[1]) : 0;
 }
 
 function resolve(k: KeyIn, c: KeyCtx): Action | null {
@@ -160,7 +169,11 @@ function resolve(k: KeyIn, c: KeyCtx): Action | null {
     if (lower === "v" && !k.shift && c.hasDancers) return { type: "paste" };
     return null;
   }
-  if (k.alt) return null;
+  if (k.alt) {
+    // Alt 1..9: chọn nhóm lưu sẵn thứ n (Ctrl Alt đã loại ở trên vì AltGr cũng ra Ctrl Alt)
+    const n = groupDigit(k);
+    return n && !k.shift && !c.presenting && c.hasDancers ? { type: "group", n } : null;
+  }
   // Shift [ / Shift ]: nhảy theo mốc đoạn nhạc; bàn phím Mỹ ra "{" "}", vài bàn phím vẫn ra "[" "]" kèm Shift
   if (key === "{" || (k.shift && key === "[")) return { type: "markJump", dir: -1 };
   if (key === "}" || (k.shift && key === "]")) return { type: "markJump", dir: 1 };

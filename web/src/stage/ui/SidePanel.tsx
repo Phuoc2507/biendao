@@ -1,6 +1,6 @@
 // Cột trái: ba thẻ VŨ CÔNG / ĐỘI HÌNH / CẢNH BÁO.
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   type Project, type ShapeKind, type VDancer, type Vec2, type CanonOrder, SHAPE_LABEL, CANON_ORDER_LABEL, shapePoints, initials, PALETTE,
   segmentAt, personNote, PERSON_NOTE_MAX,
@@ -13,7 +13,9 @@ import {
   importFiles, applyShape, mirrorSelected, distributeSelected, swapSelected, rotateSelected, scaleSelected, sendToWings,
   addFormation, removeFormation, renameBlock, setNote, setPersonNote, setStage, setBpm, saveMyShape, applyMyShape, removeMyShape,
   canonSection, clearCanonSection, mirrorGroup, setFlip, fixReassign, fixWiden, fixStagger, fixAllWarnings,
+  saveGroup, selectGroup, renameGroupTo, recolorGroupTo, updateGroupFromSelection, addSelectedToGroup, removeGroup, setGroupRings,
 } from "../actions";
+import { groupPick, isGroupPicked } from "../groups";
 import { rowKeys, useHoldIndex, useNoteIndex, useWarnings } from "./hooks";
 import { reassignFix, staggerFix, widenFix } from "../fixes";
 import { isSoft } from "../checks";
@@ -456,6 +458,102 @@ function CanonSection({ sel }: { sel: string[] }) {
   );
 }
 
+/**
+ * Hàng chip nhóm lưu sẵn: chạm chip là chọn cả nhóm (chạm lại thì bỏ chọn),
+ * nút mũi tên mở menu sửa nhóm. Menu nằm ngay dưới hàng chip (không bật nổi)
+ * để không bị cột cuộn cắt mất; có lớp .menu .pop nên Esc chỉ đóng menu.
+ */
+function GroupChips() {
+  const p = useProject();
+  const ui = useUI();
+  const [menu, setMenu] = useState<string | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const groups = p.groups ?? [];
+  const all = p.dancers.map((d) => d.id);
+  const nSel = ui.selected.filter((id) => all.includes(id)).length;
+  const open = groups.find((g) => g.id === menu);
+  useEffect(() => {
+    if (!open) return;
+    const f = (e: PointerEvent) => ref.current && !ref.current.contains(e.target as Node) && setMenu(null);
+    // Esc đóng menu (bắt trước phím tắt chung)
+    const k = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      setMenu(null);
+    };
+    window.addEventListener("pointerdown", f);
+    window.addEventListener("keydown", k, true);
+    return () => {
+      window.removeEventListener("pointerdown", f);
+      window.removeEventListener("keydown", k, true);
+    };
+  }, [open]);
+  if (!groups.length && nSel < 2) return null;
+  const run = (fn: () => void) => () => {
+    setMenu(null);
+    fn();
+  };
+  return (
+    <div className="menu gmenu" ref={ref}>
+      <div className="gchips" role="group" aria-label="Nhóm lưu sẵn">
+        {groups.map((g, k) => {
+          const on = isGroupPicked(g, ui.selected, all);
+          const n = groupPick(g, all).length;
+          return (
+            <span key={g.id} className={`gchip${on ? " on" : ""}`} style={on ? { borderColor: g.color } : undefined}>
+              <button
+                className="gpick" aria-pressed={on} onClick={() => selectGroup(g.id)}
+                title={`${on ? "Bỏ chọn" : "Chọn cả"} nhóm "${g.name}" (${n} người)${k < 9 ? `. Phím Alt ${k + 1}` : ""}`}
+              >
+                <span className="gdot" style={{ background: g.color }} />
+                <span className="gname">{g.name}</span>
+                <span className="gnum">{n}</span>
+              </button>
+              <button
+                className={`gmore${menu === g.id ? " on" : ""}`} aria-label={`Sửa nhóm ${g.name}`} aria-expanded={menu === g.id}
+                title="Đổi tên, đổi màu, cập nhật, xoá nhóm" onClick={() => setMenu(menu === g.id ? null : g.id)}
+              >
+                <Icon name="chevron" size={12} />
+              </button>
+            </span>
+          );
+        })}
+        {nSel >= 2 && (
+          <button className="btn sm gsave" onClick={() => saveGroup()} title="Lưu những người đang chọn thành nhóm (nam, nữ, nhóm hát, cánh A...) để lần sau chạm một lần là chọn cả nhóm">
+            <Icon name="bookmark" /> Lưu nhóm ({nSel})
+          </button>
+        )}
+      </div>
+      {open && (
+        <div className="pop gpop" role="menu" aria-label={`Nhóm ${open.name}`}>
+          <div className="hint">Nhóm "{open.name}" · {groupPick(open, all).length} người</div>
+          <button onClick={run(() => {
+            const v = window.prompt("Tên nhóm", open.name);
+            if (v !== null) renameGroupTo(open.id, v);
+          })}><Icon name="edit" size={16} /> Đổi tên…</button>
+          <div className="gcolors" role="group" aria-label="Màu nhóm">
+            {PALETTE.map((c) => (
+              <button
+                key={c} className={c === open.color ? "on" : ""} style={{ background: c }}
+                aria-label={`Màu ${COLOR_NAME[c] ?? c}`} aria-pressed={c === open.color} title={COLOR_NAME[c] ?? c}
+                onClick={() => recolorGroupTo(open.id, c)}
+              />
+            ))}
+          </div>
+          <hr />
+          <button disabled={!nSel} onClick={run(() => updateGroupFromSelection(open.id))}>
+            <Icon name="sync" size={16} /> Chỉ giữ {nSel ? `${nSel} người đang chọn` : "người đang chọn"}
+          </button>
+          <button disabled={!nSel} onClick={run(() => addSelectedToGroup(open.id, true))}><Icon name="plus" size={16} /> Thêm người đang chọn</button>
+          <button disabled={!nSel} onClick={run(() => addSelectedToGroup(open.id, false))}><Icon name="minus" size={16} /> Bớt người đang chọn</button>
+          <hr />
+          <button className="danger" onClick={run(() => removeGroup(open.id))}><Icon name="trash" size={16} /> Xoá nhóm (giữ người)</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DancersTab() {
   const p = useProject();
   const ui = useUI();
@@ -474,6 +572,7 @@ function DancersTab() {
           </button>
         </h4>
       </div>
+      <GroupChips />
       <div className="dlist">
         {p.dancers.map((d) => (
           <DancerRow key={d.id} d={d} sel={ui.selected.includes(d.id)} />
@@ -649,6 +748,11 @@ function FormationsTab() {
         <label className="field"><input type="checkbox" checked={ui.showPaths} onChange={(e) => st().setUI({ showPaths: e.target.checked })} /> Đường đi tới đội hình sau</label>
         <label className="field"><input type="checkbox" checked={ui.showGhosts} onChange={(e) => st().setUI({ showGhosts: e.target.checked })} /> Bóng mờ đội hình trước</label>
         <label className="field"><input type="checkbox" checked={ui.showNames} onChange={(e) => st().setUI({ showNames: e.target.checked })} /> Tên dưới mỗi người</label>
+        {!!p.groups?.length && (
+          <label className="field" title="Vòng viền màu nhóm quanh chấm mỗi người, cả trong ảnh, bản in và video sơ đồ. Người ở nhiều nhóm lấy màu nhóm đầu">
+            <input type="checkbox" checked={p.groupRings !== false} onChange={(e) => setGroupRings(e.target.checked)} /> Viền theo nhóm
+          </label>
+        )}
         <label className="field"><input type="checkbox" checked={ui.snap} onChange={(e) => st().setUI({ snap: e.target.checked })} /> Bám lưới 25 cm và phách (N)</label>
       </div>
       <div className="section">

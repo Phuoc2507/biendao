@@ -3,6 +3,7 @@
 
 import { type Project, type Vec2, WING, posesAt, initials, dist, personNote } from "../model.ts";
 import { countAt, fmtCounts, fmtTime } from "../timing.ts";
+import { groupRingColors } from "../groups.ts";
 
 /** Mô tả vị trí bằng lời (ui/hooks.ts describePos), truyền vào để giữ thuần. */
 export type Describe = (x: number, z: number, width: number, depth: number) => string;
@@ -98,10 +99,13 @@ export function formationSvg(p: Project, k: number): string {
       `<line x1="${n1(X(a[0]) + ux * R)}" y1="${n1(Z(a[1]) + uz * R)}" x2="${n1(X(b[0]) - ux * (R + 2))}" y2="${n1(Z(b[1]) - uz * (R + 2))}" stroke="#666" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#a${k})"/>`,
     );
   }
+  const rings = groupRingColors(p);
   for (const d of shown(p)) {
     const b = now[d.id];
     if (!b) continue;
     const cx = n1(X(b[0])), cy = n1(Z(b[1]));
+    // viền theo nhóm nằm ngoài chấm, khi in đen trắng vẫn thấy vòng
+    if (rings[d.id]) o.push(`<circle cx="${cx}" cy="${cy}" r="${n1(R + 2.5)}" fill="none" stroke="${safeColor(rings[d.id])}" stroke-width="3"/>`);
     o.push(
       `<g class="dot"><circle cx="${cx}" cy="${cy}" r="${n1(R)}" fill="${safeColor(d.color)}" stroke="#222" stroke-width="1"/>`,
       `<text x="${cx}" y="${n1(Z(b[1]) + 4)}" class="ini" text-anchor="middle">${esc(initials(d.name))}</text>`,
