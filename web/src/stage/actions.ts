@@ -37,6 +37,7 @@ import { findIssues, isSoft } from "./checks";
 import { fixAll, reassignFix, staggerFix, widenFix } from "./fixes";
 import { errText } from "./storage";
 import { quickSave, openProjectJson, openBundleFile } from "./export/save";
+import type { LibShape } from "./library";
 
 export const proj = () => st().project;
 const ids = (p: Project = proj()) => p.dancers.map((d) => d.id);
@@ -568,6 +569,38 @@ export function removeMyShape(id: string) {
     return rest.length ? { ...base, myShapes: rest } : base;
   });
   st().notify(`Đã xoá hình "${s.name}"`, { undo: true });
+}
+
+// ---------- thư viện đội hình ----------
+
+/** Số người mà Thư viện và Hình của tôi sẽ xếp: người đang chọn (từ 2), không thì cả đội trên sân. */
+export function shapeGroupSize(): number {
+  return shapeGroup(proj(), currentPoses()).length;
+}
+
+/** Xếp nhóm theo một hình trong thư viện, giống áp Hình của tôi. */
+export function applyLibraryShape(shape: LibShape) {
+  const p = proj();
+  const cur = currentPoses();
+  const g = shapeGroup(p, cur);
+  if (!g.length) {
+    st().notify("Chưa có ai trên sân để xếp");
+    return;
+  }
+  const r = fitSavedShape(cur, g, shape.pts, p.stage);
+  const w = warnCount(p);
+  setPositionsNow(r.moves, false);
+  let what = `Đã xếp theo hình "${shape.name}" (${shape.pts.length} người)`;
+  if (r.kept.length) what += `. Nhóm có ${g.length} người: ${r.kept.length} người ở xa nhất giữ chỗ cũ`;
+  else if (r.unused) what += `. Nhóm chỉ có ${g.length} người: dùng ${g.length} chỗ gần tâm nhất`;
+  hintWarn(w, what, r.kept.length > 0 || r.unused > 0);
+}
+
+/** Chép một hình trong thư viện vào Hình của tôi để sửa tên, dùng lại sau. */
+export function saveLibraryShape(shape: LibShape) {
+  const saved: SavedShape = { id: uid("h"), name: shape.name, pts: shape.pts.map((q): Vec2 => [q[0], q[1]]) };
+  st().commit((q) => ({ ...q, myShapes: [...(q.myShapes ?? []), saved] }));
+  st().notify(`Đã lưu hình "${shape.name}" (${shape.pts.length} chỗ) vào Hình của tôi`, { undo: true });
 }
 
 // ---------- nhóm lưu sẵn ----------

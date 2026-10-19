@@ -20,6 +20,7 @@ import { rowKeys, useHoldIndex, useNoteIndex, useWarnings } from "./hooks";
 import { reassignFix, staggerFix, widenFix } from "../fixes";
 import { isSoft } from "../checks";
 import { AutoPlanSection } from "./AutoPlanSection";
+import { LibrarySection } from "./LibrarySection";
 import { NumField } from "./NumField";
 import { commaDec, fmtNum, fmtSigned } from "./num";
 import { Icon } from "./icons";
@@ -732,6 +733,7 @@ function FormationsTab() {
               ))}
             </div>
           )}
+        <LibrarySection />
         <div className="row" style={{ marginTop: 8, flexWrap: "wrap" }}>
           <button className="btn sm" onClick={mirrorSelected} title="Lật trái phải (M)"><Icon name="mirror" /> Lật</button>
           <button className="btn sm" onClick={distributeSelected} disabled={nSel < 3} title="Dàn đều theo chiều ngang"><Icon name="distribute" /> Dàn đều</button>
