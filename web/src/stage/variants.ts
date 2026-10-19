@@ -6,6 +6,7 @@
 
 import type { Project, Formation, Vec2 } from "./model.ts";
 import { fmtTime } from "./timing.ts";
+import { facingName, normFacing } from "./facing.ts";
 
 export interface Variant {
   id: string;
@@ -101,6 +102,7 @@ export type Change =
   | { kind: "moved"; formation: string; dancer: string; dist: number }
   | { kind: "swapped"; formation: string; a: string; b: string }
   | { kind: "path"; formation: string; dancer: string }
+  | { kind: "facing"; formation: string; dancer: string; to: number }
   | { kind: "note"; formation: string; from: string; to: string }
   | { kind: "personNote"; formation: string; dancer: string; from: string; to: string }
   | { kind: "other"; what: string };
@@ -193,6 +195,12 @@ function diffPositions(o: Formation, f: Formation, who: (id: string) => string, 
     const b = vf[id];
     if (a && b ? dist(a, b) >= MOVE_EPS : a !== b) out.push({ kind: "path", formation: f.name, dancer: who(id) });
   }
+  const fo = o.facing ?? {};
+  const ff = f.facing ?? {};
+  for (const id of new Set([...Object.keys(fo), ...Object.keys(ff)])) {
+    const b = normFacing(ff[id] ?? 0);
+    if (normFacing(fo[id] ?? 0) !== b) out.push({ kind: "facing", formation: f.name, dancer: who(id), to: b });
+  }
   const no = o.notes ?? {};
   const nf = f.notes ?? {};
   for (const id of new Set([...Object.keys(no), ...Object.keys(nf)])) {
@@ -224,6 +232,7 @@ export function changeText(c: Change): string {
     case "moved": return `${c.formation}: ${c.dancer} dời ${fmtM(c.dist)} m`;
     case "swapped": return `${c.formation}: ${c.a} đổi chỗ với ${c.b}`;
     case "path": return `${c.formation}: đổi đường đi của ${c.dancer}`;
+    case "facing": return `${c.formation}: ${c.dancer} giờ ${facingName(c.to)}`;
     case "note": return `${c.formation}: ghi chú ${q(c.from)} thành ${q(c.to)}`;
     case "personNote": return `${c.formation}: ghi chú của ${c.dancer} ${q(c.from)} thành ${q(c.to)}`;
     case "other": return `Đổi ${c.what}`;

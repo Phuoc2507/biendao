@@ -167,3 +167,12 @@ test("variantRepo: một lần ghi lỗi không chặn các lần sau", async ()
   const v = await r.add("B", base());
   assert.deepEqual((await r.list()).map((x) => x.id), [v.id]);
 });
+
+test("diffProjects: báo đổi hướng mặt", () => {
+  const a = base();
+  const b = base();
+  b.formations[1] = { ...b.formations[1], facing: { a: 180 } };
+  const lines = diffProjects(a, b).map(changeText);
+  assert.ok(lines.some((l) => l.includes("Đội hình 2") && l.includes("Lan")), lines.join(" | "));
+  assert.equal(diffProjects(a, base()).length, 0);
+});

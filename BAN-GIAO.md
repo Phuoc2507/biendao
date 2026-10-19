@@ -27,7 +27,7 @@ cd web && npm install
 ```
 
 * Chạy app: `npm run dev` trong `web/` rồi mở http://localhost:5173/ (cấu hình sẵn ở `.claude/launch.json`, tên `web`). `index.html` vào app sân khấu `src/stage/main.tsx`.
-* Test: `npm test` trong `web/` (node:test, hiện **328 test xanh**).
+* Test: `npm test` trong `web/` (node:test, hiện **359 test xanh**).
 * Kiểm kiểu (máy ít RAM, phải nâng heap): `node --max-old-space-size=2500 node_modules/typescript/bin/tsc -p .` trong `web/`.
 * Tệp được test import trực tiếp phải import có đuôi `.ts` (ví dụ `from "./timing.ts"`), `model.ts` chỉ được `import type` từ `timing.ts`.
 * Trong trình duyệt có tay cầm DEV `window.__stage.st()` để đọc và gọi store (`setUI`, `commit`, `project`…).
@@ -66,6 +66,12 @@ Video mẫu thật: `D:\bien\IMG_5116.mov` (iPhone, HEVC 1920x1080, 41,9 s, khô
 Quy ước sân: khán giả ở phía **+Z**, x dương là bên **phải khán giả**.
 
 ## 5. Đã xong gần nhất
+
+Đợt 2026-10-19, học từ đối thủ, lượt bốn (merge 8d5199e, 79a1ffd, 88b95fc; 3 agent song song):
+
+* **Phương án song song** (Tệp ▸ Phương án…, `variants.ts`, `variantsDb.ts`, `ui/VariantsDialog.tsx`): lưu bản chụp có tên trong IndexedDB (khoá `variants`), dùng chung video; Mở tự cất bản đang làm thành "Trước khi đổi"; So sánh liệt kê đội hình, người dời, đổi chỗ, đường cong, hướng mặt, ghi chú. Còn nghi: Mở phương án làm Ctrl S hỏi lại chỗ lưu; hai thẻ cùng mở có thể ghi đè danh sách.
+* **Hướng mặt từng người** (`Formation.facing`, `facing.ts`): phím **Q** quay 45 độ (Shift Q ngược; F đã là Trình chiếu), lưới 8 hướng trong khung vũ công, nút Quay mặt trên thanh chọn. Tam giác ở mép chấm trên sơ đồ, ảnh, video sơ đồ, bản in (chữ LƯNG); dòng nhắc Tôi là ai có "quay lưng"... Lật gương đổi dấu, Xoay R cộng 90. Đổi chỗ X giữ hướng mặt theo người.
+* **Gỡ chỗ nghi lượt ba:** Ctrl C/V chép cả đường cong; Xoay, Giãn/Thu dời điểm uốn theo nửa phép biến đổi (đầu kia đứng yên nên quay trọn sẽ thắt vòng), Đổi chỗ X bỏ đường cong của hai người; núm uốn đẩy ra khỏi chấm khi đi ngắn; ô số người của Thư viện theo vạch phát; video sơ đồ có mũi tên mờ đường sắp đi.
 
 Đợt 2026-10-19, học từ đối thủ, lượt ba (merge 50e64da, 94e3155, 5072992; 3 agent song song):
 
