@@ -1,11 +1,12 @@
 // Soát từng khoảng chuyển: ai đi sát nhau (dưới CLEAR_M) và ai phải chạy quá
 // nhanh (tốc độ đỉnh trên VMAX). Tính đúng dạng đóng (không lấy mẫu), kèm chỗ và
-// lúc xảy ra để vẽ lên sơ đồ và tua tới. THUẦN, chỉ import model/autoplan/timing.
+// lúc xảy ra để vẽ lên sơ đồ và tua tới. THUẦN, chỉ import model/autoplan/timing/props.
 
 import {
-  type Formation, type StageSize, type Vec2, type Warning,
+  type Formation, type StageProp, type StageSize, type Vec2, type Warning,
   NEAR_M, dist, findWarnings, inWings, lerp2,
 } from "./model.ts";
+import { PROP_PAD, isSolid, propDist } from "./props.ts";
 import { CLEAR_M, VMAX, pairClearance } from "./autoplan.ts";
 import { fmtCounts } from "./timing.ts";
 
@@ -104,9 +105,10 @@ export const BLOCK_X_M = 0.35;
  *  lệch trước sau chút ít thì không ai che ai. */
 export const BLOCK_Z_M = 0.3;
 
-/** Loại cảnh báo nhẹ (bị che): vẫn liệt kê, nhưng không đếm trong thông báo
- *  sau thao tác xếp chỗ và không thuộc "Sửa tất cả" (vốn chỉ sửa lúc chuyển). */
-export const isSoft = (kind: Warning["kind"]) => kind === "blocked";
+/** Loại cảnh báo nhẹ (bị che, đi xuyên đạo cụ): vẫn liệt kê, nhưng không đếm
+ *  trong thông báo sau thao tác xếp chỗ và không thuộc "Sửa tất cả" (vốn chỉ
+ *  sửa va nhau, chạy nhanh lúc chuyển). */
+export const isSoft = (kind: Warning["kind"]) => kind === "blocked" || kind === "prop";
 
 export function blockedIssues(
   fs: Formation[],
@@ -137,11 +139,69 @@ export function blockedIssues(
 
 /** Mọi cảnh báo, theo thứ tự thời gian: đứng chồng (từ findWarnings), bị che,
  *  cộng va nhau và chạy quá nhanh trong lúc chuyển (bản tính đúng, ngưỡng của tự chia). */
+// ---------- đi xuyên đạo cụ ----------
+//
+// Đạo cụ đứng yên suốt bài (props.ts). Bục, ghế, micro (không tính mốc sàn)
+// chặn người: báo khi ai ĐỨNG trong đạo cụ lúc giữ một đội hình, hoặc đường đi
+// thẳng lúc chuyển cắt qua đạo cụ. Đường lấy mẫu dày (mỗi 5 cm) nên micro nhỏ
+// cũng không lọt. Đầu nào đã nằm trong đạo cụ đó thì không báo thêm lúc chuyển
+// (đã có dòng "đứng trong"). Báo nhẹ: có khi cố ý (bước lên bục, ngồi ghế).
+
+const PROP_STEP = 0.05;
+
+export function propIssues(
+  fs: Formation[],
+  dancers: { id: string; name: string; hidden?: boolean }[],
+  props: readonly StageProp[] | undefined,
+): Issue[] {
+  const solid = (props ?? []).filter(isSolid);
+  if (!solid.length) return [];
+  const vis = dancers.filter((d) => !d.hidden);
+  const inside = (o: StageProp, q: Vec2) => propDist(o, q) < PROP_PAD;
+  const out: Issue[] = [];
+  fs.forEach((f, k) => {
+    for (const d of vis) {
+      const a = f.pos[d.id];
+      if (!a) continue;
+      for (const o of solid)
+        if (inside(o, a))
+          out.push({
+            kind: "prop", formation: f.id, from: null, ids: [d.id], t: f.start, at: a, paths: [], value: propDist(o, a),
+            msg: `${f.name}: ${d.name} đứng trong ${o.name}`,
+          });
+    }
+    const g = fs[k + 1];
+    if (!g) return;
+    const dur = Math.max(0, g.start - f.end);
+    for (const d of vis) {
+      const a = f.pos[d.id], b = g.pos[d.id];
+      if (!a || !b) continue;
+      const n = Math.ceil(dist(a, b) / PROP_STEP);
+      if (n < 1) continue;
+      for (const o of solid) {
+        if (inside(o, a) || inside(o, b)) continue;
+        for (let i = 1; i < n; i++) {
+          const u = i / n, q = lerp2(a, b, u);
+          if (!inside(o, q)) continue;
+          out.push({
+            kind: "prop", formation: g.id, from: f.id, ids: [d.id], t: f.end + dur * invSmoothstep(u), at: q,
+            paths: [[a, b]], value: propDist(o, q),
+            msg: `${d.name} đi xuyên ${o.name} khi sang ${g.name}`,
+          });
+          break;
+        }
+      }
+    }
+  });
+  return out;
+}
+
 export function findIssues(
   fs: Formation[],
   dancers: { id: string; name: string; hidden?: boolean }[],
   stage: StageSize,
   bpm: number | null,
+  props?: readonly StageProp[],
 ): Issue[] {
   const over: Issue[] = findWarnings(fs, dancers)
     .filter((w) => w.kind === "overlap")
@@ -150,6 +210,8 @@ export function findIssues(
       const a = f?.pos[w.ids[0]], b = f?.pos[w.ids[1]];
       return { ...w, from: null, at: a && b ? lerp2(a, b, 0.5) : [0, 0], paths: [], value: a && b ? dist(a, b) : 0 };
     });
-  return [...over, ...blockedIssues(fs, dancers, stage), ...transitionIssues(fs, dancers, stage, bpm)]
+  return [
+    ...over, ...blockedIssues(fs, dancers, stage), ...transitionIssues(fs, dancers, stage, bpm), ...propIssues(fs, dancers, props),
+  ]
     .sort((a, b) => a.t - b.t);
 }

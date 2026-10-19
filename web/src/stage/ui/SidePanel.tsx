@@ -788,7 +788,7 @@ function WarningsTab() {
         {p.formations.length < 2 && <div className="dim" style={{ marginTop: 6 }}>Thêm đội hình thứ hai để kiểm tra đường chuyển.</div>}
       </div>
     );
-  const icon = { collide: "×", overlap: "!", fast: "»", blocked: "◐" } as const;
+  const icon = { collide: "×", overlap: "!", fast: "»", blocked: "◐", prop: "□" } as const;
   // cách sửa có được cho từng đội hình đích (chỉ đề nghị khi đỡ hơn thật)
   const fx: Record<string, { swap: boolean; carry: boolean; widen: boolean }> = {};
   for (const w of ws) {

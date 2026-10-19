@@ -7,6 +7,7 @@ import {
 } from "./model.ts";
 import { cleanMarks } from "./marks.ts";
 import { cleanGroups } from "./groups.ts";
+import { cleanProps } from "./props.ts";
 
 export const stripName = (name: string): string =>
   name.replace(/\.[^.]+$/, "").replace(/\.card$/i, "");
@@ -121,6 +122,9 @@ export function normalizeProject(raw: unknown): Project | null {
   if (groups.length) out.groups = groups;
   else delete out.groups;
   if (out.groupRings !== false) delete out.groupRings;
+  const props = cleanProps(j.props, stage);
+  if (props.length) out.props = props;
+  else delete out.props;
   return out;
 }
 

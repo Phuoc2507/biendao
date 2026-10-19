@@ -67,6 +67,8 @@ export interface Project {
   groups?: DancerGroup[];
   /** false: tắt viền màu nhóm quanh chấm (sơ đồ, ảnh, bản in, video). Không có là bật. */
   groupRings?: boolean;
+  /** Đạo cụ và mốc sàn đứng yên suốt bài (props.ts). Không có thì coi như rỗng. */
+  props?: StageProp[];
 }
 
 /** Một nhóm lưu sẵn: members là id vũ công theo thứ tự danh sách; một người có thể ở nhiều nhóm. */
@@ -75,6 +77,21 @@ export interface DancerGroup {
   name: string;
   color: string;
   members: string[];
+}
+
+export type PropKind = "box" | "round" | "mark";
+
+/** Một đạo cụ trên sàn, đơn vị mét. Hộp xoay quanh tâm theo rot (độ); tròn thì w là đường kính. */
+export interface StageProp {
+  id: string;
+  name: string;
+  /** box: bục, ghế; round: micro đứng, cột; mark: mốc sàn phẳng, chỉ vẽ, không chặn */
+  kind: PropKind;
+  x: number;
+  z: number;
+  w: number;
+  d: number;
+  rot?: number;
 }
 
 /** Một mốc đoạn nhạc: từ giây t trở đi là đoạn `label` cho tới mốc sau. */
@@ -660,6 +677,14 @@ export function checkInvariants(p: Project): string[] {
     if (!s.pts.length) errs.push(`hình ${s.name}: không có điểm`);
     if (s.pts.some((q) => !Number.isFinite(q[0]) || !Number.isFinite(q[1]))) errs.push(`hình ${s.name}: điểm hỏng`);
   }
+  const propIds = new Set<string>();
+  for (const o of p.props ?? []) {
+    if (propIds.has(o.id)) errs.push(`đạo cụ ${o.name}: trùng id`);
+    propIds.add(o.id);
+    if (![o.x, o.z, o.w, o.d].every(Number.isFinite) || !(o.w > 0 && o.d > 0)) errs.push(`đạo cụ ${o.name}: số hỏng`);
+    const c = clampToStage([o.x, o.z], p.stage);
+    if (c[0] !== o.x || c[1] !== o.z) errs.push(`đạo cụ ${o.name}: ngoài sân`);
+  }
   return errs;
 }
 
@@ -967,7 +992,7 @@ export function fitSavedShape(
 // ---------- cảnh báo ----------
 
 export interface Warning {
-  kind: "fast" | "collide" | "overlap" | "blocked"; // blocked: bị che, chỉ checks.ts sinh ra
+  kind: "fast" | "collide" | "overlap" | "blocked" | "prop"; // blocked: bị che, prop: đi xuyên đạo cụ, chỉ checks.ts sinh ra
   formation: string; // id khối (khối đích với fast/collide)
   ids: string[];
   t: number; // thời điểm nên tua tới để xem

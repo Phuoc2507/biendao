@@ -2,7 +2,7 @@
 // hướng xuống màn hình), nên trái/phải trên màn hình đúng là trái/phải của
 // khán giả. Kéo người để sửa vị trí ở đội hình đang đứng; kéo nền để chọn vùng.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   type Vec2, WING, initials, posesAt, prevFormation, nextFormation, segmentAt, snapPos,
   clampToStage, NEAR_M, dist,
@@ -11,13 +11,14 @@ import { st, useProject, useUI } from "../store";
 import { groupRingColors } from "../groups";
 import { useTime } from "../clock";
 import * as clock from "../clock";
-import { fixAllWarnings, setPositionsNow } from "../actions";
+import { fixAllWarnings, movePropTo, setPositionsNow } from "../actions";
 import { isSoft } from "../checks";
 import { fmtTime } from "../timing";
 import { dancerLegs, dancerStops, stopLabel } from "../rehearse";
 import { describePos, useWarnings } from "./hooks";
 import { Icon } from "./icons";
 import { MePicker } from "./MePicker";
+import { PropHud, PropLayer, PropMenu } from "./PropTools";
 import { rememberPlanFromStage, topExtra, type Overlay } from "../layout";
 import "./rehearse.css";
 
@@ -32,7 +33,7 @@ function shorten(a: Vec2, b: Vec2, cut: number): [Vec2, Vec2] {
 }
 
 interface Drag {
-  kind: "move" | "box";
+  kind: "move" | "box" | "prop";
   pointer: number;
   start: Vec2; // điểm bấm (m)
   base: Record<string, Vec2>;
@@ -63,6 +64,12 @@ export function PlanView({
   const [box, setBox] = useState<[Vec2, Vec2] | null>(null);
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
   const [dragging, setDragging] = useState(false);
+  // đạo cụ đang chọn (chỉ trong sơ đồ này); chọn người thì bỏ chọn đạo cụ
+  const [selProp, setSelProp] = useState<string | null>(null);
+  const closeProp = useCallback(() => setSelProp(null), []);
+  useEffect(() => {
+    if (ui.selected.length) setSelProp(null);
+  }, [ui.selected.length]);
 
   const { width: W, depth: D } = p.stage;
   const hx = W / 2 + WING;
@@ -143,6 +150,17 @@ export function PlanView({
     drag.current = { kind: "move", pointer: e.pointerId, start: toM(e), base, moved: false, additive, id };
   };
 
+  const onPropDown = (e: React.PointerEvent, id: string) => {
+    if (readOnly || e.button !== 0) return;
+    const o = p.props?.find((x) => x.id === id);
+    if (!o) return;
+    e.stopPropagation();
+    if (st().ui.selected.length) st().setUI({ selected: [] });
+    setSelProp(id);
+    (e.target as Element).setPointerCapture(e.pointerId);
+    drag.current = { kind: "prop", pointer: e.pointerId, start: toM(e), base: { [id]: [o.x, o.z] }, moved: false, additive: false, id };
+  };
+
   const onBgDown = (e: React.PointerEvent) => {
     if (readOnly || e.button !== 0) return;
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
@@ -159,7 +177,7 @@ export function PlanView({
     if (!d.moved && Math.hypot(dx, dz) < 0.06) return;
     if (!d.moved) {
       d.moved = true;
-      if (d.kind === "move") {
+      if (d.kind !== "box") {
         st().beginGesture();
         setDragging(true);
       }
@@ -168,8 +186,15 @@ export function PlanView({
       setBox([d.start, m]);
       return;
     }
-    const moves: Record<string, Vec2> = {};
     const snap = st().ui.snap && !e.altKey;
+    if (d.kind === "prop" && d.id) {
+      const b = d.base[d.id];
+      let q: Vec2 = [b[0] + dx, b[1] + dz];
+      if (snap) q = snapPos(q, 0.25);
+      movePropTo(d.id, q[0], q[1], true);
+      return;
+    }
+    const moves: Record<string, Vec2> = {};
     for (const [id, b] of Object.entries(d.base)) {
       let q: Vec2 = [b[0] + dx, b[1] + dz];
       if (snap) q = snapPos(q, 0.25);
@@ -191,6 +216,10 @@ export function PlanView({
     drag.current = null;
     setTip(null);
     setDragging(false);
+    if (d.kind === "prop") {
+      if (d.moved) st().endGesture();
+      return;
+    }
     if (d.kind === "move") {
       if (d.moved) st().endGesture();
       else if (!d.additive) {
@@ -203,6 +232,7 @@ export function PlanView({
     setBox(null);
     if (!d.moved) {
       if (!d.additive) st().setUI({ selected: [] });
+      setSelProp(null);
       return;
     }
     const m = toM(e);
@@ -336,6 +366,24 @@ export function PlanView({
         ),
       );
     });
+  // đạo cụ: đứng trong (đội hình đang giữ) thì vòng cam quanh người, đi xuyên thì vạch cam
+  if (!compact)
+    issues.forEach((w, i) => {
+      if (w.kind !== "prop") return;
+      if (w.from === null ? w.formation !== curHold : w.from !== curFrom) return;
+      if (w.from === null)
+        issueLayer.push(
+          <circle key={`io${i}`} cx={X(w.at[0])} cy={Z(w.at[1])} r={R + 0.2} fill="none" stroke="#e8a33a" strokeOpacity={0.9}
+            strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeDasharray="2 3" />,
+        );
+      else
+        w.paths.forEach(([a, b], j) =>
+          issueLayer.push(
+            <line key={`io${i}-${j}`} x1={X(a[0])} y1={Z(a[1])} x2={X(b[0])} y2={Z(b[1])} stroke="#e8a33a" strokeOpacity={0.8}
+              strokeWidth={1.5} vectorEffect="non-scaling-stroke" strokeDasharray="2 3" />,
+          ),
+        );
+    });
   if (!compact && curFrom)
     issues.forEach((w, i) => {
       if (w.from !== curFrom) return;
@@ -427,6 +475,8 @@ export function PlanView({
           </>
         )}
 
+        <PropLayer props={p.props ?? []} X={X} Z={Z} sel={readOnly ? null : selProp} readOnly={readOnly} compact={compact} onDown={onPropDown} />
+
         <g pointerEvents="none">
           {ghosts}
           {targets}
@@ -480,7 +530,8 @@ export function PlanView({
       </svg>
       {tip && <div className="drag-tip" style={{ left: tip.x, top: tip.y }}>{tip.text}</div>}
       {!compact && <StateChip seg={seg} hasDancers={p.dancers.length > 0} fsName={(k) => p.formations[k]?.name ?? ""} />}
-      {!compact && p.dancers.length > 0 && <PlanTools issues={issues} />}
+      {!compact && p.dancers.length > 0 && <PlanTools issues={issues} onAddProp={setSelProp} />}
+      {!readOnly && !compact && selProp && <PropHud id={selProp} onClose={closeProp} />}
     </div>
   );
 }
@@ -495,7 +546,7 @@ export function togglePlanFrom() {
 }
 
 /** Thanh nhỏ góc phải sơ đồ: Tôi là ai, bóng đội hình kế, danh sách cảnh báo. */
-function PlanTools({ issues }: { issues: Issues }) {
+function PlanTools({ issues, onAddProp }: { issues: Issues; onAddProp: (id: string) => void }) {
   const ui = useUI();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -523,8 +574,8 @@ function PlanTools({ issues }: { issues: Issues }) {
     st().setUI({ selected: w.ids, selectedBlock: w.formation });
     setOpen(false);
   };
-  const mark = (k: string) => (k === "collide" ? "×" : k === "fast" ? "»" : k === "blocked" ? "◐" : "!");
-  // chỉ còn chỗ bị che thì Sửa tất cả không làm được gì: ẩn nút
+  const mark = (k: string) => (k === "collide" ? "×" : k === "fast" ? "»" : k === "blocked" ? "◐" : k === "prop" ? "□" : "!");
+  // chỉ còn chỗ bị che, đi xuyên đạo cụ thì Sửa tất cả không làm được gì: ẩn nút
   const fixable = issues.some((w) => !isSoft(w.kind));
   return (
     <div className="rh-plan-tools" ref={ref} onPointerDown={(e) => e.stopPropagation()}>
@@ -549,6 +600,7 @@ function PlanTools({ issues }: { issues: Issues }) {
       >
         <Icon name="ghost" /> <span className="rh-hide-narrow">Bóng đội hình kế</span>
       </button>
+      <PropMenu onAdd={onAddProp} />
       <button
         className={`btn sm rh-warnbtn${issues.length ? " has" : ""}${open ? " on" : ""}`}
         title="Ai va nhau, chồng lên nhau, bị che hay phải chạy quá nhanh"

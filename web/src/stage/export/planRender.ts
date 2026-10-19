@@ -4,6 +4,7 @@
 import { type Project, type StageSize, WING, posesAt, segmentAt, initials } from "../model.ts";
 import { countAt, fmtTime } from "../timing.ts";
 import { groupRingColors } from "../groups.ts";
+import { propCorners } from "../props.ts";
 
 export interface PlanGeom {
   w: number;
@@ -52,6 +53,27 @@ export interface PlanFrame {
   dots: FrameDot[];
   /** Mũi tên từ chỗ đứng trước (ảnh đội hình); video không dùng. */
   trails?: FrameTrail[];
+  /** Đạo cụ và mốc sàn (đứng yên), vẽ dưới mọi thứ khác. Không có thì bỏ trường. */
+  props?: FrameProp[];
+}
+
+/** Một đạo cụ đã đổi ra điểm ảnh: hộp là đa giác 4 góc, tròn là tâm + bán kính, mốc sàn là dấu cộng. */
+export interface FrameProp {
+  kind: "box" | "round" | "mark";
+  name: string;
+  x: number;
+  y: number;
+  r: number; // bán kính (tròn), nửa cạnh dấu cộng (mốc sàn)
+  pts?: [number, number][]; // bốn góc (hộp)
+}
+
+/** Đạo cụ của dự án ra điểm ảnh theo khung g. */
+export function framePropsOf(p: Project, g: PlanGeom): FrameProp[] {
+  return (p.props ?? []).map((o) => {
+    const [x, y] = toPx(g, o.x, o.z);
+    if (o.kind === "box") return { kind: o.kind, name: o.name, x, y, r: 0, pts: propCorners(o).map(([a, b]) => toPx(g, a, b)) };
+    return { kind: o.kind, name: o.name, x, y, r: o.kind === "round" ? (o.w / 2) * g.s : 0.16 * g.s };
+  });
 }
 
 /** Bóng chỗ cũ và mũi tên tới chỗ mới, toạ độ điểm ảnh. */
@@ -93,12 +115,14 @@ export function planFrame(p: Project, t: number, g: PlanGeom, o: { highlightId?:
   });
   // người được tô vẽ sau cùng để nằm trên
   if (hi) dots.sort((a, b) => Number(a.highlight) - Number(b.highlight));
+  const props = framePropsOf(p, g);
   return {
     title: hi ? `Vị trí của ${hi.name}` : p.title || "Bài múa",
     sub,
     time: fmtTime(t),
     count: c ? `${c.beat}/8 · lượt ${c.eight}` : "",
     dots,
+    ...(props.length ? { props } : {}),
   };
 }
 
@@ -209,6 +233,47 @@ export function drawPlanFrame(ctx: Ctx2D, g: PlanGeom, f: PlanFrame) {
   ctx.textAlign = "center";
   ctx.fillText("CÁNH GÀ", x0 - wing / 2, y0 + 14 * u);
   ctx.fillText("CÁNH GÀ", x1 + wing / 2, y0 + 14 * u);
+
+  // đạo cụ: hộp, tròn xám mờ có tên; mốc sàn là dấu cộng vàng kèm số
+  for (const o of f.props ?? []) {
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([]);
+    if (o.kind === "mark") {
+      ctx.strokeStyle = "#e8d27a";
+      ctx.lineWidth = 3 * u;
+      ctx.beginPath();
+      ctx.moveTo(o.x - o.r, o.y);
+      ctx.lineTo(o.x + o.r, o.y);
+      ctx.moveTo(o.x, o.y - o.r);
+      ctx.lineTo(o.x, o.y + o.r);
+      ctx.stroke();
+      ctx.fillStyle = "#e8d27a";
+      ctx.font = `700 ${Math.round(11 * u)}px ${FONT}`;
+      ctx.textAlign = "left";
+      ctx.fillText(o.name, o.x + o.r + 2 * u, o.y - o.r);
+      continue;
+    }
+    ctx.beginPath();
+    if (o.pts) {
+      ctx.moveTo(o.pts[0][0], o.pts[0][1]);
+      for (const q of o.pts.slice(1)) ctx.lineTo(q[0], q[1]);
+      ctx.lineTo(o.pts[0][0], o.pts[0][1]);
+    } else ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = "#8a93a3";
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "#7d8798";
+    ctx.lineWidth = Math.max(1, 1.5 * u);
+    ctx.stroke();
+    ctx.fillStyle = "#aab3c2";
+    ctx.font = `${Math.round(11 * u)}px ${FONT}`;
+    ctx.textAlign = "center";
+    const half = o.pts ? Math.max(...o.pts.map((q) => q[1])) - o.y : o.r;
+    // tên trong món lớn, dưới món nhỏ
+    ctx.fillText(o.name, o.x, half > 16 * u ? o.y : o.y + half + 9 * u);
+  }
+  ctx.globalAlpha = 1;
 
   // bóng chỗ cũ và mũi tên, vẽ dưới chấm
   for (const t of f.trails ?? []) {
