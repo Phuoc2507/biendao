@@ -134,6 +134,10 @@ Chọn một vũ công trong danh sách:
 * **Cao thẻ** chỉnh chiều cao người trên sân khấu (một lần kéo là một bước Hoàn tác); chấm màu đổi màu nhận diện.
 * Các ô số (nhịp, số người nhân bản, giây canon, rộng, sâu sân khấu): gõ xong bấm **Enter** hoặc bấm ra ngoài mới chốt, **Esc** huỷ. Số lẻ gõ `1,5` hay `1.5` đều được; mũi tên lên, xuống đổi số trong ô (Shift: gấp 10) rồi vẫn Enter để chốt.
 
+### Nhóm lưu sẵn
+
+Văn nghệ hay chia nhóm (nam nữ, nhóm múa và nhóm hát, cánh A cánh B). Chọn từ 2 người (Shift bấm hoặc kéo khung) rồi bấm **Lưu nhóm** ở đầu danh sách *Vũ công*, gõ tên. Từ đó chạm **chip nhóm** (chấm màu, tên, số người) là chọn cả nhóm, chạm lần nữa thì bỏ chọn; trên máy tính bấm **Alt 1** đến **Alt 9** cho nhóm thứ 1 đến 9. Mũi tên bên chip mở menu: đổi tên, đổi màu, chỉ giữ người đang chọn, thêm hoặc bớt người đang chọn, xoá nhóm (người vẫn giữ nguyên). Một người ở được nhiều nhóm. Xoá vũ công thì người đó ra khỏi nhóm (nhóm hết người thì mất); nhân bản thì bản sao vào cùng nhóm với bản gốc. Ô **Viền theo nhóm** (thẻ *Đội hình*, mục *Hiển thị*, bật sẵn) vẽ vòng màu nhóm quanh chấm mỗi người trên sơ đồ, ảnh, bản in và video sơ đồ; người ở nhiều nhóm lấy màu nhóm đầu. Nhóm lưu trong tệp dự án.
+
 ### Nhân bản và múa canon
 
 Một video có thể dùng cho nhiều người trên sân (ví dụ chỉ quay một bạn rồi nhân lên cả nhóm):
@@ -232,6 +236,7 @@ Khung 3D có các góc **Khán giả**, **Chéo**, **Trên cao** và **Sau lưng
 | B | Thêm mốc đoạn nhạc ở vạch phát |
 | Esc | Bỏ chọn |
 | Ctrl A | Chọn tất cả |
+| Alt 1..9 | Chọn nhóm lưu sẵn thứ 1 đến 9 (bấm lại để bỏ chọn) |
 | Ctrl C / Ctrl V | Chép chỗ đứng lúc này của người đang chọn (không chọn ai thì cả đội), tua tới đội hình khác rồi dán vào; không có đội hình ở đó thì app tạo mới |
 | M | Lật trái phải người đang chọn |
 | X | Hai người đang chọn đổi chỗ cho nhau |

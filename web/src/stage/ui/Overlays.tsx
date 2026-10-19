@@ -154,6 +154,7 @@ const KEYS: [string, [string, string][]][] = [
     ["Chọn thêm / bớt", "Shift + bấm"],
     ["Chọn bằng khung", "kéo ở nền sơ đồ"],
     ["Chọn tất cả", "Ctrl A"],
+    ["Chọn nhóm lưu sẵn thứ 1 đến 9 (bấm lại để bỏ chọn)", "Alt 1..9"],
     ["Chép chỗ đứng / dán vào đội hình đang đứng", "Ctrl C / Ctrl V"],
     ["Bỏ chọn", "Esc"],
     ["Lật trái phải", "M"],

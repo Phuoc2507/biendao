@@ -8,6 +8,7 @@ import {
   clampToStage, NEAR_M, dist,
 } from "../model";
 import { st, useProject, useUI } from "../store";
+import { groupRingColors } from "../groups";
 import { useTime } from "../clock";
 import * as clock from "../clock";
 import { fixAllWarnings, setPositionsNow } from "../actions";
@@ -51,6 +52,7 @@ export function PlanView({
   const ui = useUI();
   const t = useTime();
   const issues = useWarnings();
+  const rings = useMemo(() => groupRingColors(p), [p.groups, p.groupRings]);
   // nhìn từ sân khấu: khán giả ở trên, trái phải theo người múa (xoay 180°);
   // soi gương: lật trái phải. Cả hai đều tự nghịch đảo nên toM dùng lại được
   const flip = fromStage ?? (!readOnly && ui.planFromStage);
@@ -451,6 +453,7 @@ export function PlanView({
               {near.has(d.id) && !d.hidden && (
                 <circle r={R + 0.12} fill="none" stroke="#ff5d6c" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeDasharray="4 2" />
               )}
+              {rings[d.id] && <circle r={R + 0.03} fill="none" stroke={rings[d.id]} strokeWidth={3} vectorEffect="non-scaling-stroke" />}
               {s && <circle r={R + 0.08} fill="none" stroke="#fff" strokeWidth={2} vectorEffect="non-scaling-stroke" />}
               <circle r={R} fill={d.color} stroke="#0008" strokeWidth={1} vectorEffect="non-scaling-stroke" />
               {!d.mediaId && <circle r={R - 0.07} fill="none" stroke="#0006" strokeWidth={1} vectorEffect="non-scaling-stroke" strokeDasharray="2 2" />}

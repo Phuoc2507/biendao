@@ -6,7 +6,7 @@ import * as clock from "../clock";
 import {
   addFormation, removeFormation, jumpFormation, mirrorSelected, nudgeSelected,
   stepBeat, exportProject, projectEnd, copyPositions, pastePositions, swapSelected, rotateSelected,
-  addMarkNow, jumpMark,
+  addMarkNow, jumpMark, selectGroupAt,
 } from "../actions";
 import { focusByPointer } from "./hooks";
 import { type Action, modalOpen, popupOpen, resolveShortcut, routeKey, targetKind } from "./keys";
@@ -56,6 +56,7 @@ function run(a: Action, focusedFormation: string | null) {
     case "rotate": rotateSelected(a.dir); break;
     case "loop": toggleLoop(); break;
     case "fit": window.dispatchEvent(new CustomEvent("stage:fit")); break;
+    case "group": selectGroupAt(a.n - 1); break;
   }
 }
 
@@ -88,7 +89,7 @@ export function useShortcuts() {
       const ui = s.ui;
       const fEl = el?.closest<HTMLElement>("[data-formation]") ?? null;
       const a = resolveShortcut(
-        { key: e.key, ctrl, shift: e.shiftKey, alt: e.altKey, repeat: e.repeat },
+        { key: e.key, ctrl, shift: e.shiftKey, alt: e.altKey, repeat: e.repeat, code: e.code },
         {
           presenting: ui.presenting,
           help: ui.help,
