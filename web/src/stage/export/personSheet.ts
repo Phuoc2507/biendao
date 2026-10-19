@@ -12,6 +12,7 @@ import { markAt } from "../marks.ts";
 import { holdPoses, safeColor, MOVE_MIN } from "./printSheet.ts";
 import { wrapText, lineChars, type TextLine } from "./imageSheet.ts";
 import { slugTitle, safeName } from "./bundle.ts";
+import { castLabelIn } from "../cast.ts";
 
 /** Rộng 1080, cao tối đa 1080×1920 (9:16, cỡ màn hình điện thoại). */
 export const PERSON_W = 1080;
@@ -45,7 +46,11 @@ const capH = (p: Project) => CAP_H + (hasPersonNotes(p) ? NOTE_H : 0);
 
 const cellWidth = (w: number) => Math.floor((w - 2 * SIDE - (COLS - 1) * GAP) / COLS);
 
-const dancerName = (p: Project, id: string) => p.dancers.find((d) => d.id === id)?.name.trim() || "?";
+// người dự bị đang đóng: "Mai (thay Lan)" nếu dự án bật ghi chú thay vai
+const dancerName = (p: Project, id: string) => {
+  const d = p.dancers.find((x) => x.id === id);
+  return d ? castLabelIn(p, { ...d, name: d.name.trim() || "?" }) : "?";
+};
 
 /** Chữ đầu ảnh: "Vị trí của <tên>", tên bài, số đội hình (và số trang). Luôn 3 dòng để mọi ảnh cùng bố cục. */
 export function personHeader(p: Project, id: string, page: number, pages: number, w = PERSON_W): TextLine[] {
@@ -256,7 +261,7 @@ export function personSheets(p: Project, only?: string[]): PersonSheet[] {
     const who = seen > 1 ? `${raw}-${seen}` : raw;
     const base = `${bai}-vi-tri-${who}`;
     const files = pages.length > 1 ? pages.map((_, j) => safeName(`${base}-p${j + 1}.png`)) : [safeName(`${base}.png`)];
-    out.push({ id: d.id, name: d.name.trim() || "?", pages, files });
+    out.push({ id: d.id, name: dancerName(p, d.id), pages, files });
   });
   return out;
 }

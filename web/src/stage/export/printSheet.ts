@@ -6,6 +6,7 @@ import { countAt, fmtCounts, fmtTime } from "../timing.ts";
 import { groupRingColors } from "../groups.ts";
 import { propCorners } from "../props.ts";
 import { faceTri, facingLabel, facingOf } from "../facing.ts";
+import { castLabelIn, showCastNote } from "../cast.ts";
 
 /** Mô tả vị trí bằng lời (ui/hooks.ts describePos), truyền vào để giữ thuần. */
 export type Describe = (x: number, z: number, width: number, depth: number) => string;
@@ -188,7 +189,14 @@ const fmtDate = (d: Date) => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d
 /** Ghi chú riêng của đội hình k cho phần in: [tên, ghi chú] theo thứ tự danh sách, bỏ người ẩn. */
 export function personNotesOf(p: Project, k: number): [string, string][] {
   const f = p.formations[k];
-  return shown(p).filter((d) => personNote(f, d.id)).map((d) => [d.name, personNote(f, d.id)]);
+  return shown(p).filter((d) => personNote(f, d.id)).map((d) => [castLabelIn(p, d), personNote(f, d.id)]);
+}
+
+/** Dòng "Người thay: Mai thay Lan · Bảo thay Hùng" ở đầu bản in; không ai thay hay tắt ghi chú thì rỗng. */
+export function castLine(p: Project): string {
+  if (!showCastNote(p)) return "";
+  const xs = shown(p).filter((d) => d.lead).map((d) => `${d.name} thay ${d.lead!.name}`);
+  return xs.length ? `Người thay: ${xs.join(" · ")}` : "";
 }
 
 /** Trang in đầy đủ: đầu trang, 2 đội hình mỗi trang, rồi bảng vị trí từng người. */
@@ -203,7 +211,9 @@ export function printHtml(p: Project, o: PrintOpts): string {
     p.bpm ? `${Math.round(p.bpm)} BPM` : "",
     `In ngày ${fmtDate(o.date ?? new Date())}`,
   ].filter(Boolean).join(" · ");
+  const subs = castLine(p);
   const head = `<header class="doc"><h1>${esc(p.title || "Bài múa")}</h1><div class="meta">${meta}</div>`
+    + (subs ? `<div class="meta">${esc(subs)}</div>` : "")
     + `<div class="note">Nhìn từ trên xuống, khán giả ở phía dưới. Vòng nét đứt và mũi tên: chỗ đứng ở đội hình trước.</div></header>`;
 
   const block = (k: number) => {
@@ -238,7 +248,7 @@ export function printHtml(p: Project, o: PrintOpts): string {
 
             + `${n ? `<span class="pnote">✎ ${esc(n)}</span>` : ""}</td>`;
         }).join("");
-        return `<tr><td class="who"><span class="sw" style="background:${safeColor(d.color)}"></span>${esc(d.name)}</td>${cells}</tr>`;
+        return `<tr><td class="who"><span class="sw" style="background:${safeColor(d.color)}"></span>${esc(castLabelIn(p, d))}</td>${cells}</tr>`;
       }).join("");
       tables.push(`<table><thead><tr><th>Vũ công</th>${th}</tr></thead><tbody>${rows}</tbody></table>`);
     }

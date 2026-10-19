@@ -2,6 +2,7 @@
 // đường đi và dòng nhắc riêng. Chỉ là cách xem (ui), không đổi dự án.
 
 import { st, useProject, useUI } from "../store";
+import { castLabelIn } from "../cast";
 
 export function MePicker({ small = false }: { small?: boolean }) {
   const p = useProject();
@@ -20,7 +21,7 @@ export function MePicker({ small = false }: { small?: boolean }) {
     >
       <option value="">Tôi là ai…</option>
       {ds.map((d) => (
-        <option key={d.id} value={d.id}>{d.name}</option>
+        <option key={d.id} value={d.id}>{castLabelIn(p, d)}</option>
       ))}
     </select>
   );

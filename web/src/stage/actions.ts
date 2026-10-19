@@ -42,6 +42,9 @@ import type { LibShape } from "./library";
 import { variants } from "./variantsDb";
 import { type Formation, noteIndexAt } from "./model";
 import { facingAt, facingName, mirrorFacing, normFacing, setFacing, turnFacing } from "./facing";
+import {
+  SUB_MAX, activeSub, addSub, castBack, castIn, mainName, recolorSub, removeSub, renameCast, swapFacingIn, swapRolesAll,
+} from "./cast";
 
 export const proj = () => st().project;
 const ids = (p: Project = proj()) => p.dancers.map((d) => d.id);
@@ -427,11 +430,114 @@ export function swapSelected() {
   const cur = currentPoses();
   const [a, b] = sel;
   const w = warnCount(p);
-  // đường cong cũ của hai người hết nghĩa khi đã đổi chỗ: đi thẳng lại
-  setPositionsNow({ [a]: cur[b], [b]: cur[a] }, false, false, { dropVia: true });
+  // đường cong cũ của hai người hết nghĩa khi đã đổi chỗ: đi thẳng lại.
+  // Hướng mặt đi theo CHỖ ĐỨNG (như reassignFix): hướng mặt là một phần của hình
+  // (vòng tròn nhìn vào tâm...), người tới chỗ nào thì nhìn theo hướng của chỗ đó.
+  batch(() => {
+    setPositionsNow({ [a]: cur[b], [b]: cur[a] }, false, false, { dropVia: true });
+    faceIn(st().ui.selectedBlock, (fs, fid) => swapFacingIn(fs, fid, a, b));
+  });
   const nm = (id: string) => p.dancers.find((d) => d.id === id)!.name;
   // không mời Sửa tất cả: đổi chỗ cho gần sẽ trả hai người về như cũ
   hintWarn(w, `Đã đổi chỗ ${nm(a)} và ${nm(b)}`, true, false);
+}
+
+/**
+ * Hai người đang chọn đổi VAI cả bài: đổi trọn chỗ đứng, đường cong, hướng mặt,
+ * ghi chú riêng trên mọi đội hình (video, canon, nhóm vẫn theo người). Hình và
+ * khoảng chuyển giữ y nguyên nên không thêm cảnh báo.
+ */
+export function swapRolesSelected() {
+  const p = proj();
+  const sel = st().ui.selected.filter((id) => p.dancers.some((d) => d.id === id));
+  if (sel.length !== 2) {
+    st().notify("Chọn đúng 2 người để đổi vai cả bài");
+    return;
+  }
+  if (!p.formations.length) {
+    st().notify("Chưa có đội hình nào để đổi vai");
+    return;
+  }
+  const [a, b] = sel;
+  st().commit((q) => ({ ...q, formations: swapRolesAll(q.formations, a, b) }));
+  const nm = (id: string) => p.dancers.find((d) => d.id === id)!.name;
+  st().notify(`${nm(a)} và ${nm(b)} đã đổi vai cả bài (${p.formations.length} đội hình)`, { undo: true });
+}
+
+// ---------- người dự bị, thay vai ----------
+
+function patchRole(id: string, fn: (d: VDancer) => VDancer): VDancer | null {
+  const d = proj().dancers.find((x) => x.id === id);
+  if (!d) return null;
+  const n = fn(d);
+  if (n === d) return null;
+  st().commit((q) => ({ ...q, dancers: q.dancers.map((x) => (x.id === id ? fn(x) : x)) }));
+  return n;
+}
+
+/** Ghi thêm người dự bị cho vai id. Trả false nếu tên rỗng, trùng hay đã đủ. */
+export function addUnderstudy(id: string, name: string, color?: string): boolean {
+  const n = patchRole(id, (d) => addSub(d, name, color));
+  if (!n) {
+    if (name.trim()) st().notify(`Không thêm được: tên trùng hoặc đã đủ ${SUB_MAX} người dự bị`);
+    return false;
+  }
+  return true;
+}
+
+export function removeUnderstudy(id: string, i: number) {
+  const d = proj().dancers.find((x) => x.id === id);
+  const s = d?.subs?.[i];
+  if (!d || !s) return;
+  const wasOn = activeSub(d) === i;
+  patchRole(id, (x) => removeSub(x, i));
+  st().notify(`Đã bỏ người dự bị ${s.name}${wasOn ? `, ${mainName(d)} đóng lại` : ""}`, { undo: true });
+}
+
+/** Đổi tên người đang đóng vai id (giữ đúng danh sách dự bị nếu đang có người thay). */
+export function renameDancer(id: string, name: string) {
+  patchRole(id, (d) => renameCast(d, name));
+}
+
+export function recolorUnderstudy(id: string, i: number, color: string | undefined) {
+  patchRole(id, (d) => recolorSub(d, i, color));
+}
+
+/**
+ * Thay vai: người dự bị thứ i của vai id đóng vai đó trên toàn bài (giữ nguyên
+ * chỗ đứng, đường cong, hướng mặt, ghi chú vì chúng gắn với vai). i = -1: đổi
+ * lại người chính. Một bước hoàn tác.
+ */
+export function castRole(id: string, i: number) {
+  const d = proj().dancers.find((x) => x.id === id);
+  if (!d) return;
+  if (i < 0) {
+    if (!d.lead) return;
+    patchRole(id, castBack);
+    st().notify(`${d.lead.name} đóng lại vai của mình (thôi ${d.name} thay)`, { undo: true });
+    return;
+  }
+  const s = d.subs?.[i];
+  if (!s || activeSub(d) === i) return;
+  patchRole(id, (x) => castIn(x, s));
+  st().notify(`${s.name} đóng thay ${mainName(d)} cả bài`, { undo: true });
+}
+
+/** Mọi vai đang có người thay đổi lại người chính (một bước hoàn tác). */
+export function castBackAll() {
+  const n = proj().dancers.filter((d) => d.lead).length;
+  if (!n) return;
+  st().commit((q) => ({ ...q, dancers: q.dancers.map(castBack) }));
+  st().notify(`Đã đổi lại người chính cho ${n} vai`, { undo: true });
+}
+
+/** Bật tắt chữ "(thay A)" cạnh tên người thay ở bản in, ảnh, Tôi là ai. */
+export function setCastNote(on: boolean) {
+  st().commit((q) => {
+    if (on === (q.castNote !== false)) return q;
+    const { castNote: _c, ...rest } = q;
+    return on ? rest : { ...rest, castNote: false };
+  });
 }
 
 /** Người đang chọn, chưa chọn ai thì mọi người đang hiện trên sân (không tính cánh gà). */

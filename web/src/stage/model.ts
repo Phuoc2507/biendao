@@ -9,6 +9,7 @@
 // giữa hai khối là lúc mọi người TRƯỢT sang đội hình sau (smoothstep).
 
 import type { CanonSeg } from "./timing.ts";
+import type { Understudy } from "./cast.ts";
 import { copyFacing, dropFacing, facingAt, normFacing, withFacing } from "./facing.ts";
 
 export type Vec2 = [number, number];
@@ -30,6 +31,10 @@ export interface VDancer {
   flip?: boolean;
   /** canon theo đoạn: trong mỗi đoạn nhạc người này vào trễ lag giây */
   canon?: CanonSeg[];
+  /** Người dự bị cho vai này (cast.ts). Mỗi VDancer là một VAI; name, color là người đang đóng. */
+  subs?: Understudy[];
+  /** Đang có người dự bị đóng thay: tên và màu của người chính để đổi lại. Không có là người chính đang đóng. */
+  lead?: { name: string; color: string };
 }
 
 export interface Formation {
@@ -76,6 +81,8 @@ export interface Project {
   groupRings?: boolean;
   /** Đạo cụ và mốc sàn đứng yên suốt bài (props.ts). Không có thì coi như rỗng. */
   props?: StageProp[];
+  /** false: không ghi "(thay A)" cạnh tên người dự bị đang đóng (bản in, ảnh, Tôi là ai). Không có là ghi. */
+  castNote?: boolean;
 }
 
 /** Một nhóm lưu sẵn: members là id vũ công theo thứ tự danh sách; một người có thể ở nhiều nhóm. */
@@ -152,7 +159,9 @@ export function cloneDancer(src: VDancer, id: string, names: string[], color: st
   const base = src.name.replace(/ \d+$/, "");
   let k = 2;
   while (names.includes(`${base} ${k}`)) k++;
-  return { ...src, id, name: `${base} ${k}`, color };
+  // vai mới: không mang theo người dự bị hay người thay của vai gốc
+  const { subs: _s, lead: _l, ...rest } = src;
+  return { ...rest, id, name: `${base} ${k}`, color };
 }
 
 export function initials(name: string): string {

@@ -5,7 +5,7 @@ import { st, type View } from "../store";
 import * as clock from "../clock";
 import {
   addFormation, removeFormation, jumpFormation, mirrorSelected, nudgeSelected,
-  stepBeat, exportProject, projectEnd, swapSelected, rotateSelected,
+  stepBeat, exportProject, projectEnd, swapSelected, swapRolesSelected, rotateSelected,
   addMarkNow, jumpMark, selectGroupAt, turnSelected, copyWithFacing, pasteWithFacing,
 } from "../actions";
 import { focusByPointer } from "./hooks";
@@ -53,6 +53,7 @@ function run(a: Action, focusedFormation: string | null) {
       break;
     case "mirror": mirrorSelected(); break;
     case "swap": swapSelected(); break;
+    case "swapRoles": swapRolesSelected(); break;
     case "rotate": rotateSelected(a.dir); break;
     case "turn": turnSelected(a.dir); break;
 
