@@ -301,6 +301,32 @@ kbd {
 }
 .shape-grid .shape-del:hover { opacity: 1; color: var(--red); }
 .shape-grid .shape-del svg { width: 11px; height: 11px; }
+.lib-toggle {
+  display: inline-flex; align-items: center; gap: 4px; padding: 0; border: none; background: transparent; cursor: pointer;
+  color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit;
+}
+.lib-toggle svg { width: 12px; height: 12px; transform: rotate(-90deg); transition: transform .15s; }
+.lib-toggle[aria-expanded="true"] svg { transform: none; }
+.lib-count { margin: 0; text-transform: none; letter-spacing: 0; }
+.lib-count select { font-size: 11px; padding: 1px 4px; }
+.lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 4px; margin-top: 4px; }
+.lib-item { position: relative; display: flex; min-width: 0; }
+.lib-item > button:first-child {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 2px;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; font-size: 10px; color: var(--muted);
+}
+.lib-item > button:first-child:hover { border-color: var(--accent); color: var(--text); }
+.lib-item svg { width: 100%; max-width: 64px; height: auto; aspect-ratio: 40 / 22; }
+.lib-item .lib-front { stroke: var(--line); stroke-width: 0.8; }
+.lib-item .nm { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-item .lib-save {
+  position: absolute; top: 1px; right: 1px; width: 18px; height: 18px; padding: 0; border: none; background: transparent;
+  display: grid; place-items: center; opacity: .5; cursor: pointer; color: var(--muted);
+}
+.lib-item .lib-save:hover, .lib-item .lib-save:focus-visible { opacity: 1; color: var(--accent); }
+.lib-item .lib-save svg { width: 11px; height: 11px; aspect-ratio: auto; }
+.linklike { padding: 0; border: none; background: none; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; }
+@media (max-width: 399.98px) { .lib-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 .warn-item { display: flex; gap: 8px; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }
 .warn-item:hover { background: var(--panel2); }

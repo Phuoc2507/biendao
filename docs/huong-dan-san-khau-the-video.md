@@ -162,6 +162,8 @@ Mỗi đội hình là một **khối** trên dòng thời gian: trong khối m�
    * Nhóm **đông hơn** số chỗ của hình: những người đứng xa hình nhất giữ nguyên chỗ cũ, thông báo nói rõ mấy người.
    * Nhóm **ít hơn** số chỗ: dùng các chỗ gần tâm hình nhất, thông báo nói rõ.
    * Hình lưu **trong dự án**: đi theo tệp `.choreo.json` và gói `.zip`, mở bài khác thì thấy thư viện của bài đó. Dấu × ở góc mỗi hình để xoá; lưu hay xoá nhầm thì Ctrl Z.
+   * **Thư viện** (ngay dưới Hình của tôi, bấm chữ Thư viện để mở): các hình dựng sẵn cho từ 3 tới 16 người, gồm kim cương, tam giác, tam giác ngược, chữ V, chữ W, khối so le kiểu 3-2-3, hai hàng so le, ba hàng so le, người giữa nổi (một người đứng trước, cả nhóm phía sau), vòng cung, đường chéo, mũi tên và hai nhóm hai bên. Ô chọn số người tự lấy số người đang chọn (chọn từ 2 người), chưa chọn thì cả đội trên sân; đổi ô đó để xem hình cho số người khác. Mỗi ảnh nhỏ vẽ khán giả ở phía vạch dưới. Chỉ hiện những hình hợp với số người đó và vừa sân hiện tại, nên sân nhỏ thì ít hình hơn.
+   * Bấm một hình để xếp y như bấm Hình của tôi: hình đặt quanh tâm nhóm, mỗi người vào chỗ gần mình nhất, thông báo có nút Hoàn tác và báo nếu sinh thêm cảnh báo. Trong mọi hình của thư viện, hai người cách nhau ít nhất 0,8 m, và nhìn từ khán giả mỗi người lệch ngang ít nhất 0,35 m so với người đứng ngay trước, nên không ai bị che hẳn. Nút dấu trang nhỏ ở góc mỗi hình chép hình đó vào Hình của tôi để giữ trong dự án.
 6. **Tự chia đội hình** (thẻ *Đội hình*): chọn **Mỗi … lượt 8** hoặc **Số đội hình**, bấm **Tạo**. App thay toàn bộ đội hình bằng một chuỗi hình xoay vòng (hàng ngang, chữ V, vòng tròn, hai hàng, đường chéo, so le, vòng cung) cho cả bài:
    * Có nhịp thì mỗi khối bắt đầu và kết thúc đúng vạch lượt 8, mọi người tới đội hình mới đúng phách 1; chưa đặt nhịp thì chia theo mốc 4 s.
    * Khoảng chuyển ít nhất 1 lượt 8 (hoặc 2 s), tự giãn khi phải đi xa để không ai chạy quá 1.5 m/s.
@@ -200,7 +202,7 @@ Góc trên phải sơ đồ có ba nút xem và tập (thêm nút **Đạo cụ*
   * **Đổi vai từ đây:** hiện thay cho nút trên khi đổi riêng một đội hình lại làm đoạn ra khỏi nó xấu đi. Từ đội hình đó về sau, mỗi người nhận luôn các chỗ của người kia, nên các khoảng chuyển sau giữ y hình cũ, chỉ đổi tên người.
   * **Nới khoảng chuyển:** rời đội hình trước sớm hơn (bắt về phách) để ai cũng đi kịp; lúc tới đội hình mới vẫn đúng phách cũ. Đội hình trước quá ngắn thì app nới hết mức và báo còn thiếu.
   * **Sửa tất cả** (đầu danh sách, và đầu ô Cảnh báo trên sơ đồ): làm các việc trên cho mọi khoảng chuyển một lượt.
-  * Sau khi **Xếp nhanh**, xếp theo **Hình của tôi**, **Lật trái phải**, **Dàn đều**, **Xoay**, **Giãn**, **Thu**, **Cánh gà** hay **Nhân bản**, nếu sinh thêm cảnh báo (không tính chỗ bị che) thì thông báo hiện số cảnh báo mới kèm nút **Sửa tất cả**. Đổi chỗ và Dán chỗ đứng (Ctrl V) chỉ báo số cảnh báo, không kèm nút, vì đổi chỗ cho gần sẽ xếp lại đúng những người bạn vừa cố ý đặt.
+  * Sau khi **Xếp nhanh**, xếp theo **Hình của tôi** hay **Thư viện**, **Lật trái phải**, **Dàn đều**, **Xoay**, **Giãn**, **Thu**, **Cánh gà** hay **Nhân bản**, nếu sinh thêm cảnh báo (không tính chỗ bị che) thì thông báo hiện số cảnh báo mới kèm nút **Sửa tất cả**. Đổi chỗ và Dán chỗ đứng (Ctrl V) chỉ báo số cảnh báo, không kèm nút, vì đổi chỗ cho gần sẽ xếp lại đúng những người bạn vừa cố ý đặt.
 
 ### Đạo cụ và mốc sàn
 
