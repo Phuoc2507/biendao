@@ -27,21 +27,24 @@ export function formationIndexAt(p: Project, t: number): number {
   return seg.k;
 }
 
-/** Ngắt chữ theo số ký tự ước lượng, tối đa maxLines dòng (dòng cuối thêm "…" nếu còn dư). */
+/** Ngắt chữ theo số ký tự ước lượng, tối đa maxLines dòng (dòng cuối thêm "…" nếu còn dư).
+ *  Đếm và cắt theo ký tự thật (Array.from) để không xẻ đôi biểu tượng cảm xúc. */
 export function wrapText(s: string, maxChars: number, maxLines: number): string[] {
+  const len = (x: string) => Array.from(x).length;
+  const cut = (x: string, a: number, b?: number) => Array.from(x).slice(a, b).join("");
   const lines: string[] = [];
   let cur = "";
   for (let w of s.replace(/\s+/g, " ").trim().split(" ").filter(Boolean)) {
     // từ quá dài thì cắt cứng
-    while (w.length > maxChars) {
+    while (len(w) > maxChars) {
       if (cur) lines.push(cur);
       cur = "";
-      lines.push(w.slice(0, maxChars));
-      w = w.slice(maxChars);
+      lines.push(cut(w, 0, maxChars));
+      w = cut(w, maxChars);
     }
     if (!w) continue;
     const next = cur ? `${cur} ${w}` : w;
-    if (next.length <= maxChars) cur = next;
+    if (len(next) <= maxChars) cur = next;
     else {
       lines.push(cur);
       cur = w;
@@ -51,7 +54,7 @@ export function wrapText(s: string, maxChars: number, maxLines: number): string[
   if (lines.length <= maxLines) return lines;
   const out = lines.slice(0, maxLines);
   const last = out[maxLines - 1];
-  out[maxLines - 1] = `${last.length >= maxChars ? last.slice(0, maxChars - 1) : last}…`;
+  out[maxLines - 1] = `${len(last) >= maxChars ? cut(last, 0, maxChars - 1) : last}…`;
   return out;
 }
 

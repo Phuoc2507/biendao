@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { printHtml, formationSvg, timeLabel, esc, safeColor, holdPoses } from "./printSheet.ts";
+import { printHtml, formationSvg, timeLabel, esc, safeColor, holdPoses, personNotesOf } from "./printSheet.ts";
 import { type Project, emptyProject, newDancer } from "../model.ts";
 
 const describe = (x: number, z: number) => `x=${x} z=${z}`;
@@ -89,4 +89,17 @@ test("bản in: ghi chú đội hình hiện dưới giờ, đã thoát ký tự
   const h = printHtml(p, { describe });
   assert.ok(h.includes('<div class="fnote">nhịp 5 &lt;quay&gt;</div>'));
   assert.equal(h.split('class="fnote"').length - 1, 1);
+});
+
+test("bản in: ghi chú riêng dưới đội hình và trong ô bảng của người đó, bỏ người ẩn, đã thoát ký tự", () => {
+  const p = sample();
+  p.formations[1] = { ...p.formations[1], notes: { b: "cầm <quạt>", c: "người ẩn", a: "quỳ nhịp 7" } };
+  assert.deepEqual(personNotesOf(p, 1), [["Nguyễn Thị Hương", "quỳ nhịp 7"], ["Lan", "cầm <quạt>"]]);
+  assert.deepEqual(personNotesOf(p, 0), []);
+  const h = printHtml(p, { describe });
+  assert.ok(h.includes('<div class="pnotes"><b>Nguyễn Thị Hương</b>: quỳ nhịp 7 · <b>Lan</b>: cầm &lt;quạt&gt;</div>'));
+  assert.equal(h.split('class="pnotes"').length - 1, 1);
+  assert.ok(h.includes('<span class="pnote">✎ cầm &lt;quạt&gt;</span>'));
+  assert.equal(h.split('class="pnote"').length - 1, 2);
+  assert.ok(!h.includes("người ẩn"));
 });

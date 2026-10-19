@@ -8,6 +8,7 @@ import {
   fitFormationsToStage,
   snapPos, emptyProject, renameFormation, setFormationNote, wingSpot, placeClones, canonOffsets as canonPatch, SHAPE_LABEL,
   type CanonOrder, canonRanks, rightSide, type SavedShape, captureShape, fitSavedShape,
+  setPersonNote as putPersonNote, cleanPersonNote, personNote,
 } from "./model";
 import { defaultLens, snapTime, putCanon, fmtTime, fmtCounts } from "./timing";
 import { st, useStore, batch } from "./store";
@@ -447,7 +448,7 @@ export function sendToWings(side: -1 | 1) {
 
 // ---------- chép / dán chỗ đứng ----------
 
-let copied: { poses: Record<string, Vec2>; from: string } | null = null;
+let copied: { poses: Record<string, Vec2>; notes: Record<string, string>; from: string } | null = null;
 
 /** Ctrl C: nhớ chỗ đứng lúc này của người đang chọn (không chọn ai: cả đội). */
 export function copyPositions() {
@@ -460,7 +461,10 @@ export function copyPositions() {
   for (const id of sel) if (cur[id]) poses[id] = [cur[id][0], cur[id][1]];
   const t = clock.now();
   const f = p.formations.find((x) => t >= x.start && t <= x.end);
-  copied = { poses, from: f ? f.name : "vạch phát" };
+  // ghi chú riêng đi theo chỗ đứng (chỉ khi vạch phát nằm trong một đội hình)
+  const notes: Record<string, string> = {};
+  for (const id of Object.keys(poses)) if (personNote(f, id)) notes[id] = personNote(f, id);
+  copied = { poses, notes, from: f ? f.name : "vạch phát" };
   const n = Object.keys(poses).length;
   st().notify(`Đã chép chỗ đứng của ${n === p.dancers.length ? "cả đội" : `${n} người`}. Tua tới chỗ khác rồi Ctrl V để dán`);
 }
@@ -480,7 +484,15 @@ export function pastePositions() {
     return;
   }
   const w = warnCount(p);
-  setPositionsNow(moves, false);
+  const notes = copied.notes;
+  // dán chỗ đứng và ghi chú riêng là một bước hoàn tác; người không có ghi chú ở chỗ chép thì giữ ghi chú cũ
+  batch(() => {
+    setPositionsNow(moves, false);
+    const fid = st().ui.selectedBlock;
+    const put = Object.keys(moves).filter((id) => notes[id]);
+    if (fid && put.length)
+      st().commit((q) => ({ ...q, formations: put.reduce((fs, id) => putPersonNote(fs, fid, id, notes[id]), q.formations) }));
+  });
   st().setUI({ selected: Object.keys(moves) });
   hintWarn(w, `Đã dán chỗ đứng (từ ${copied.from}) cho ${n === p.dancers.length ? "cả đội" : `${n} người`}`, true, false);
 }
@@ -576,6 +588,13 @@ export function setNote(id: string, note: string) {
   const f = proj().formations.find((x) => x.id === id);
   if (!f || (f.note ?? "") === note.trim()) return;
   st().commit((q) => ({ ...q, formations: setFormationNote(q.formations, id, note) }));
+}
+
+/** Ghi chú riêng của một người ở một đội hình (chuỗi rỗng thì xoá); một bước hoàn tác. */
+export function setPersonNote(formationId: string, dancerId: string, text: string) {
+  const f = proj().formations.find((x) => x.id === formationId);
+  if (!f || personNote(f, dancerId) === cleanPersonNote(text)) return;
+  st().commit((q) => ({ ...q, formations: putPersonNote(q.formations, formationId, dancerId, text) }));
 }
 
 export function jumpFormation(dir: -1 | 1) {

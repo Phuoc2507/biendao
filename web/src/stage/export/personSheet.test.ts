@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   PERSON_W, PERSON_MAXH, personPages, personHeader, cellLines, personLayout, personFrame, drawPersonSheet,
-  personSheets, personZipName,
+  personSheets, personZipName, hasPersonNotes,
 } from "./personSheet.ts";
 import { toPx, type Ctx2D } from "./planRender.ts";
 import { type Project, type Formation, emptyProject, newDancer, WING } from "../model.ts";
@@ -177,4 +177,31 @@ test("tên tệp ảnh từng người: bỏ người ẩn, trùng tên thêm s�
   assert.equal(personZipName(p), "Bài-múa-Hương-Sen-vi-tri-tung-nguoi.zip");
   assert.equal(personZipName(p, s[0]), "Bài-múa-Hương-Sen-vi-tri-Hương.zip");
   for (const n of names) assert.ok(!/\s/.test(n));
+});
+
+test("ảnh từng người: ghi chú riêng hiện trong ô của đúng người, mọi ô chừa cùng chỗ, vẫn vừa 1920", () => {
+  const p = sample(2);
+  assert.equal(hasPersonNotes(p), false);
+  p.formations[1] = { ...p.formations[1], notes: { b: "cầm quạt đỏ 🪭", c: "người ẩn" } };
+  assert.equal(hasPersonNotes(p), true);
+  const l = cellLines(p, 1, 480, 0, "b").map((x) => x.text);
+  assert.equal(l.length, 3);
+  assert.equal(l[2], "✎ cầm quạt đỏ 🪭");
+  assert.equal(cellLines(p, 0, 480, 0, "b").length, 2, "đội hình không có ghi chú thì không thêm dòng");
+  assert.equal(cellLines(p, 1, 480, 0, "a").length, 2, "ghi chú của người khác không hiện");
+  const ln = cellLines({ ...p, formations: [p.formations[0], { ...p.formations[1], notes: { b: "quỳ ".repeat(80) } }] }, 1, 480, 0, "b");
+  assert.equal(ln.length, 4, "dài thì tối đa 2 dòng");
+  assert.ok(ln[3].text.endsWith("…"));
+  // ô cao thêm cho ghi chú, sơ đồ nằm dưới chữ, ảnh vẫn không quá 1920
+  const plain = personLayout(sample(2), "b", personPages(sample(2)), 0);
+  const L = personLayout(p, "b", personPages(p), 0);
+  assert.ok(L.cells[0].h > plain.cells[0].h);
+  for (const c of L.cells) for (const t of c.lines) assert.ok(t.y < c.geom.oy, "chữ nằm trên sơ đồ");
+  const many = sample(30);
+  many.formations = many.formations.map((f) => ({ ...f, notes: { a: "giơ quạt nhịp 5, quỳ nhịp 7" } }));
+  const ps = personPages(many);
+  ps.forEach((_, i) => assert.ok(personLayout(many, "a", ps, i).h <= PERSON_MAXH));
+  const { ctx, texts } = fakeCtx();
+  drawPersonSheet(ctx, p, "b", L);
+  assert.ok(texts.includes("✎ cầm quạt đỏ 🪭"));
 });

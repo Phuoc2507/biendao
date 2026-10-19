@@ -1,7 +1,7 @@
 // Tờ đội hình để in (A4 dọc, 2 đội hình mỗi trang). Thuần: chỉ tạo chuỗi
 // HTML/SVG, không đụng DOM, để kiểm thử bằng node.
 
-import { type Project, type Vec2, WING, posesAt, initials, dist } from "../model.ts";
+import { type Project, type Vec2, WING, posesAt, initials, dist, personNote } from "../model.ts";
 import { countAt, fmtCounts, fmtTime } from "../timing.ts";
 
 /** Mô tả vị trí bằng lời (ui/hooks.ts describePos), truyền vào để giữ thuần. */
@@ -126,6 +126,8 @@ header.doc .meta { color: #444; font-size: 9.5pt; margin-top: 1mm; }
 .f h2 small { font-weight: normal; color: #555; font-size: 9.5pt; margin-left: 2mm; }
 .f .when { font-size: 9.5pt; color: #333; margin-bottom: 1.5mm; }
 .f .fnote { font-size: 10pt; margin: 0 0 1.5mm; padding-left: 2mm; border-left: 0.6mm solid #888; white-space: pre-wrap; }
+.f .pnotes { font-size: 9.5pt; margin: 0 0 1.5mm; padding-left: 2mm; }
+.pnote { display: block; font-size: 8.5pt; color: #333; font-style: italic; margin-top: .5mm; }
 svg.plan { width: 100%; max-height: 112mm; display: block; }
 svg .lbl { font-size: 10px; fill: #777; letter-spacing: .5px; }
 svg .aud { font-size: 12px; font-weight: 700; fill: #e07a1f; letter-spacing: 1px; }
@@ -144,6 +146,12 @@ td.who { white-space: nowrap; font-weight: 600; }
 const pad2 = (n: number) => String(n).padStart(2, "0");
 const fmtDate = (d: Date) => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
 
+/** Ghi chú riêng của đội hình k cho phần in: [tên, ghi chú] theo thứ tự danh sách, bỏ người ẩn. */
+export function personNotesOf(p: Project, k: number): [string, string][] {
+  const f = p.formations[k];
+  return shown(p).filter((d) => personNote(f, d.id)).map((d) => [d.name, personNote(f, d.id)]);
+}
+
 /** Trang in đầy đủ: đầu trang, 2 đội hình mỗi trang, rồi bảng vị trí từng người. */
 export function printHtml(p: Project, o: PrintOpts): string {
   const fs = p.formations;
@@ -161,9 +169,11 @@ export function printHtml(p: Project, o: PrintOpts): string {
 
   const block = (k: number) => {
     const f = fs[k];
+    const pn = personNotesOf(p, k);
     return `<div class="f"><h2>${k + 1}. ${esc(f.name)}<small>${k > 0 ? `sau “${esc(fs[k - 1].name)}”` : "mở đầu"}</small></h2>`
       + `<div class="when">${timeLabel(p, k)}</div>`
       + (f.note ? `<div class="fnote">${esc(f.note)}</div>` : "")
+      + (pn.length ? `<div class="pnotes">${pn.map(([n, v]) => `<b>${esc(n)}</b>: ${esc(v)}`).join(" · ")}</div>` : "")
       + `${formationSvg(p, k)}</div>`;
   };
 
@@ -183,7 +193,9 @@ export function printHtml(p: Project, o: PrintOpts): string {
       const rows = people.map((d) => {
         const cells = cols.map(({ k }) => {
           const q = poses[k][d.id];
-          return `<td>${q ? esc(o.describe(q[0], q[1], p.stage.width, p.stage.depth)) : "–"}</td>`;
+          const n = personNote(fs[k], d.id);
+          return `<td>${q ? esc(o.describe(q[0], q[1], p.stage.width, p.stage.depth)) : "–"}`
+            + `${n ? `<span class="pnote">✎ ${esc(n)}</span>` : ""}</td>`;
         }).join("");
         return `<tr><td class="who"><span class="sw" style="background:${safeColor(d.color)}"></span>${esc(d.name)}</td>${cells}</tr>`;
       }).join("");

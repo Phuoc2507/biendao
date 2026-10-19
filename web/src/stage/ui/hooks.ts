@@ -1,7 +1,7 @@
 // Hook dùng chung cho giao diện.
 
 import { type KeyboardEvent, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { type Formation, holdIndexAt, segmentAt } from "../model";
+import { type Formation, holdIndexAt, noteIndexAt, segmentAt } from "../model";
 import { findIssues } from "../checks";
 import { useProject } from "../store";
 import { mediaVersion, subscribeMedia } from "../media";
@@ -27,6 +27,20 @@ export function useHoldIndex(fs: Formation[]) {
   const [k, setK] = useState(() => holdIndexAt(fs, now()));
   useEffect(() => {
     const f = () => setK(holdIndexAt(fs, now()));
+    f();
+    const off = subscribeClock(f);
+    return () => {
+      off();
+    };
+  }, [fs]);
+  return k;
+}
+
+/** Chỉ số đội hình mà ghi chú tại vạch phát thuộc về (đang chuyển: đội hình sắp tới), như useHoldIndex. */
+export function useNoteIndex(fs: Formation[]) {
+  const [k, setK] = useState(() => noteIndexAt(fs, now()));
+  useEffect(() => {
+    const f = () => setK(noteIndexAt(fs, now()));
     f();
     const off = subscribeClock(f);
     return () => {

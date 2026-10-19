@@ -39,6 +39,8 @@ export interface Formation {
   pos: Record<string, Vec2>;
   /** Ghi chú cho người tập (động tác, nhịp quay...), hiện lúc trình chiếu và trong bản in. */
   note?: string;
+  /** Ghi chú riêng từng người ở đội hình này (id vũ công: chữ), vd "cầm quạt đỏ". Không có ai thì bỏ trường. */
+  notes?: Record<string, string>;
 }
 
 export interface StageSize {
@@ -341,7 +343,10 @@ export function addFormationAfter(
   const out = fs.map((f, i) =>
     i > k && shift > 0 ? { ...f, start: f.start + shift, end: f.end + shift } : f,
   );
-  out.push({ id: newId, name: nextName(fs), start, end, pos });
+  // ghi chú riêng (cầm quạt, đội nón...) thường còn đúng ở đội hình kế: chép theo, sửa sau
+  const notes: Record<string, string> = {};
+  for (const id of ids) if (cur.notes?.[id]) notes[id] = cur.notes[id];
+  out.push(withNotes({ id: newId, name: nextName(fs), start, end, pos }, notes));
   return { formations: sortFs(out), id: newId, jumpTo: start, shifted: shift };
 }
 
@@ -386,6 +391,53 @@ export function setFormationNote(fs: Formation[], id: string, note: string): For
     const { note: _old, ...rest } = f;
     return v ? { ...rest, note: v } : rest;
   });
+}
+
+// ---------- ghi chú riêng từng người ----------
+
+/** Ghi chú riêng dài tối đa bấy nhiêu ký tự (đếm ký tự thật, biểu tượng cảm xúc tính một). */
+export const PERSON_NOTE_MAX = 200;
+
+/** Cắt chuỗi còn tối đa n ký tự thật (Array.from) để không xẻ đôi biểu tượng cảm xúc; bị cắt thì thêm "…". */
+export function clipChars(s: string, n: number): string {
+  const cs = Array.from(s);
+  return cs.length > n ? `${cs.slice(0, Math.max(0, n - 1)).join("")}…` : s;
+}
+
+/** Làm sạch một ghi chú riêng: gộp khoảng trắng, cắt hai đầu, cắt độ dài (không thêm "…"). */
+export function cleanPersonNote(s: string): string {
+  return Array.from(s.replace(/\s+/g, " ").trim()).slice(0, PERSON_NOTE_MAX).join("").trim();
+}
+
+/** Ghi chú riêng của người id ở đội hình f, không có thì "". */
+export const personNote = (f: Formation | null | undefined, id: string): string => f?.notes?.[id] ?? "";
+
+/** Gắn bảng ghi chú mới vào đội hình: rỗng thì bỏ trường. */
+export function withNotes(f: Formation, notes: Record<string, string>): Formation {
+  const { notes: _old, ...rest } = f;
+  return Object.keys(notes).length ? { ...rest, notes } : rest;
+}
+
+/** Đặt ghi chú riêng của người did ở đội hình fid; chuỗi rỗng thì xoá. Không đổi gì thì giữ đúng mảng cũ. */
+export function setPersonNote(fs: Formation[], fid: string, did: string, text: string): Formation[] {
+  const v = cleanPersonNote(text);
+  const f = fs.find((x) => x.id === fid);
+  if (!f || personNote(f, did) === v) return fs;
+  const notes = { ...f.notes };
+  if (v) notes[did] = v;
+  else delete notes[did];
+  return fs.map((x) => (x === f ? withNotes(x, notes) : x));
+}
+
+/**
+ * Chỉ số đội hình mà ghi chú tại t thuộc về: đang đứng thì đội hình đó, đang
+ * chuyển thì đội hình sắp tới (như ghi chú đội hình lúc trình chiếu), trước khối
+ * đầu thì khối đầu, sau khối cuối thì khối cuối. Chưa có đội hình: -1.
+ */
+export function noteIndexAt(fs: Formation[], t: number): number {
+  const s = segmentAt(fs, t);
+  if (s.kind === "none") return -1;
+  return s.kind === "gap" ? s.k + 1 : s.k;
 }
 
 /** Các cột đứng trong cánh gà, từ giữa cánh gà ra hai bên (mét, trị tuyệt đối). */
@@ -457,6 +509,9 @@ export function placeClones(
   fs: Formation[], srcId: string, newIds: string[], stage: StageSize, gap = MIN_GAP,
 ): Formation[] {
   return fs.map((f) => {
+    // bản sao múa cùng video nên mang theo ghi chú riêng của bản gốc ở từng đội hình
+    const srcNote = personNote(f, srcId);
+    if (srcNote) f = withNotes(f, { ...f.notes, ...Object.fromEntries(newIds.map((id) => [id, srcNote])) });
     const pos = { ...f.pos };
     const src = pos[srcId];
     // cánh gà gần bản gốc trước, kín thì sang bên kia
@@ -555,10 +610,13 @@ export function addDancerToAll(fs: Formation[], id: string, stage: StageSize): F
 
 export function removeDancerFromAll(fs: Formation[], id: string): Formation[] {
   return fs.map((f) => {
-    if (!(id in f.pos)) return f;
+    if (!(id in f.pos) && !f.notes?.[id]) return f;
     const pos = { ...f.pos };
     delete pos[id];
-    return { ...f, pos };
+    if (!f.notes?.[id]) return { ...f, pos };
+    const notes = { ...f.notes };
+    delete notes[id];
+    return withNotes({ ...f, pos }, notes);
   });
 }
 
@@ -570,6 +628,8 @@ export function checkInvariants(p: Project): string[] {
     const next = p.formations[k + 1];
     if (next && f.end > next.start + 1e-9) errs.push(`${f.name} đè ${next.name}`);
     for (const id of ids) if (!f.pos[id]) errs.push(`${f.name} thiếu ${id}`);
+    for (const [id, v] of Object.entries(f.notes ?? {}))
+      if (!ids.includes(id) || typeof v !== "string" || !v) errs.push(`${f.name}: ghi chú riêng hỏng (${id})`);
     for (const [id, q] of Object.entries(f.pos)) {
       const c = clampToStage(q, p.stage);
       if (c[0] !== q[0] || c[1] !== q[1]) errs.push(`${f.name}: ${id} ngoài sân`);

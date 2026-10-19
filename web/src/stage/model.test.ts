@@ -7,7 +7,7 @@ import {
   setBlockTimes, moveBlock, addDancerToAll, removeDancerFromAll, checkInvariants,
   shapePoints, assignNearest, arrangeShape, mirrorPositions, distributeX, rotateGroup, scaleGroup, fitGroup,
   findWarnings, prevFormation, nextFormation, inWings, WING, setFormationNote, captureShape, fitSavedShape,
-  fitFormationsToStage,
+  fitFormationsToStage, setPersonNote, personNote, noteIndexAt, placeClones, clipChars, PERSON_NOTE_MAX,
 } from "./model.ts";
 
 const stage = { width: 10, depth: 6 };
@@ -388,4 +388,57 @@ test("fitFormationsToStage: thu sân thì kéo người ra ngoài sân và cánh
   assert.equal(fitFormationsToStage(fs, stage), fs);
   const p = { ...emptyProject(), stage: small, dancers: [newDancer("a", "A", "#fff"), newDancer("b", "B", "#fff")] };
   assert.deepEqual(checkInvariants({ ...p, formations: out }).filter((e) => e.includes("ngoài sân")), []);
+});
+
+test("ghi chú riêng: đặt, gộp khoảng trắng, rỗng thì xoá, hết người thì bỏ trường, khối khác giữ nguyên", () => {
+  const fs = two();
+  const a = setPersonNote(fs, "A", "a", "  cầm   quạt đỏ ");
+  assert.deepEqual(a[0].notes, { a: "cầm quạt đỏ" });
+  assert.equal(a[1], fs[1]);
+  assert.equal(setPersonNote(a, "A", "a", "cầm quạt đỏ"), a, "không đổi thì giữ mảng cũ");
+  assert.equal(setPersonNote(a, "zz", "a", "x"), a);
+  const b = setPersonNote(a, "A", "b", "quỳ nhịp 7");
+  assert.deepEqual(b[0].notes, { a: "cầm quạt đỏ", b: "quỳ nhịp 7" });
+  const c = setPersonNote(setPersonNote(b, "A", "a", " "), "A", "b", "");
+  assert.equal("notes" in c[0], false);
+  // cắt theo ký tự thật: biểu tượng cảm xúc không bị xẻ đôi
+  const long = setPersonNote(fs, "A", "a", "🪭".repeat(PERSON_NOTE_MAX + 5));
+  assert.equal(Array.from(personNote(long[0], "a")).length, PERSON_NOTE_MAX);
+  assert.ok(personNote(long[0], "a").endsWith("🪭"));
+  assert.equal(clipChars("ab🪭cd", 4), "ab🪭…");
+  assert.equal(clipChars("ab", 4), "ab");
+});
+
+test("ghi chú riêng: thuộc đội hình đang đứng, đang chuyển thì đội hình sắp tới", () => {
+  const fs = two();
+  assert.equal(noteIndexAt([], 1), -1);
+  assert.equal(noteIndexAt(fs, 1), 0);
+  assert.equal(noteIndexAt(fs, 3), 1);
+  assert.equal(noteIndexAt(fs, 9), 1);
+});
+
+test("ghi chú riêng: + Đội hình chép theo, ensureFormationAt không chép, xoá người thì xoá ghi chú", () => {
+  const fs = setPersonNote(setPersonNote(two(), "A", "a", "cầm quạt"), "B", "b", "quỳ");
+  const r = addFormationAfter(fs, 1, ["a", "b"], stage, "N", 2, 1);
+  const n = r.formations.find((f) => f.id === "N")!;
+  assert.deepEqual(n.notes, { a: "cầm quạt" });
+  assert.notEqual(n.notes, fs[0].notes, "bảng ghi chú là bản chép, sửa khối mới không đụng khối cũ");
+  const e = ensureFormationAt(fs, 8, ["a", "b"], stage, "E", 2);
+  assert.equal("notes" in e.formations.find((f) => f.id === "E")!, false);
+  const rm = removeDancerFromAll(fs, "a");
+  assert.equal("notes" in rm[0], false);
+  assert.deepEqual(rm[1].notes, { b: "quỳ" });
+  assert.deepEqual(checkInvariants({ ...emptyProject(), dancers: [newDancer("b", "B", "#000")], formations: rm }), []);
+  const bad = checkInvariants({
+    ...emptyProject(), dancers: [newDancer("b", "B", "#000")],
+    formations: fs.map((f) => ({ ...f, pos: { b: [0, 0] as Vec2 } })),
+  });
+  assert.ok(bad.some((x) => x.includes("ghi chú riêng")), "ghi chú của người không còn bị báo");
+});
+
+test("ghi chú riêng: bản sao mang theo ghi chú của bản gốc ở từng đội hình", () => {
+  const fs = setPersonNote(two(), "A", "a", "cầm quạt");
+  const out = placeClones(fs, "a", ["a2", "a3"], stage);
+  assert.deepEqual(out[0].notes, { a: "cầm quạt", a2: "cầm quạt", a3: "cầm quạt" });
+  assert.equal("notes" in out[1], false);
 });

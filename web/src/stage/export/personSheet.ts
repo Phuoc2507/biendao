@@ -1,10 +1,11 @@
 // Phần thuần của Ảnh vị trí từng người: mỗi vũ công một ảnh dọc gửi riêng qua Zalo.
 // Đầu ảnh "Vị trí của <tên>", tên bài; dưới là lưới 2 cột, mỗi ô một đội hình nhỏ,
 // người đó tô nổi (vòng trắng, to hơn), người khác mờ, mũi tên của riêng người đó.
+// Có ghi chú riêng thì dưới giờ thêm tối đa 2 dòng ghi chú của người đó ở đội hình ấy.
 // Quá nhiều đội hình thì chia nhiều ảnh (-p1, -p2). Vẽ bằng drawPlanFrame nên kiểm thử
 // được bằng Ctx2D giả; phần canvas và tải xuống nằm ở image.ts.
 
-import { type Project, WING, dist } from "../model.ts";
+import { type Project, WING, dist, personNote } from "../model.ts";
 import { type Ctx2D, type FrameTrail, type PlanFrame, type PlanGeom, drawPlanFrame, planFrame, toPx } from "./planRender.ts";
 import { countAt, fmtTime } from "../timing.ts";
 import { holdPoses, safeColor, MOVE_MIN } from "./printSheet.ts";
@@ -26,8 +27,19 @@ const CW = 0.47; // bề rộng trung bình một ký tự so với cỡ chữ (
 const CAP = [32, 26] as const; // cỡ chữ hai dòng đầu ô
 const CAP_TOP = 14;
 const CAP_H = Math.round(CAP_TOP + (CAP[0] + CAP[1]) * 1.25 + 6);
+const NOTE = 24; // cỡ chữ dòng ghi chú riêng
+const NOTE_LINES = 2;
+const NOTE_H = Math.round(NOTE_LINES * NOTE * 1.25 + 4);
 const R_ME = 0.42; // bán kính chấm người đó (mét), người khác 0.3
 const R_OTHER = 0.3;
+
+/** Có ai (không ẩn) có ghi chú riêng ở đội hình nào không: có thì mọi ô chừa chỗ cho 2 dòng ghi chú,
+ *  để ảnh của mọi người cùng bố cục và cùng cách chia trang. */
+export function hasPersonNotes(p: Project): boolean {
+  const vis = p.dancers.filter((d) => !d.hidden);
+  return p.formations.some((f) => vis.some((d) => personNote(f, d.id)));
+}
+const capH = (p: Project) => CAP_H + (hasPersonNotes(p) ? NOTE_H : 0);
 
 const cellWidth = (w: number) => Math.floor((w - 2 * SIDE - (COLS - 1) * GAP) / COLS);
 
@@ -58,8 +70,9 @@ const headBottom = (lines: TextLine[]) => {
   return Math.round(last.y + last.size * 0.65 + 28);
 };
 
-/** Hai dòng đầu ô: "số · tên đội hình" và giờ bắt đầu (kèm 8 thứ mấy, phách mấy nếu có nhịp). y tính từ đỉnh ô. */
-export function cellLines(p: Project, k: number, cw: number, top = 0): TextLine[] {
+/** Hai dòng đầu ô: "số · tên đội hình" và giờ bắt đầu (kèm 8 thứ mấy, phách mấy nếu có nhịp). y tính từ đỉnh ô.
+ *  Có id và người đó có ghi chú riêng ở đội hình k: thêm tối đa 2 dòng "✎ ghi chú". */
+export function cellLines(p: Project, k: number, cw: number, top = 0, id?: string): TextLine[] {
   const f = p.formations[k];
   const chars = (size: number) => Math.max(8, Math.floor((cw - 2 * CPAD) / (size * CW)));
   let when = `bắt đầu ${fmtTime(f.start)}`;
@@ -68,10 +81,16 @@ export function cellLines(p: Project, k: number, cw: number, top = 0): TextLine[
     when += ` · 8 thứ ${c.eight}, phách ${c.beat}`;
   }
   const y0 = top + CAP_TOP;
-  return [
+  const out: TextLine[] = [
     { text: wrapText(`${k + 1} · ${f.name}`, chars(CAP[0]), 1)[0] ?? `${k + 1}`, size: CAP[0], weight: 700, color: "#e8ecf2", y: y0 + CAP[0] * 0.6 },
     { text: wrapText(when, chars(CAP[1]), 1)[0], size: CAP[1], weight: 400, color: "#ff9f43", y: y0 + CAP[0] * 1.25 + CAP[1] * 0.6 },
   ];
+  const note = id ? personNote(f, id) : "";
+  const y1 = top + CAP_H - 2;
+  wrapText(note ? `✎ ${note}` : "", chars(NOTE), NOTE_LINES).forEach((text, j) => {
+    out.push({ text, size: NOTE, weight: 400, color: "#f4d27a", y: y1 + j * NOTE * 1.25 + NOTE * 0.6 });
+  });
+  return out;
 }
 
 /** Kích thước sơ đồ trong ô: cùng cho mọi ô của bài. */
@@ -84,7 +103,8 @@ function cellPlan(p: Project, w: number) {
   const topPad = Math.round(12 * u);
   const foot = Math.round(40 * u);
   const planH = Math.ceil(topPad + D * s + foot);
-  return { cw, u, s, topPad, planH, cellH: CAP_H + planH };
+  const cap = capH(p);
+  return { cw, u, s, topPad, planH, cap, cellH: cap + planH };
 }
 
 /**
@@ -127,16 +147,16 @@ export function personLayout(p: Project, id: string, pages: number[][], page: nu
   const ks = pages[page] ?? [];
   const lines = personHeader(p, id, page, pages.length, w);
   const head = headBottom(lines);
-  const { cw, u, s, topPad, planH, cellH } = cellPlan(p, w);
+  const { cw, u, s, topPad, planH, cap, cellH } = cellPlan(p, w);
   const rows = Math.max(1, Math.ceil(ks.length / COLS));
   const h = head + rows * cellH + (rows - 1) * GAP + BOTTOM;
   const D = p.stage.depth;
   const cells = ks.map((k, i): PersonCell => {
     const x = SIDE + (i % COLS) * (cw + GAP);
     const y = head + Math.floor(i / COLS) * (cellH + GAP);
-    const oy = y + CAP_H;
+    const oy = y + cap;
     const geom: PlanGeom = { w: cw, h: planH, s, cx: x + cw / 2, cy: oy + topPad + (D * s) / 2, stage: p.stage, head: 0, u, ox: x, oy };
-    return { k, x, y, w: cw, h: cellH, lines: cellLines(p, k, cw, y), geom };
+    return { k, x, y, w: cw, h: cellH, lines: cellLines(p, k, cw, y, id), geom };
   });
   return { w, h, head, lines, cells };
 }
