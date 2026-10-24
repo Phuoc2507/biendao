@@ -18,6 +18,7 @@ App web cho **văn nghệ truyền thống khoa**: quay từng người múa b�
 * Làm xong phải **tự kiểm trong app** (trình duyệt), có ảnh chụp làm bằng chứng, không nhờ người dùng kiểm.
 * Git: thư mục gốc `D:\bien`, nhánh **master**, commit thẳng. Lời commit tiếng Việt, cuối có dòng `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`; dùng `git commit -F <tệp>` cho lời nhiều dòng.
 * **Không đụng** `web/src/sync.ts`, `web/src/App.tsx`, `web/src/main.tsx` (app 3D cũ ở `web/3d.html`).
+* Người dùng là sinh viên năm nhất Robot và AI, nhắm học lên thạc sĩ, tiến sĩ: phần nghiên cứu ưu tiên chiều sâu hơn chiều rộng.
 * Không tự tải mô hình ML hay tệp mới khi chưa được đồng ý; không tạo/xoá máy ảo đám mây khi chưa được đồng ý.
 
 ## 3. Chạy và kiểm
@@ -153,4 +154,6 @@ Trước đó (commit 91f7646, 6616b4a, 74a796f):
 
 ## 7. Bộ nhớ của Claude
 
-Ghi chú chi tiết lịch sử (kể cả phần nghiên cứu V1 tới V65, AIST++, Gate 0) nằm ở `C:\Users\Admin\.claude\projects\D--bien\memory\`, tệp `choreo-sequencer-project.md`. Đổi tài khoản Claude trên **cùng máy** thì thư mục này thường vẫn còn; nếu không thấy, file bàn giao này đủ để làm tiếp phần app.
+Ghi chú chi tiết lịch sử (kể cả phần nghiên cứu V1 tới V65, AIST++, Gate 0, bài học từng đợt) có bản chép trong repo: `docs/ghi-chu-claude/lich-su-du-an.md` (chép từ bộ nhớ ngày 2026-10-24). Sang máy mới: đọc tệp này khi cần chi tiết; ghi thêm bài học mới vào bộ nhớ của máy đó và chép lại vào tệp này rồi đẩy lên.
+
+Máy hỗ trợ có card RTX 5060: cài theo `docs/cai-may-ho-tro.md`.
