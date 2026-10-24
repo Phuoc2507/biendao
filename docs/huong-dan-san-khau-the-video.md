@@ -36,6 +36,7 @@ pip install numpy onnxruntime imageio-ffmpeg
 
 * `imageio-ffmpeg` mang sẵn ffmpeg, không cần cài riêng (hoặc đặt biến môi trường `CHOREO_FFMPEG` trỏ tới `ffmpeg.exe` có sẵn).
 * `onnxruntime` chỉ cần khi xoá phông.
+* Máy có card đồ hoạ (ví dụ RTX 5060) thì thay `onnxruntime` bằng `onnxruntime-directml` (`pip uninstall onnxruntime` rồi `pip install onnxruntime-directml`) để xoá phông nhanh hơn nhiều. Công cụ tự dùng card và in ra dòng "xoá phông chạy trên: card đồ hoạ". Không cài thì vẫn chạy CPU như cũ.
 
 Tải mô hình xoá phông RobustVideoMatting (khoảng 15 MB):
 

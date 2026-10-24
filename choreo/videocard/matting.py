@@ -1,4 +1,7 @@
-"""Xoá phông bằng RobustVideoMatting bản ONNX, chạy CPU qua onnxruntime.
+"""Xoá phông bằng RobustVideoMatting bản ONNX qua onnxruntime.
+
+Có card đồ hoạ thì tự dùng (onnxruntime-gpu cho CUDA, onnxruntime-directml
+cho mọi card trên Windows), không có thì chạy CPU như cũ.
 
 RVM (GPL 3.0) chỉ được GỌI như công cụ ngoài: repo này không chép code của
 nó, chỉ nạp file mô hình .onnx người dùng tự tải về. Mô hình có trạng thái
@@ -15,14 +18,24 @@ def auto_downsample(h: int, w: int) -> float:
     return float(np.clip(480.0 / max(h, w), 0.125, 1.0))
 
 
+# thứ tự ưu tiên: CUDA, DirectML, cuối cùng CPU
+_PREFER = ("CUDAExecutionProvider", "DmlExecutionProvider")
+
+
+def pick_providers(available: list[str]) -> list[str]:
+    """Chọn nơi chạy mô hình từ danh sách onnxruntime có; luôn kèm CPU dự phòng."""
+    return [p for p in _PREFER if p in available] + ["CPUExecutionProvider"]
+
+
 class RVMSession:
     def __init__(self, model_path: str, downsample: float | None = None):
         import onnxruntime as ort  # import có bảo vệ ở cli
 
         opts = ort.SessionOptions()
         opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        self.sess = ort.InferenceSession(model_path, opts,
-                                         providers=["CPUExecutionProvider"])
+        self.sess = ort.InferenceSession(
+            model_path, opts, providers=pick_providers(ort.get_available_providers()))
+        self.device = self.sess.get_providers()[0]
         self.downsample = downsample
         self.reset()
 

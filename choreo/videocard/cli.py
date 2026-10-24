@@ -111,6 +111,7 @@ def _matted(ff: str, video: str, out_mp4: str, model: str, half: int,
     from .person import MainPersonFilter
 
     sess = RVMSession(model)
+    print(f"  xoá phông chạy trên: {'card đồ hoạ' if sess.device != 'CPUExecutionProvider' else 'CPU'} ({sess.device})")
     main_person = None if all_people else MainPersonFilter()
     acc = BBoxAccumulator()
     boxes: list = []
