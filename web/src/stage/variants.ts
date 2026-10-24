@@ -345,7 +345,10 @@ export function variantRepo(kv: KV, lock: Lock = noLock): VariantRepo {
       const ids = new Set<string>();
       for (const v of await chain.then(read)) {
         if (v.project.musicId) ids.add(v.project.musicId);
-        for (const d of v.project.dancers) if (d.mediaId) ids.add(d.mediaId);
+        for (const d of v.project.dancers) {
+          if (d.mediaId) ids.add(d.mediaId);
+          if (d.motionId) ids.add(d.motionId);
+        }
       }
       return [...ids];
     },

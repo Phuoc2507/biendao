@@ -16,12 +16,12 @@ import { st, useStore, batch } from "./store";
 import * as clock from "./clock";
 import {
   classify, registerVideo, setMusic, storeFile, discardMedia, failCode, stripName, uid, getVideo,
-  decodeAudio, music, monoOf, loadMediaFor, loadMediaDetailed, loadMusicId, type CardMeta,
+  decodeAudio, music, monoOf, loadMediaFor, loadMediaDetailed, loadMusicId, registerMotion, type CardMeta,
 } from "./media";
 import { estimateOffset, CONFIDENT } from "./align";
 import { saveProject, loadProject, allMediaIds, deleteMedia, saveKey, loadKey } from "./db";
 import {
-  offsetPlan, emptyReport, importSummary, normalizeProject, ALIGN_MAX_BYTES,
+  offsetPlan, emptyReport, importSummary, normalizeProject, motionTargets, ALIGN_MAX_BYTES,
   type OffsetHow, type ImportReport,
 } from "./intake";
 import { claimTab, canAutosave, setBootProblem, otherTabsOpen, onTakeOver, subscribeGuard } from "./guard";
@@ -1489,6 +1489,27 @@ export async function importFiles(files: File[]) {
           rep.bad.push({ name: file.name, code: failCode(e) });
         }
       }
+      // động tác 3D: sau video, để tệp ghép được theo tên video vừa nạp
+      for (const f of c.motions) {
+        if (cancelReq) break;
+        const ids = motionTargets(proj().dancers, f.name);
+        if (!ids.length) {
+          rep.motionLost?.push(f.name);
+          continue;
+        }
+        busy(`Đang đọc động tác ${f.name}…`);
+        let stored: Awaited<ReturnType<typeof storeFile>> | null = null;
+        try {
+          stored = await storeFile(f);
+          await registerMotion(stored.rec);
+          const rid = stored.rec.id;
+          st().commit((q) => ({ ...q, dancers: q.dancers.map((d) => (ids.includes(d.id) ? { ...d, motionId: rid } : d)) }));
+          rep.motions?.push(...proj().dancers.filter((d) => ids.includes(d.id)).map((d) => d.name));
+        } catch (e) {
+          if (stored?.fresh) await discardMedia(stored.rec.id);
+          rep.bad.push({ name: f.name, code: failCode(e) });
+        }
+      }
       // đổi nhạc: tự khớp lại những người chưa chắc (đã căn tay thì giữ)
       if (musicChanged && !cancelReq) {
         const ids = proj().dancers.filter((d) => d.mediaId && !d.alignConfident && !fresh.has(d.id)).map((d) => d.id);
@@ -1606,7 +1627,7 @@ export function startAutosave() {
   });
 }
 
-const mediaIdsOf = (p: Project | null) => (p ? [p.musicId, ...p.dancers.map((d) => d.mediaId)] : []);
+const mediaIdsOf = (p: Project | null) => (p ? [p.musicId, ...p.dancers.flatMap((d) => [d.mediaId, d.motionId ?? null])] : []);
 
 export async function boot() {
   initClock();

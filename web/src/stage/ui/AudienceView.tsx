@@ -2,7 +2,7 @@
 // quay về phía máy quay. Vị trí đọc thẳng từ store và đồng hồ mỗi khung hình
 // (không render lại React), nên phát mượt với nhiều thẻ.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
@@ -11,7 +11,8 @@ import { canonTime } from "../timing";
 import { propHeight, propMoves, propsAt } from "../props";
 import { st, useProject, useUI } from "../store";
 import * as clock from "../clock";
-import { getVideo, getDancerVideo, holdVideos } from "../media";
+import { getVideo, getDancerVideo, getMotion, holdVideos, loadMotions } from "../media";
+import { StageAvatar } from "./StageAvatar";
 import { copyFrame, frameReady, frameTexture, holdFrame } from "./frameTex";
 import { setPositionsNow } from "../actions";
 import { type View as CamView, BACK_DIR, SIDE_DIR, TOP_DIR, fitAlong, fitFront } from "../framing";
@@ -106,7 +107,7 @@ function blobShadow(): THREE.Texture {
   return shadowTex;
 }
 
-function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
+function Card({ d, index, interactive }: { d: VDancer; index: number; interactive: boolean }) {
   const group = useRef<THREE.Group>(null);
   const plane = useRef<THREE.Mesh>(null);
   const ring = useRef<THREE.Mesh>(null);
@@ -115,6 +116,13 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
   const dragRef = useRef<{ base: Record<string, Vec2>; hit: THREE.Vector3; moved: boolean } | null>(null);
 
   const v = getVideo(d.mediaId);
+  // động tác 3D nạp lười: lúc mở máy, mở dự án hay đổi phương án đều tự nạp ở đây
+  const motion = getMotion(d.motionId);
+  useEffect(() => {
+    if (d.motionId && !motion) void loadMotions([d.motionId]);
+  }, [d.motionId, motion]);
+  const avatarsOn = useUI().avatars;
+  const avatar = avatarsOn && !!motion;
   // <video> theo tệp@độ lệch: bản nhân bản cùng độ lệch dùng chung element và
   // texture; khung được chép qua canvas 2D (xem frameTex.ts)
   const el = v ? getDancerVideo(d.id, d.mediaId, d.offsetSec, d.durationSec, d.canon) : undefined;
@@ -153,6 +161,11 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
     [],
   );
   useEffect(() => () => mat.dispose(), [mat]);
+  // có người 3D: thẻ chỉ còn là vùng bấm/kéo vô hình
+  useEffect(() => {
+    mat.colorWrite = !avatar;
+    mat.depthWrite = !avatar;
+  }, [mat, avatar]);
 
   const h = d.cardHeight;
   const w = h * (d.aspect || 0.45);
@@ -302,6 +315,11 @@ function Card({ d, interactive }: { d: VDancer; interactive: boolean }) {
       >
         <planeGeometry args={[1, 1]} />
       </mesh>
+      {avatar && motion && (
+        <Suspense fallback={null}>
+          <StageAvatar d={d} motion={motion} index={index} />
+        </Suspense>
+      )}
     </group>
   );
 }
@@ -505,7 +523,9 @@ export function AudienceView({
   label?: boolean;
 }) {
   const p = useProject();
-  const camReset = useUI().camReset;
+  const ui = useUI();
+  const camReset = ui.camReset;
+  const hasMotion = p.dancers.some((d) => d.motionId && !d.hidden);
   const [own, setPreset] = useState<Preset>("front");
   const preset = presetProp ?? own;
   const [stamp, setStamp] = useState(0);
@@ -533,8 +553,8 @@ export function AudienceView({
         <spotLight position={[-W / 2, 6, D / 2]} angle={0.5} penumbra={0.8} intensity={bright ? 45 : 25} decay={1.6} color="#ffb0c0" />
         <StageSet bright={bright} />
         <PropsSet bright={bright} />
-        {p.dancers.filter((d) => !d.hidden).map((d) => (
-          <Card key={d.id} d={d} interactive={interactive} />
+        {p.dancers.map((d, i) => !d.hidden && (
+          <Card key={d.id} d={d} index={i} interactive={interactive} />
         ))}
         <OrbitControls makeDefault enabled={orbit} enablePan maxPolarAngle={Math.PI / 2 - 0.02} minDistance={2} maxDistance={400} />
         <CameraRig preset={preset} stamp={stamp + camReset} safe={safe} />
@@ -548,6 +568,11 @@ export function AudienceView({
             <button className={preset === "top" ? "on" : ""} onClick={() => pick("top")} title="Nhìn từ trên">Trên cao</button>
             <button className={preset === "back" ? "on" : ""} onClick={() => pick("back")} title="Đứng sau lưng người múa nhìn ra khán giả: trái phải như người múa, dễ tập theo">Sau lưng</button>
           </div>
+          {hasMotion && (
+            <button className={"btn sm" + (ui.avatars ? " on" : "")} title="Người có tệp động tác 3D (.motion.json) hiện thành người 3D thay thẻ video" onClick={() => st().setUI({ avatars: !ui.avatars })}>
+              Người 3D
+            </button>
+          )}
           <button className="btn sm" title="Đặt lại góc nhìn" onClick={() => pick(preset)}>
             <Icon name="camera" /> Đặt lại
           </button>

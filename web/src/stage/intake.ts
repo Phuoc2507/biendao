@@ -23,11 +23,12 @@ export const ALIGN_MAX_BYTES = 400 * 1024 * 1024;
 
 export const isJunk = (name: string): boolean => /^\.|^(desktop\.ini|thumbs\.db)$/i.test(name);
 
-export type FileKind = "card" | "json" | "music" | "video" | "junk" | "other";
+export type FileKind = "card" | "motion" | "json" | "music" | "video" | "junk" | "other";
 
 export function fileKind(name: string, type = ""): FileKind {
   if (isJunk(name)) return "junk";
   if (/\.card\.json$/i.test(name)) return "card";
+  if (/\.motion\.json$/i.test(name)) return "motion"; // động tác 3D (choreo.pose3d)
   if (/\.json$/i.test(name)) return "json";
   // video trước: .mp4 có thể mang type audio/mp4 nhưng vẫn là video
   if (VIDEO_EXT.test(name) || type.startsWith("video/")) return "video";
@@ -89,6 +90,7 @@ export function normalizeProject(raw: unknown): Project | null {
     x.cardHeight = num(d.cardHeight, def.cardHeight, 0.01) || def.cardHeight;
     if (typeof x.mediaName !== "string") x.mediaName = "";
     if (x.mediaId !== null && typeof x.mediaId !== "string") x.mediaId = null;
+    if (typeof x.motionId !== "string" || !x.motionId) delete x.motionId;
     if (typeof x.flip !== "boolean") delete x.flip;
     const segs = Array.isArray(d.canon)
       ? d.canon.filter((s) => s && fin(s.start) && fin(s.end) && fin(s.lag) && s.end > s.start && s.lag > 0)
@@ -324,11 +326,15 @@ export interface ImportReport {
   skipped: string[];
   cancelled: boolean;
   realigned: number;
+  /** người vừa có động tác 3D */
+  motions?: string[];
+  /** tệp động tác không khớp tên người nào */
+  motionLost?: string[];
 }
 
 export const emptyReport = (): ImportReport => ({
   project: false, music: null, musicSame: false, added: [], same: [], weak: [], noMusic: 0, noAudio: [],
-  big: [], bad: [], skipped: [], cancelled: false, realigned: 0,
+  big: [], bad: [], skipped: [], cancelled: false, realigned: 0, motions: [], motionLost: [],
 });
 
 export const nameList = (xs: string[], max = 3): string =>
@@ -340,6 +346,7 @@ export function importSummary(r: ImportReport): { msg: string; kind: "info" | "w
   if (r.project) got.push("dự án");
   if (r.music) got.push(`nhạc "${r.music}"`);
   if (r.added.length) got.push(`${r.added.length} video`);
+  if (r.motions?.length) got.push(`động tác 3D cho ${nameList(r.motions)}`);
   const parts: string[] = [];
   if (got.length) parts.push(`Đã nạp ${got.join(", ")}`);
   if (r.cancelled) parts.push("Đã dừng giữa chừng");
@@ -355,13 +362,14 @@ export function importSummary(r: ImportReport): { msg: string; kind: "info" | "w
   const other = r.bad.filter((b) => b.code !== "quota");
   if (other.length)
     parts.push(`Không mở được ${other.length} tệp: ${nameList(other.map((b) => `${b.name} (${videoProblem(b.code)})`), 2)}`);
+  if (r.motionLost?.length) parts.push(`Tệp động tác không trùng tên người hay tên video nào: ${nameList(r.motionLost)}. Đổi tên tệp cho trùng rồi thả lại`);
   if (r.skipped.length) parts.push(`Bỏ qua tệp không nhận ra: ${nameList(r.skipped)}`);
   if (quota) parts.push(QUOTA_MSG);
   else if (other.some((b) => b.code !== "read")) parts.push(HINT);
   if (!parts.length) parts.push("Không có gì mới để nạp");
   const ok = got.length > 0 || r.same.length > 0 || r.musicSame;
   const kind = r.bad.length && !ok ? "error"
-    : r.bad.length || r.weak.length || r.noAudio.length || r.big.length || r.skipped.length || r.projectError || r.cancelled ? "warn"
+    : r.bad.length || r.weak.length || r.noAudio.length || r.big.length || r.skipped.length || r.motionLost?.length || r.projectError || r.cancelled ? "warn"
     : "info";
   return { msg: parts.join(". ") + (parts[parts.length - 1].endsWith(".") ? "" : "."), kind };
 }
@@ -370,4 +378,16 @@ export function importSummary(r: ImportReport): { msg: string; kind: "info" | "w
 export function fitSize(w: number, h: number, max: number): [number, number] {
   const s = Math.min(1, max / Math.max(w, h, 1));
   return [Math.max(1, Math.round(w * s)), Math.max(1, Math.round(h * s))];
+}
+
+/**
+ * Người nhận tệp động tác tên fileName: trùng tên người, hoặc trùng tên video
+ * thẻ (mọi bản nhân bản dùng chung video đó). Không ai trùng: rỗng.
+ */
+export function motionTargets(dancers: VDancer[], fileName: string): string[] {
+  const key = fileName.replace(/\.motion\.json$/i, "").replace(/\.card$/i, "").trim().toLowerCase();
+  if (!key) return [];
+  return dancers
+    .filter((d) => d.name.trim().toLowerCase() === key || (!!d.mediaName && stripName(d.mediaName).toLowerCase() === key))
+    .map((d) => d.id);
 }

@@ -27,6 +27,8 @@ export interface VDancer {
   cardHeight: number; // mét
   hidden: boolean;
   alignConfident: boolean;
+  /** động tác 3D của người này (tệp .motion.json đã lưu), cùng giờ với video thẻ */
+  motionId?: string;
   /** lật ngang thẻ (đối xứng gương), ví dụ người bên phải của tổ hợp ba người */
   flip?: boolean;
   /** canon theo đoạn: trong mỗi đoạn nhạc người này vào trễ lag giây */

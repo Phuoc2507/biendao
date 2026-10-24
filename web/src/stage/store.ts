@@ -21,6 +21,7 @@ export interface UI {
   showPaths: boolean;
   showGhosts: boolean;
   showNames: boolean;
+  avatars: boolean; // người có tệp động tác 3D thì vẽ người 3D thay thẻ video
   planFromStage: boolean; // sơ đồ nhìn từ sân khấu ra (xoay 180°), nhớ theo máy
   presenting: boolean;
   learning: boolean; // chế độ Học động tác từ video cả đội (không lưu vào dự án)
@@ -80,6 +81,7 @@ export const useStore = create<State>((set, get) => ({
     showPaths: true,
     showGhosts: true,
     showNames: true,
+    avatars: true,
     planFromStage: savedPlanFromStage(),
     presenting: false,
     learning: false,

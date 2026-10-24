@@ -13,6 +13,7 @@ import {
 import { type PlayerDancer, playerKey, wantPlayers, planPlayers } from "./players";
 import type { CanonSeg } from "./timing";
 
+import { parseMotion, type Motion } from "./motion";
 export { stripName, type CardMeta } from "./intake";
 
 export interface VideoEntry {
@@ -497,17 +498,49 @@ export async function storeFile(file: File): Promise<{ rec: MediaRec; fresh: boo
   return { rec, fresh: true };
 }
 
+// ---------- động tác 3D theo mediaId (motion.ts) ----------
+
+const motions = new Map<string, Motion>();
+
+export const getMotion = (id: string | null | undefined): Motion | undefined => (id ? motions.get(id) : undefined);
+
+/** Đọc tệp động tác đã lưu vào bộ nhớ. Sai định dạng: MediaFail("decode"). */
+export async function registerMotion(rec: MediaRec): Promise<Motion> {
+  const m = parseMotion(await rec.blob.text().catch(() => ""));
+  if (!m) throw new MediaFail("decode");
+  motions.set(rec.id, m);
+  emit();
+  return m;
+}
+
+/** Nạp động tác đã lưu; trả các id không mở được. */
+export async function loadMotions(ids: string[]): Promise<string[]> {
+  const bad: string[] = [];
+  for (const id of new Set(ids)) {
+    if (motions.has(id)) continue;
+    const rec = await getMedia(id).catch(() => undefined);
+    try {
+      if (!rec) throw new Error("mất");
+      await registerMotion(rec);
+    } catch {
+      bad.push(id);
+    }
+  }
+  return bad;
+}
+
 // ---------- phân loại tệp thả vào ----------
 
 export interface Classified {
   music: File | null;
+  motions: File[];
   videos: { file: File; meta: CardMeta | null }[];
   project: File | null;
   unknown: File[];
 }
 
 export async function classify(files: File[]): Promise<Classified> {
-  const out: Classified = { music: null, videos: [], project: null, unknown: [] };
+  const out: Classified = { music: null, motions: [], videos: [], project: null, unknown: [] };
   const metas = new Map<string, CardMeta>();
   const text = (f: File) => (f.size > JSON_MAX ? Promise.resolve("") : f.text().catch(() => ""));
   for (const f of files) {
@@ -529,7 +562,8 @@ export async function classify(files: File[]): Promise<Classified> {
     if (k === "music") {
       if (!out.music) out.music = f;
       else out.unknown.push(f);
-    } else if (k === "video") {
+    } else if (k === "motion") out.motions.push(f);
+    else if (k === "video") {
       out.videos.push({ file: f, meta: metas.get(stripName(f.name).toLowerCase()) ?? null });
     } else if (k === "other") out.unknown.push(f);
   }

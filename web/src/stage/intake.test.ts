@@ -237,3 +237,25 @@ test("normalizeProject: ghi chú riêng bỏ chữ trống, bỏ người không
   assert.equal("notes" in p.formations[3], false);
   assert.deepEqual(checkInvariants(p), []);
 });
+
+test("động tác 3D: nhận tệp .motion.json, ghép theo tên người hay tên video, dọn motionId hỏng", async () => {
+  const { motionTargets, fileKind: fk, normalizeProject: np, importSummary: sum, emptyReport: er } = await import("./intake.ts");
+  const { newDancer: nd, emptyProject: ep } = await import("./model.ts");
+  assert.equal(fk("Lan.motion.json"), "motion");
+  assert.equal(fk("Lan.card.json"), "card");
+  const ds = [
+    { ...nd("a", "Lan", "#f00"), mediaName: "IMG_1.card.mp4" },
+    { ...nd("b", "Lan 2", "#0f0"), mediaName: "IMG_1.card.mp4" }, // bản nhân bản cùng video
+    { ...nd("c", "Minh", "#00f"), mediaName: "Minh.mp4" },
+  ];
+  assert.deepEqual(motionTargets(ds, "IMG_1.card.motion.json"), ["a", "b"]);
+  assert.deepEqual(motionTargets(ds, "minh.motion.json"), ["c"]);
+  assert.deepEqual(motionTargets(ds, "Huong.motion.json"), []);
+  const p = np({ ...ep(), dancers: [{ ...nd("a", "Lan", "#f00"), motionId: 5 }, { ...nd("b", "B", "#f00"), motionId: "m-1" }] })!;
+  assert.equal("motionId" in p.dancers[0], false);
+  assert.equal(p.dancers[1].motionId, "m-1");
+  const r = { ...er(), motions: ["Lan"], motionLost: ["X.motion.json"] };
+  const s = sum(r);
+  assert.match(s.msg, /động tác 3D cho Lan/);
+  assert.equal(s.kind, "warn");
+});
