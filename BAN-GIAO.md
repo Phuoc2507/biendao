@@ -1,4 +1,4 @@
-# Bàn giao: Sân khấu thẻ video (cập nhật 2026-10-19)
+# Bàn giao: Sân khấu thẻ video (cập nhật 2026-10-24)
 
 Đọc file này trước khi làm tiếp. Viết cho người (hoặc phiên Claude) mới chưa biết gì về dự án.
 
@@ -27,7 +27,7 @@ cd web && npm install
 ```
 
 * Chạy app: `npm run dev` trong `web/` rồi mở http://localhost:5173/ (cấu hình sẵn ở `.claude/launch.json`, tên `web`). `index.html` vào app sân khấu `src/stage/main.tsx`.
-* Test: `npm test` trong `web/` (node:test, hiện **395 test xanh**).
+* Test: `npm test` trong `web/` (node:test, hiện **399 test xanh**; pytest ở gốc 139 test).
 * Kiểm kiểu (máy ít RAM, phải nâng heap): `node --max-old-space-size=2500 node_modules/typescript/bin/tsc -p .` trong `web/`.
 * Tệp được test import trực tiếp phải import có đuôi `.ts` (ví dụ `from "./timing.ts"`), `model.ts` chỉ được `import type` từ `timing.ts`.
 * Trong trình duyệt có tay cầm DEV `window.__stage.st()` để đọc và gọi store (`setUI`, `commit`, `project`…).
@@ -66,6 +66,13 @@ Video mẫu thật: `D:\bien\IMG_5116.mov` (iPhone, HEVC 1920x1080, 41,9 s, khô
 Quy ước sân: khán giả ở phía **+Z**, x dương là bên **phải khán giả**.
 
 ## 5. Đã xong gần nhất
+
+Đợt 2026-10-24, **người 3D từ video** (commit 22dcfa7, ac7b6a4):
+* Python `choreo/pose3d`: `.npz` 24 khớp SMPL hệ camera (từ GVHMR, script `gvhmr_dump.py` chạy trong môi trường GVHMR, **chưa chạy máy thật**) → `<ten>.motion.json` (format `choreo-motion` v1: fps, numFrames, jointNames 17 khớp, frames[T][17][3] mét hệ sân, giờ tính từ đầu video gốc). Lệnh `python -m choreo.pose3d a.npz --out the`. Test `tests/test_pose3d.py`.
+* App: thả `.motion.json` thì `motionTargets` (intake.ts) gắn vào vũ công trùng tên hoặc trùng tên video thẻ (cả bản nhân bản), lưu kho media, `VDancer.motionId`; GC giữ id này (`mediaIdsOf`, `variants.mediaIds`). `ui/StageAvatar.tsx` vẽ nhân vật Quaternius (rig dùng chung `src/rig/quaterniusRig.ts`, cả app cũ `GltfDancer`), giờ động tác = `canonTime(t).t - offsetSec`, xoay theo `facingAt`, lật gương = phản chiếu pose. Thẻ còn làm vùng bấm kéo vô hình. Nút **Người 3D** (`ui.avatars`) trong khung 3D. Nạp lười trong `Card`.
+* Hướng dẫn máy RTX 5060: `docs/huong-dan-nguoi-3d-may-rtx.md` (torch cu128, SMPL người dùng tự đăng ký, phi thương mại).
+* Chưa làm: gói .zip xuất ra chưa mang tệp động tác; video cả đội → tự ra đội hình.
+
 
 Đợt 2026-10-19, lượt năm (agent worktree):
 
@@ -141,7 +148,7 @@ Trước đó (commit 91f7646, 6616b4a, 74a796f):
 
 1. **Bộ lọc tạo thẻ** còn lọt người xem khi chạm sát vũ công thật (khoảng 29 tới 30 s, 39 s, 40,5 tới 41,5 s của IMG_5116) và còn mẩu áo trắng bị cắt ở 28,5 s và 38,5 s. Đã thử "chỉ giữ mảng lớn nhất": làm mất chân, đã bỏ.
 2. **Bám theo tôi** đang dùng khung vẽ tay; có thể thêm tự bám người (cần mô hình phát hiện người, phải xin phép người dùng trước khi tải).
-3. **Nhìn thật từ sau lưng** (thấy lưng người múa) cần dựng tư thế 3D từ video: để sau, hiện app nói rõ là chưa làm được.
+3. **Người 3D**: chạy thử GVHMR trên máy 5060 thật (theo `docs/huong-dan-nguoi-3d-may-rtx.md`), kiểm trái phải và hướng; cho tệp động tác vào gói .zip; sau đó video cả đội → tự ra đội hình.
 4. Thử trên **điện thoại thật** và với **nhiều video người khác nhau** (đến giờ chủ yếu thử bằng bản nhân bản của IMG_5116).
 
 ## 7. Bộ nhớ của Claude

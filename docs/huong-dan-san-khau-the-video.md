@@ -216,7 +216,17 @@ Bấm **Trình chiếu** (F): toàn màn hình góc khán giả, có tên đội
 
 ### Học động tác từ video cả đội
 
-Bấm **Học động tác** (thanh trên, hoặc ở màn hình trống), mở hoặc kéo thả video cả đội múa quay từ phía trước. **Gương** (M, bật sẵn) lật trái phải để bạn làm theo như đứng sau lưng người múa; xem 0,25× tới 1× vẫn giữ cao độ nhạc; **Đặt A**, **Đặt B** ([ ]) để lặp một đoạn; **5-6-7-8** đếm vào theo BPM (gõ nhịp được) rồi mới phát; , . bước từng khung, ← → lùi tới 2 giây. **Bám theo tôi**: dừng lúc bạn đổi chỗ, kéo một khung quanh mình, app phóng to và dời theo, tự nối giữa các khung. App nhớ video và các khung cho lần sau. Nhìn thật từ sau lưng (thấy lưng người múa) cần dựng lại tư thế 3D, app chưa làm được.
+Bấm **Học động tác** (thanh trên, hoặc ở màn hình trống), mở hoặc kéo thả video cả đội múa quay từ phía trước. **Gương** (M, bật sẵn) lật trái phải để bạn làm theo như đứng sau lưng người múa; xem 0,25× tới 1× vẫn giữ cao độ nhạc; **Đặt A**, **Đặt B** ([ ]) để lặp một đoạn; **5-6-7-8** đếm vào theo BPM (gõ nhịp được) rồi mới phát; , . bước từng khung, ← → lùi tới 2 giây. **Bám theo tôi**: dừng lúc bạn đổi chỗ, kéo một khung quanh mình, app phóng to và dời theo, tự nối giữa các khung. App nhớ video và các khung cho lần sau. Muốn nhìn thật từ sau lưng (thấy lưng người múa) thì dùng **Người 3D** ở mục dưới.
+
+### Người 3D từ video
+
+Mỗi vũ công có thể hiện thành một người 3D cử động đúng như trong video thẻ, nên góc **Sau lưng** và **Chéo** thấy được lưng, tay chân thật chứ không phải tấm thẻ phẳng.
+
+1. Trên máy có card NVIDIA (ví dụ RTX 5060), làm theo [huong-dan-nguoi-3d-may-rtx.md](huong-dan-nguoi-3d-may-rtx.md) để biến `Lan.mp4` thành `Lan.motion.json`. Dùng đúng video gốc đã làm thẻ, để giờ động tác khớp giờ thẻ.
+2. Kéo thả `Lan.motion.json` vào app (cùng lúc với thẻ hoặc sau cũng được). App gắn vào vũ công tên **Lan** hoặc có thẻ làm từ `Lan.mp4`; bản nhân bản của Lan cũng nhận luôn. Không khớp tên nào thì app báo, đổi tên tệp cho trùng tên vũ công rồi thả lại.
+3. Khung 3D có nút **Người 3D** (chỉ hiện khi đã có tệp động tác) để bật tắt giữa người 3D và thẻ video. Người 3D vẫn bấm chọn, kéo đổi chỗ như thẻ, quay theo hướng mặt của đội hình và lật gương nếu thẻ đang lật.
+
+Hình người là nhân vật mẫu (nữ nam xen kẽ), không giống mặt thật; động tác lấy từ 17 khớp nên cổ tay, ngón tay, nét mặt không có. Tệp động tác chưa nằm trong gói .zip xuất ra, máy khác cần thả lại tệp.
 
 ### Xem và tập trên sơ đồ
 
