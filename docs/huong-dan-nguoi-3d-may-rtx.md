@@ -4,7 +4,9 @@ Tài liệu cho máy hỗ trợ văn nghệ (RTX 5060, 8 GB). Kết quả: mỗi
 
 Đường đi: video → **GVHMR** (dựng tư thế người 3D, chạy trên card) → `gvhmr_dump.py` (lấy 24 khớp SMPL ra tệp `.npz`) → `python -m choreo.pose3d` (đổi sang 17 khớp của app, cân thẳng, đặt lên sàn, bỏ trôi) → `.motion.json`.
 
-> Lưu ý: phần chạy trên card **chưa được thử trên máy thật** (máy soạn không có card NVIDIA). Phần đổi `.npz` sang `.motion.json` đã có test. Gặp lỗi ở bước 3 hoặc 4 thì gửi nguyên dòng lỗi để sửa.
+> Lưu ý: cả đường ống đã **chạy thử end-to-end trên Google Colab** (GPU Tesla T4, CUDA 12.1) ra người 3D múa được trong app. Riêng **đường cu128 cho card dòng 50 (5060) chưa thử trên máy thật**. Phần đổi `.npz` sang `.motion.json` đã có test. Gặp lỗi ở bước 3 hoặc 4 thì gửi nguyên dòng lỗi để sửa.
+>
+> Mẹo từ lần chạy Colab T4: chỉ cần một tệp `SMPLX_NEUTRAL.npz` cho bước 3 và 4; hai bước vẽ video xem thử của GVHMR (`render_incam`, `render_global` trong `tools/demo/demo.py`) mới cần thêm tệp SMPL `.pkl`, thiếu thì chú thích hai lời gọi đó (vì `hmr4d_results.pt` lưu trước khi vẽ). Cài được: torch 2.3.0+cu121, pytorch3d 0.7.6, numpy 1.23.5, chumpy cài `--no-build-isolation`.
 
 ## 1. Giấy phép, phải tự làm
 

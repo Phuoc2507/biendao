@@ -1,4 +1,4 @@
-# Bàn giao: Sân khấu thẻ video (cập nhật 2026-10-24)
+# Bàn giao: Sân khấu thẻ video (cập nhật 2026-10-25)
 
 Đọc file này trước khi làm tiếp. Viết cho người (hoặc phiên Claude) mới chưa biết gì về dự án.
 
@@ -67,6 +67,15 @@ Video mẫu thật: `D:\bien\IMG_5116.mov` (iPhone, HEVC 1920x1080, 41,9 s, khô
 Quy ước sân: khán giả ở phía **+Z**, x dương là bên **phải khán giả**.
 
 ## 5. Đã xong gần nhất
+
+Đợt 2026-10-25, **chạy thử GVHMR thật (trên Google Colab T4)**:
+
+* Cả đường ống `video → GVHMR → gvhmr_dump.py → choreo.pose3d → .motion.json → app` **đã chạy end-to-end lần đầu trên máy thật** (Colab, GPU Tesla T4, không phải 5060). Thử trên một video (`tennis.mp4`): ra 312 khung, 29,83 fps; app nạp (toast "Đã nạp động tác 3D cho D1"), bật **Người 3D**, nhân vật đứng đúng sàn và **múa theo** (kiểm bằng tay cầm DEV: `window.__stage.clock.seek(2)` và `seek(6.5)` cho hai tư thế và vị trí khác hẳn nhau). Không đụng code; `gvhmr_dump.py` chạy đúng như đang viết.
+* **Pin môi trường chạy được trên T4 (CUDA 12.1):** Python 3.10, `torch==2.3.0+cu121`, `pytorch3d==0.7.6`, `numpy==1.23.5`; `chumpy` cài bằng `pip install --no-build-isolation` sau khi chú thích dòng `chumpy` trong `requirements.txt` (chumpy cũ gọi `numpy.bool` lúc build). Dùng `condacolab` tạo môi trường `gvhmr`. T4 là Turing nên cu121 chạy; 5060 (Blackwell) mới cần cu128 như hướng dẫn RTX.
+* **Giấy phép tối thiểu:** chỉ cần một tệp `SMPLX_NEUTRAL.npz` đặt ở `inputs/checkpoints/body_models/smplx/`. `make_smplx("supermotion")` (dựng tư thế) và `gvhmr_dump.py` chỉ cần tệp này. Hai bước vẽ video xem thử của GVHMR (`render_incam`, `render_global`) mới cần thêm `.pkl` của SMPL; đã **chú thích hai lời gọi đó trong `tools/demo/demo.py`** vì `hmr4d_results.pt` được lưu TRƯỚC khi vẽ, nên không cần tệp SMPL. (Trên máy có đủ tệp SMPL thì khỏi chú thích, sẽ có video xem thử.)
+* **Chuyển tệp không cần Google Drive:** tải tệp lên Colab bằng ngăn Files (biểu tượng thư mục cột trái, không phải menu File trên thanh); lấy `.npz` nhỏ về máy bằng cách in base64 giữa hai dấu mốc trong một ô rồi giải mã ở máy.
+* **Bẫy Windows:** `python -m choreo.pose3d` in ký tự `→` làm bảng mã cp1252 lỗi `UnicodeEncodeError`; chạy với `PYTHONUTF8=1` (dữ liệu không sao, chỉ lỗi lúc in).
+* Chưa làm (vẫn như mục 6): đường cu128 cho 5060 thật vẫn chưa thử; tệp động tác chưa vào gói .zip; video cả đội → tự ra đội hình.
 
 Đợt 2026-10-24, **người 3D từ video** (commit 22dcfa7, ac7b6a4):
 * Python `choreo/pose3d`: `.npz` 24 khớp SMPL hệ camera (từ GVHMR, script `gvhmr_dump.py` chạy trong môi trường GVHMR, **chưa chạy máy thật**) → `<ten>.motion.json` (format `choreo-motion` v1: fps, numFrames, jointNames 17 khớp, frames[T][17][3] mét hệ sân, giờ tính từ đầu video gốc). Lệnh `python -m choreo.pose3d a.npz --out the`. Test `tests/test_pose3d.py`.
@@ -149,7 +158,7 @@ Trước đó (commit 91f7646, 6616b4a, 74a796f):
 
 1. **Bộ lọc tạo thẻ** còn lọt người xem khi chạm sát vũ công thật (khoảng 29 tới 30 s, 39 s, 40,5 tới 41,5 s của IMG_5116) và còn mẩu áo trắng bị cắt ở 28,5 s và 38,5 s. Đã thử "chỉ giữ mảng lớn nhất": làm mất chân, đã bỏ.
 2. **Bám theo tôi** đang dùng khung vẽ tay; có thể thêm tự bám người (cần mô hình phát hiện người, phải xin phép người dùng trước khi tải).
-3. **Người 3D**: chạy thử GVHMR trên máy 5060 thật (theo `docs/huong-dan-nguoi-3d-may-rtx.md`), kiểm trái phải và hướng; cho tệp động tác vào gói .zip; sau đó video cả đội → tự ra đội hình.
+3. **Người 3D**: đường ống GVHMR đã chạy end-to-end trên Colab T4 (xem mục 5, 2026-10-25). Còn: chạy trên **máy 5060 thật** (đường cu128 theo `docs/huong-dan-nguoi-3d-may-rtx.md` chưa thử), kiểm trái phải và hướng với video múa thật; cho tệp động tác vào gói .zip; sau đó video cả đội → tự ra đội hình.
 4. Thử trên **điện thoại thật** và với **nhiều video người khác nhau** (đến giờ chủ yếu thử bằng bản nhân bản của IMG_5116).
 
 ## 7. Bộ nhớ của Claude

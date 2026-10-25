@@ -7,7 +7,10 @@
 Ghi Lan.npz: joints_cam (T, 24, 3) khớp SMPL hệ camera OpenCV (mét) và fps của video.
 Sau đó ở máy nào cũng được: python -m choreo.pose3d Lan.npz --out the/
 
-CHƯA chạy thử trên máy thật (máy soạn không có card NVIDIA); tên hàm theo bản demo GVHMR.
+Đã chạy end-to-end trên Google Colab (GPU Tesla T4, torch 2.3.0+cu121, pytorch3d 0.7.6,
+numpy 1.23.5), chỉ cần SMPLX_NEUTRAL.npz ở inputs/checkpoints/body_models/smplx/. Lưu ý:
+bước này cần hmr4d_results.pt do demo.py lưu TRƯỚC khi vẽ video; nếu máy thiếu tệp SMPL (.pkl)
+thì chú thích render_incam/render_global trong tools/demo/demo.py, vẫn ra hmr4d_results.pt.
 """
 
 import argparse
