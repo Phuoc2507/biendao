@@ -77,6 +77,12 @@ Quy ước sân: khán giả ở phía **+Z**, x dương là bên **phải khán
 * **Bẫy Windows:** `python -m choreo.pose3d` in ký tự `→` làm bảng mã cp1252 lỗi `UnicodeEncodeError`; chạy với `PYTHONUTF8=1` (dữ liệu không sao, chỉ lỗi lúc in).
 * Chưa làm (vẫn như mục 6): đường cu128 cho 5060 thật vẫn chưa thử; tệp động tác chưa vào gói .zip; video cả đội → tự ra đội hình.
 
+Đợt 2026-10-26, **chạy loạt video văn nghệ thật trên Colab T4**: 5 video (videovannghe2 59 giây, và thư mục Drive gồm 4 video 9,5 giây, 14,8 giây, 65,9 giây, 160 giây) đều qua GVHMR, ra `.motion.json` và **múa được trong app** (nạp từng tệp cho D1, bật Người 3D, tua nhiều mốc thấy tư thế đổi). Tệp nằm ở `outputs/nguoi3d/` (đã gitignore, không commit vì là dữ liệu người thật và SMPL chỉ cho phi thương mại). Bài học:
+
+* **Colab thường có 12 GB RAM**: video 160 giây (4804 khung) bị hệ thống giết giữa chừng. Cắt bằng ffmpeg thành đoạn khoảng 80 giây, chạy GVHMR từng đoạn, rồi nối `joints_cam` hai đoạn theo trục thời gian (cùng fps) thành một `.npz` trước khi chạy `choreo.pose3d`. Video dưới 70 giây chạy một lần được.
+* **Lấy tệp lớn về qua đầu ra ô**: một ô in khoảng 170 nghìn ký tự là ổn, khoảng 760 nghìn ký tự làm công cụ treo tới hết giờ chờ. Cắt base64 thành mẩu 160 nghìn ký tự, in mỗi mẩu giữa dấu mốc, ghép ở máy và so MD5.
+* Khi tua lúc đang dừng trong ngăn trình duyệt bị ẩn, khung 3D đôi khi chưa vẽ lại (trông như đứng yên); bấm chạy một chút rồi dừng thì thấy đúng. Không phải lỗi dữ liệu.
+
 Đợt 2026-10-24, **người 3D từ video** (commit 22dcfa7, ac7b6a4):
 * Python `choreo/pose3d`: `.npz` 24 khớp SMPL hệ camera (từ GVHMR, script `gvhmr_dump.py` chạy trong môi trường GVHMR, **chưa chạy máy thật**) → `<ten>.motion.json` (format `choreo-motion` v1: fps, numFrames, jointNames 17 khớp, frames[T][17][3] mét hệ sân, giờ tính từ đầu video gốc). Lệnh `python -m choreo.pose3d a.npz --out the`. Test `tests/test_pose3d.py`.
 * App: thả `.motion.json` thì `motionTargets` (intake.ts) gắn vào vũ công trùng tên hoặc trùng tên video thẻ (cả bản nhân bản), lưu kho media, `VDancer.motionId`; GC giữ id này (`mediaIdsOf`, `variants.mediaIds`). `ui/StageAvatar.tsx` vẽ nhân vật Quaternius (rig dùng chung `src/rig/quaterniusRig.ts`, cả app cũ `GltfDancer`), giờ động tác = `canonTime(t).t - offsetSec`, xoay theo `facingAt`, lật gương = phản chiếu pose. Thẻ còn làm vùng bấm kéo vô hình. Nút **Người 3D** (`ui.avatars`) trong khung 3D. Nạp lười trong `Card`.
